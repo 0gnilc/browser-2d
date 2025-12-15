@@ -29,12 +29,12 @@ class Material {
       if (!data.month) {
         return reject(new Error('月为必填字段'));
       }
-      if (!data.year) {
-        return reject(new Error('年为必填字段'));
+      if (!data.day) {
+        return reject(new Error('日为必填字段'));
       }
 
-      const existsSql = 'SELECT * FROM material WHERE card = ? AND month = ? AND year = ?';
-      this.db.get(existsSql, [data.card, data.month, data.year], (err, row) => {
+      const existsSql = 'SELECT * FROM material WHERE card = ? AND month = ? AND day = ?';
+      this.db.get(existsSql, [data.card, data.month, data.day], (err, row) => {
         if (err) {
           return reject(err);
         }

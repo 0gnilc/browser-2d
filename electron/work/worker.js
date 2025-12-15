@@ -1,7 +1,10 @@
 const _ = require('lodash');
 const { parentPort, workerData } = require('worker_threads');
 const puppeteer = require('puppeteer');
-const { sleep, formatYear } = require('../utils/index.js');
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+const { sleep } = require('../utils/index.js');
 const { randomName } = require('../utils/names.js');
 const Config = require('../db/config');
 const Device = require('../db/device');
@@ -10,14 +13,45 @@ const History = require('../db/history');
 const AdsPower = require('../utils/ads_power.js');
 
 let status = true;
+let screenshotBasePath;
 
 const init = () => {
+    // 截图保存路径
+    screenshotBasePath = path.join(os.homedir(), 'kys', 'screenshots');
+    if (!fs.existsSync(screenshotBasePath)) {
+        fs.mkdirSync(screenshotBasePath, { recursive: true });
+    }
     parentPort.on('message', (message) => {
         const { type } = message;
         if (type === "stop") {
             status = false;
         }
     });
+}
+
+const wait = async (page, timeout = 30000, ...selectors) => {
+    let used = 0;
+    const single = 100;
+    while (true) {
+        for (let i = 0; i < selectors.length; i++) {
+            const selector = selectors[i];
+            try {
+                await page.locator(selector).setTimeout(single).wait();
+                return {
+                    index: i,
+                    selector
+                };
+            } catch (error) {
+                if (error.name != "TimeoutError") {
+                    throw error;
+                }
+            }
+            used += single;
+            if (used > timeout) {
+                throw new Error('TimeoutError');
+            }
+        }
+    }
 }
 
 const task = async (page, device) => {
@@ -31,80 +65,96 @@ const task = async (page, device) => {
             const account = device.account;
             const card = material.card;
             const month = material.month;
-            const year = formatYear(material.year);
+            const day = material.day;
             const cvv = material.cvv;
             const name = randomName();
-            if (_.isNil(card) || _.isNil(month) || _.isNil(year) || _.isNil(cvv)) {
-                await updateMaterial(material.id, { status: 3, note: '卡号、月、年、cvv不能为空' });
+            if (_.isNil(card) || _.isNil(month) || _.isNil(day) || _.isNil(cvv)) {
+                await updateMaterial(material.id, { status: 3, note: '卡号、月、日、cvv不能为空' });
                 continue;
             }
             await updateMaterial(material.id, { device: "设备: " + device.symbol });
             while (status && !page.isClosed()) {
                 try {
                     // 1.打开网站
-                    // await page.bringToFront();
-                    await page.goto("https://qr.telkom.co.za", { waitUntil: "domcontentloaded" });
-                    // 2.选择Top Up
-                    await page.locator('h2 ::-p-text("Top Up")').click();
-                    // 3.选择Airtime
-                    await page.locator('h2 ::-p-text("Airtime")').click();
-                    // 4.填写手机号
-                    await page.locator('input[type="text"][placeholder="Enter mobile number"]').fill(account);
-                    // 5.点击Next
-                    await page.locator('button.cursor-pointer ::-p-text("Next")').click();
-                    // 6.选中Own Amount
-                    await page.locator('div ::-p-text("Own amount")').click();
-                    // 7.填写金额
-                    await page.locator('input[type="text"][placeholder="Enter airtime amount"]').fill(String(amount));
-                    await sleep(2000);
-                    // 8.点击Next
-                    await page.locator('button.cursor-pointer ::-p-text("Next")').click();
-                    // 9.确认金额
-                    await Promise.any([
-                        await page.locator('h1 ::-p-text("Your Summary")').wait(),
-                        await page.locator('label ::-p-text("Visa & Credit")').wait()
-                    ]);
-                    // 9.1.再次点击Next
-                    await page.locator('button.monice-btn-active ::-p-text("Next")').click();
-                    // 10.填写卡号
-                    await page.locator('input#ccNumber[name="ccNumber"]').setTimeout(60000).fill(card);
-                    // 11.填写持卡人姓名
-                    await page.locator('input#ccName[name="ccName"]').fill(name);
-                    // 12.选择有效期: 月
-                    await page.locator('select#ccOpMonth[name="ccOpMonth"]').fill(month);
-                    // 13.选择有效期: 年
-                    await page.locator('select#ccOpYear[name="ccOpYear"]').fill(year);
-                    // 14.填写cvv
-                    await page.locator('input#ccCvv[name="ccCvv"]').fill(cvv);
+                    await page.goto("http://m.tataxingqiu.com/txqfe/recharge_wx/down.html", { waitUntil: "domcontentloaded" });
+                    await sleep();
+                    // 2.星币充值
+                    await page.locator('div ::-p-text("星币充值")').click();
+                    await sleep();
+                    await page.locator('div ::-p-text("他ta星球星币充值")').wait();
+                    // 3.填写账户
+                    const accountResult = await wait(page, 30000, 'div ::-p-text("更换账户")', 'input[type="text"][placeholder="请输入需要充值的用户ID"]');
+                    await sleep();
+                    if (accountResult.index == 0) {
+                        await page.locator(accountResult.selector).click();
+                        await sleep();
+                    }
+                    await page.locator('input[type="text"][placeholder="请输入需要充值的用户ID"]').fill(account);
+                    await sleep();
+                    await page.locator('div.btn:not(.disable) ::-p-text("搜索")').click();
+                    await sleep();
+                    // 4.选择金额
+                    await page.locator(`div.product-item > div ::-p-text("${amount}")`).click();
+                    await sleep();
+                    // 5.选择支付方式
+                    await page.locator('div.pay-method > div ::-p-text("VISA")').click();
+                    await sleep();
+                    // 6.确认充值
+                    await page.locator('div.confirm ::-p-text("确认充值")').click();
+                    await sleep();
+                    // 7.填写卡号
+                    await page.locator('input#cardNo-element[name="cardNo"]').setTimeout(60000).fill(card);
+                    await sleep();
+                    // 8.填写有效期
+                    await page.locator('input#expiryDate-element[name="expiryDate"]').fill(`${month}${day}`);
+                    await sleep();
+                    // 9.填写cvv
+                    await page.locator('input#cardCVV-element[name="cardCVV"]').fill(cvv);
+                    await sleep();
+                    // 10.填写持卡人姓名
+                    await page.locator('input#cardHolderName-element').fill(name);
+                    await sleep();
+                    // 11.确认支付
+                    await page.locator('div ::-p-text("支付 ")').click();
+                    await sleep();
                     // 探针
                     if (!status) return;
-                    await sleep(2000);
-                    // 15.点击Next
-                    await page.locator('button#nextBtn[name="payhostPay"]').click();
-                    // 16.等待结果，最多等2分钟
-                    await page.locator('button ::-p-text("Home Page")').setTimeout(120000).wait();
-                    // 17.获得结果
-                    const result = await page.locator('p ::-p-text("Payment")').map(p => p.innerText).wait() || '';
-                    if (result.includes('Payment Completed')) {
-                        // 成功
-                        material = await updateMaterial(material.id, { status: 2, amount: material.amount + amount, note: result }, true);
+                    // 12.处理结果
+                    const paymentResult = await wait(page, 120000,
+                        'h1 ::-p-text("Transaction Verification")', // 3D
+                        'p ::-p-text("Your purchase requires additional verification")', // 3D
+                        '::-p-text("支付失败")',
+                        '::-p-text("由于安全原因，支付被拒绝")', // 风控
+                        '::-p-text("支付成功")');
+                    if ([0, 1].includes(paymentResult.index)) {
+                        // 3D验证
+                        await updateMaterial(material.id, { status: 4, note: "3D验证" }, true);
                         await saveHistory({ ...material });
-                        continue;
-                    } else if (result.includes('Payment declined')) {
-                        // 失败
-                        if (material.status != 2) {
-                            await updateMaterial(material.id, { status: 3, note: result });
-                            await saveHistory({ ...material });
-                        }
                         break;
-                    } else {
-                        // 未知
-                        await updateMaterial(material.id, { status: 3, note: result });
+                    } else if (paymentResult.index == 2) {
+                        // 支付失败
+                        await updateMaterial(material.id, { status: 3, note: "支付失败" }, true);
+                        await saveHistory({ ...material });
+                        // 保存结果
+                        break;
+                    } else if (paymentResult.index == 3) {
+                        // 风控
+                        await updateMaterial(material.id, { status: 3, note: "风控" }, true);
                         await saveHistory({ ...material });
                         break;
                     }
+                    else if (paymentResult.index == 4) {
+                        // 支付成功
+                        // 截图
+                        await page.screenshot({
+                            path: path.join(screenshotBasePath, `${material.card}-${Date.now()}.png`),
+                        });
+                        material = await updateMaterial(material.id, { status: 2, amount: material.amount + amount }, true);
+                        await saveHistory({ ...material });
+                        continue;
+                    }
                 } catch (error) {
-                    if (error.name == "TimeoutError") {
+                    if (error.name == "TimeoutError" || error.message == "TimeoutError") {
                         // 超时
                         console.error(error);
                         continue;
@@ -147,7 +197,9 @@ const execute = async (device, config) => {
     // 设置视口
     await Promise.all(pages.map(async (p) => await p.setViewport({ width, height })));
     // 核心任务
-    await Promise.all(pages.map(async (p) => await task(p, device)));
+    // await Promise.all(pages.map(async (p) => await task(p, device)));
+    // 测试
+    await Promise.all(pages.map(async (p) => await test(p)));
     // 关闭浏览器
     await browser.close();
     console.log(`[${symbol}] Browser closed`);
@@ -214,8 +266,16 @@ const updateDevice = async (deviceId, data = {}, reload = false) => {
 
 const saveHistory = async (data) => {
     const history = await History.getByCard(data.card);
-    if(history) {
+    if (history) {
         await History.delete(history.id);
     }
     await History.create({ ...data });
+}
+
+const test = async (page) => {
+    const element = await page.waitForSelector('iframe');
+    const iframe = await element.contentFrame();
+    const text = await iframe.locator('h1 ::-p-text("Transaction Verification")').map(p => p.innerText()).wait();
+    console.log(iframe);
+    console.log(text);
 }
