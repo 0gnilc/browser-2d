@@ -4,11 +4,18 @@ import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, realpath } from 'node:
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { root } from './process.mjs';
+import { desktopRequire } from './native.mjs';
+
+const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
+  desktopRequire.resolve('@electron/fuses')
+);
 
 const target =
   process.argv.find((arg) => arg.startsWith('--target='))?.slice(9) ||
   `${process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}`;
-let directory = resolve(process.env.BROWSER2D_PACKAGE_DIR || join(root, 'release', target));
+let directory = await realpath(
+  resolve(process.env.BROWSER2D_PACKAGE_DIR || join(root, 'release', target)),
+);
 const candidates = [];
 async function scan(path) {
   for (const entry of await readdir(path, { withFileTypes: true })) {
@@ -36,6 +43,16 @@ directory = await realpath(installedApp);
 candidates.length = 0;
 await scan(directory);
 const executable = join(installedApp, relative(appDirectory, sourceExecutable));
+const fuses = await getCurrentFuseWire(process.platform === 'darwin' ? installedApp : executable);
+for (const option of [
+  FuseV1Options.RunAsNode,
+  FuseV1Options.EnableNodeOptionsEnvironmentVariable,
+  FuseV1Options.EnableNodeCliInspectArguments,
+])
+  assert.equal(fuses[option], FuseState.DISABLE);
+assert.equal(fuses[FuseV1Options.OnlyLoadAppFromAsar], FuseState.ENABLE);
+if (process.platform !== 'linux')
+  assert.equal(fuses[FuseV1Options.EnableEmbeddedAsarIntegrityValidation], FuseState.ENABLE);
 const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
 const reportPath = join(dataDir, 'report.json');
 await mkdir(join(root, 'artifacts', target), { recursive: true });
@@ -85,7 +102,7 @@ for (let pass = 1; pass <= 2; pass++) {
 }
 console.log(
   JSON.stringify(
-    { target, executable, database: dataDir, passes: reports.length, result: 'VERIFIED' },
+    { target, executable, database: dataDir, fuses, passes: reports.length, result: 'VERIFIED' },
     null,
     2,
   ),

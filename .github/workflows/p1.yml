@@ -57,5 +57,12 @@ jobs:
           name: p1-${{ matrix.target }}
           path: |
             artifacts/
-            release/
+            release/*/*.dmg
+            release/*/*.zip
+            release/*/*.exe
+            release/*/*.AppImage
+            release/*/*.deb
+            release/*/*.rpm
+            release/*/*.blockmap
+            release/*/build-context.json
           retention-days: 7
