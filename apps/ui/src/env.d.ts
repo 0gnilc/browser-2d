@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { Browser2dApi } from "@browser-2d/contracts/public";
+import type { Browser2dApi } from '@browser-2d/contracts/public';
 
 declare global {
   interface Window {

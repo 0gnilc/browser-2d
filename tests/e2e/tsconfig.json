@@ -1,0 +1,7 @@
+{
+  "extends": "../../internal/tsconfig/node.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["*.ts", "../../apps/ui/src/env.d.ts"]
+}

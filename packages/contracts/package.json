@@ -3,8 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { "./public": "./src/public/index.ts", "./host": "./src/host/index.ts" },
-  "dependencies": { "zod": "catalog:" },
-  "devDependencies": { "@browser-2d/tsconfig": "workspace:*", "typescript": "catalog:" },
-  "scripts": { "typecheck": "tsc --noEmit" }
+  "exports": {
+    "./public": "./src/public/index.ts",
+    "./host": "./src/host/index.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@browser-2d/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
 }

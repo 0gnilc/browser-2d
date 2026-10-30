@@ -17,10 +17,16 @@ export default defineConfig({
     },
   },
   ssr: { noExternal: ['@browser-2d/contracts', 'zod'] },
-  plugins: [{
-    name: 'worker-migrations',
-    closeBundle() {
-      cpSync(fileURLToPath(new URL('migrations', import.meta.url)), fileURLToPath(new URL('dist/migrations', import.meta.url)), { recursive: true });
+  plugins: [
+    {
+      name: 'worker-migrations',
+      closeBundle() {
+        cpSync(
+          fileURLToPath(new URL('migrations', import.meta.url)),
+          fileURLToPath(new URL('dist/migrations', import.meta.url)),
+          { recursive: true },
+        );
+      },
     },
-  }],
+  ],
 });

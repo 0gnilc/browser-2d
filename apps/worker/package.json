@@ -3,14 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { "./entry": "./dist/entry.cjs" },
-  "files": ["dist"],
+  "exports": {
+    "./entry": "./dist/entry.cjs"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test:storage": "vitest run --config vitest.config.ts"
   },
-  "dependencies": { "better-sqlite3": "catalog:" },
+  "dependencies": {
+    "better-sqlite3": "catalog:"
+  },
   "devDependencies": {
     "@browser-2d/contracts": "workspace:*",
     "@browser-2d/tsconfig": "workspace:*",

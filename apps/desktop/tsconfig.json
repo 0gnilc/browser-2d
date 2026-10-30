@@ -1,0 +1,7 @@
+{
+  "extends": "@browser-2d/tsconfig/node.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src/**/*.ts", "electron.vite.config.ts"]
+}

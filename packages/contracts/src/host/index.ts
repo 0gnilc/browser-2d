@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { cancelInputSchema, failureSchema, runResultSchema, snapshotResultSchema, snapshotSchema, startInputSchema } from '../public/index';
+import {
+  cancelInputSchema,
+  failureSchema,
+  runResultSchema,
+  snapshotResultSchema,
+  snapshotSchema,
+  startInputSchema,
+} from '../public/index';
 
 export const channels = {
   snapshot: 'work:snapshot',
@@ -15,8 +22,18 @@ export const initializeSchema = z.object({
 });
 export const requestSchema = z.discriminatedUnion('method', [
   z.object({ type: z.literal('request'), requestId: z.uuid(), method: z.literal('snapshot') }),
-  z.object({ type: z.literal('request'), requestId: z.uuid(), method: z.literal('start'), input: startInputSchema }),
-  z.object({ type: z.literal('request'), requestId: z.uuid(), method: z.literal('cancel'), input: cancelInputSchema }),
+  z.object({
+    type: z.literal('request'),
+    requestId: z.uuid(),
+    method: z.literal('start'),
+    input: startInputSchema,
+  }),
+  z.object({
+    type: z.literal('request'),
+    requestId: z.uuid(),
+    method: z.literal('cancel'),
+    input: cancelInputSchema,
+  }),
   z.object({ type: z.literal('request'), requestId: z.uuid(), method: z.literal('shutdown') }),
 ]);
 export type WorkerRequest = z.infer<typeof requestSchema>;
@@ -28,6 +45,10 @@ export const workerEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ready'), snapshot: snapshotSchema }),
   z.object({ type: z.literal('snapshot'), snapshot: snapshotSchema }),
   z.object({ type: z.literal('fatal'), message: z.string() }),
-  z.object({ type: z.literal('response'), requestId: z.uuid(), result: z.union([runResultSchema, snapshotResultSchema, shutdownResultSchema]) }),
+  z.object({
+    type: z.literal('response'),
+    requestId: z.uuid(),
+    result: z.union([runResultSchema, snapshotResultSchema, shutdownResultSchema]),
+  }),
 ]);
 export type WorkerEvent = z.infer<typeof workerEventSchema>;

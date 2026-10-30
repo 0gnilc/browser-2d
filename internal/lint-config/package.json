@@ -1,0 +1,12 @@
+{
+  "name": "@browser-2d/lint-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.mjs",
+  "dependencies": {
+    "@eslint/js": "catalog:",
+    "typescript-eslint": "catalog:",
+    "eslint-plugin-vue": "catalog:"
+  }
+}

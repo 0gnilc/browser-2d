@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import type { Run } from "@browser-2d/contracts/public";
-import { computed, inject, onMounted, onUnmounted, ref } from "vue";
-import { NAlert, NButton, NTag } from "naive-ui";
-import { bridgeKey } from "./bridge";
-import { useRunsStore } from "./runs";
+import type { Run } from '@browser-2d/contracts/public';
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
+import { NAlert, NButton, NTag } from 'naive-ui';
+import { bridgeKey } from './bridge';
+import { useRunsStore } from './runs';
 
 const store = useRunsStore();
 const api = inject(bridgeKey);
-const deviceId = ref("fixture-device");
+const deviceId = ref('fixture-device');
 const durationMs = ref(3000);
-const fixtureMode = import.meta.env.VITE_FIXTURE_MODE === "1";
+const fixtureMode = import.meta.env.VITE_FIXTURE_MODE === '1';
 const connectionLabel = computed(
   () =>
-    ({ connecting: "连接中", connected: "已连接", unavailable: "连接不可用" })[
-      store.connection
-    ],
+    ({ connecting: '连接中', connected: '已连接', unavailable: '连接不可用' })[store.connection],
 );
 const valid = computed(
   () =>
@@ -24,11 +22,11 @@ const valid = computed(
     durationMs.value >= 100 &&
     durationMs.value <= 30000,
 );
-const stateLabels: Record<Run["state"], string> = {
-  running: "运行中",
-  completed: "已完成",
-  cancelled: "已取消",
-  interrupted: "已中断",
+const stateLabels: Record<Run['state'], string> = {
+  running: '运行中',
+  completed: '已完成',
+  cancelled: '已取消',
+  interrupted: '已中断',
 };
 let disconnect = () => {};
 onMounted(() => {
@@ -37,7 +35,7 @@ onMounted(() => {
 onUnmounted(() => disconnect());
 
 function time(value: string) {
-  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+  return new Date(value).toLocaleString('zh-CN', { hour12: false });
 }
 </script>
 
@@ -52,53 +50,31 @@ function time(value: string) {
     <section class="intro">
       <p class="eyebrow">桌面运行时 · 验证工作台</p>
       <h1>基础架构验收<span class="heading-dot">.</span></h1>
-      <p class="description">
-        从界面到工作进程，核对任务的启动、取消与持久化记录。
-      </p>
+      <p class="description">从界面到工作进程，核对任务的启动、取消与持久化记录。</p>
     </section>
     <div class="environment">
       <span class="environment-label">合成任务 · 独立测试数据库</span>
-      <span>{{
-        fixtureMode
-          ? "界面预览模式 · 数据仅保存在当前页面"
-          : "仅执行受控计时任务"
-      }}</span>
+      <span>{{ fixtureMode ? '界面预览模式 · 数据仅保存在当前页面' : '仅执行受控计时任务' }}</span>
     </div>
     <section class="connection-panel" aria-label="运行时状态">
-      <div
-        class="connection"
-        data-testid="connection-status"
-        :data-state="store.connection"
-      >
+      <div class="connection" data-testid="connection-status" :data-state="store.connection">
         <span class="status-dot" :class="store.connection"></span
         ><strong>{{ connectionLabel }}</strong>
       </div>
       <div class="runtime-stat">
         <span>WORKER PID</span
-        ><strong data-testid="worker-pid">{{
-          store.snapshot?.workerPid ?? "—"
-        }}</strong>
+        ><strong data-testid="worker-pid">{{ store.snapshot?.workerPid ?? '—' }}</strong>
       </div>
       <div class="runtime-stat">
-        <span>快照版本</span
-        ><strong>{{ store.snapshot?.revision ?? "—" }}</strong>
+        <span>快照版本</span><strong>{{ store.snapshot?.revision ?? '—' }}</strong>
       </div>
-      <NButton
-        secondary
-        data-testid="refresh"
-        :disabled="!api"
-        @click="store.refresh"
+      <NButton secondary data-testid="refresh" :disabled="!api" @click="store.refresh"
         >刷新快照</NButton
       >
     </section>
-    <NAlert
-      v-if="store.error"
-      class="error-message"
-      type="error"
-      title="请求未完成"
-      role="alert"
-      >{{ store.error }}</NAlert
-    >
+    <NAlert v-if="store.error" class="error-message" type="error" title="请求未完成" role="alert">{{
+      store.error
+    }}</NAlert>
     <section class="task-panel">
       <div class="section-heading">
         <span class="section-number">01</span>
@@ -107,10 +83,7 @@ function time(value: string) {
           <p>使用独立设备标识，观察任务状态的完整变化。</p>
         </div>
       </div>
-      <form
-        class="task-form"
-        @submit.prevent="store.start(deviceId.trim(), durationMs)"
-      >
+      <form class="task-form" @submit.prevent="store.start(deviceId.trim(), durationMs)">
         <label class="field device-field"
           ><span>设备标识</span
           ><input
@@ -141,9 +114,7 @@ function time(value: string) {
           >启动合成任务 <span aria-hidden="true">↗</span></NButton
         >
       </form>
-      <p class="form-note">
-        100–30,000 毫秒。任务记录由工作进程写入测试数据库。
-      </p>
+      <p class="form-note">100–30,000 毫秒。任务记录由工作进程写入测试数据库。</p>
     </section>
     <section class="history-panel">
       <div class="section-heading history-heading">
@@ -215,12 +186,9 @@ function time(value: string) {
         </table>
       </div>
       <footer class="table-footer">
-        <span>当前工作进程会话</span
-        ><code>{{ store.snapshot?.epoch ?? "等待连接" }}</code>
+        <span>当前工作进程会话</span><code>{{ store.snapshot?.epoch ?? '等待连接' }}</code>
       </footer>
     </section>
-    <footer class="page-footer">
-      <span>Browser 2D</span><span>基础能力验证 / P1</span>
-    </footer>
+    <footer class="page-footer"><span>Browser 2D</span><span>基础能力验证 / P1</span></footer>
   </main>
 </template>

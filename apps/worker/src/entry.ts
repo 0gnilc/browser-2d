@@ -1,5 +1,10 @@
 import { failure } from '@browser-2d/contracts/public';
-import { initializeSchema, requestSchema, workerEventSchema, type WorkerEvent } from '@browser-2d/contracts/host';
+import {
+  initializeSchema,
+  requestSchema,
+  workerEventSchema,
+  type WorkerEvent,
+} from '@browser-2d/contracts/host';
 import { createRunService } from './service';
 
 const port = process.parentPort;
@@ -27,27 +32,48 @@ port.on('message', ({ data }: { data: unknown }) => {
   try {
     if (!service) {
       const input = initializeSchema.parse(data);
-      service = createRunService({ ...input, onSnapshot: (snapshot) => send({ type: 'snapshot', snapshot }) });
+      service = createRunService({
+        ...input,
+        onSnapshot: (snapshot) => send({ type: 'snapshot', snapshot }),
+      });
       send({ type: 'ready', snapshot: service.snapshot() });
       return;
     }
     const parsed = requestSchema.safeParse(data);
     if (!parsed.success) {
-      const envelope = requestSchema.options[0].pick({ type: true, requestId: true }).safeParse(data);
+      const envelope = requestSchema.options[0]
+        .pick({ type: true, requestId: true })
+        .safeParse(data);
       if (!envelope.success) throw new Error('Invalid worker request envelope');
-      send({ type: 'response', requestId: envelope.data.requestId, result: failure('INVALID_INPUT', 'Invalid task request') });
+      send({
+        type: 'response',
+        requestId: envelope.data.requestId,
+        result: failure('INVALID_INPUT', 'Invalid task request'),
+      });
       return;
     }
     const request = parsed.data;
     switch (request.method) {
       case 'snapshot':
-        send({ type: 'response', requestId: request.requestId, result: { ok: true, value: service.snapshot() } });
+        send({
+          type: 'response',
+          requestId: request.requestId,
+          result: { ok: true, value: service.snapshot() },
+        });
         break;
       case 'start':
-        send({ type: 'response', requestId: request.requestId, result: service.start(request.input) });
+        send({
+          type: 'response',
+          requestId: request.requestId,
+          result: service.start(request.input),
+        });
         break;
       case 'cancel':
-        send({ type: 'response', requestId: request.requestId, result: service.cancel(request.input) });
+        send({
+          type: 'response',
+          requestId: request.requestId,
+          result: service.cancel(request.input),
+        });
         break;
       case 'shutdown':
         service.close();

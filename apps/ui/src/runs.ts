@@ -1,13 +1,11 @@
-import type { Browser2dApi, Snapshot } from "@browser-2d/contracts/public";
-import { defineStore } from "pinia";
-import { computed, ref, shallowRef } from "vue";
+import type { Browser2dApi, Snapshot } from '@browser-2d/contracts/public';
+import { defineStore } from 'pinia';
+import { computed, ref, shallowRef } from 'vue';
 
-export const useRunsStore = defineStore("runs", () => {
+export const useRunsStore = defineStore('runs', () => {
   const snapshot = shallowRef<Snapshot>();
-  const connection = ref<"connecting" | "connected" | "unavailable">(
-    "connecting",
-  );
-  const error = ref("");
+  const connection = ref<'connecting' | 'connected' | 'unavailable'>('connecting');
+  const error = ref('');
   const busy = ref(false);
   const runs = computed(() => snapshot.value?.runs ?? []);
   let api: Browser2dApi | undefined;
@@ -18,12 +16,10 @@ export const useRunsStore = defineStore("runs", () => {
   function accept(value: Snapshot) {
     if (retiredEpochs.has(value.epoch)) return;
     const current = snapshot.value;
-    if (current?.epoch === value.epoch && current.revision > value.revision)
-      return;
-    if (current && current.epoch !== value.epoch)
-      retiredEpochs.add(current.epoch);
+    if (current?.epoch === value.epoch && current.revision > value.revision) return;
+    if (current && current.epoch !== value.epoch) retiredEpochs.add(current.epoch);
     snapshot.value = value;
-    connection.value = "connected";
+    connection.value = 'connected';
     updates++;
   }
 
@@ -31,19 +27,19 @@ export const useRunsStore = defineStore("runs", () => {
     error.value =
       reason instanceof Error
         ? reason.message
-        : typeof reason === "object" &&
+        : typeof reason === 'object' &&
             reason !== null &&
-            "message" in reason &&
-            typeof reason.message === "string"
+            'message' in reason &&
+            typeof reason.message === 'string'
           ? reason.message
-          : "请求失败，请重试。";
+          : '请求失败，请重试。';
     if (
-      typeof reason === "object" &&
+      typeof reason === 'object' &&
       reason !== null &&
-      "code" in reason &&
-      reason.code === "UNAVAILABLE"
+      'code' in reason &&
+      reason.code === 'UNAVAILABLE'
     ) {
-      connection.value = "unavailable";
+      connection.value = 'unavailable';
     }
   }
 
@@ -56,11 +52,11 @@ export const useRunsStore = defineStore("runs", () => {
       if (currentGeneration !== generation || before !== updates) return;
       if (result.ok) {
         accept(result.value);
-        error.value = "";
+        error.value = '';
       } else reject(result.error);
     } catch (reason) {
       if (currentGeneration !== generation || before !== updates) return;
-      connection.value = "unavailable";
+      connection.value = 'unavailable';
       reject(reason);
     }
   }
@@ -68,12 +64,12 @@ export const useRunsStore = defineStore("runs", () => {
   function connect(bridge: Browser2dApi | undefined) {
     api = bridge;
     const currentGeneration = ++generation;
-    connection.value = "connecting";
+    connection.value = 'connecting';
     busy.value = false;
-    error.value = "";
+    error.value = '';
     if (!bridge) {
-      connection.value = "unavailable";
-      error.value = "桌面连接不可用，请在桌面应用中打开。";
+      connection.value = 'unavailable';
+      error.value = '桌面连接不可用，请在桌面应用中打开。';
       return () => {};
     }
     let dispose = () => {};
@@ -83,7 +79,7 @@ export const useRunsStore = defineStore("runs", () => {
       });
       void refresh();
     } catch (reason) {
-      connection.value = "unavailable";
+      connection.value = 'unavailable';
       reject(reason);
     }
     return () => {
@@ -93,13 +89,11 @@ export const useRunsStore = defineStore("runs", () => {
     };
   }
 
-  async function command(
-    action: (bridge: Browser2dApi) => ReturnType<Browser2dApi["start"]>,
-  ) {
+  async function command(action: (bridge: Browser2dApi) => ReturnType<Browser2dApi['start']>) {
     if (!api || busy.value) return;
     const currentGeneration = generation;
     busy.value = true;
-    error.value = "";
+    error.value = '';
     try {
       const result = await action(api);
       if (currentGeneration !== generation) return;
