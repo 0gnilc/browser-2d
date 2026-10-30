@@ -35,4 +35,6 @@ Other targets are `mac-arm64`, `win-x64` and `linux-x64`. `package` creates a ru
 
 The native CI matrix in `.github/workflows/p1.yml` uses Windows, Intel macOS, Apple Silicon macOS and Ubuntu runners. A configured workflow is not proof of a passing target. Actual acceptance results are recorded separately.
 
+The [P0/P1 acceptance record](docs/implementation/p0-p1-acceptance.md) links the successful native matrix and records the verified scope and remaining production-release work.
+
 Read [the approved plan](docs/monorepo-refactor-plan.md) and [P0 source baseline](docs/implementation/p0-baseline.md) for scope, data ownership and later migration stages. `packages/contracts` provides the only shared runtime contract. `internal` contains engineering tools. Desktop depends on the worker's compiled executable package; it never imports worker business code or opens the database.

@@ -8,7 +8,7 @@
 
 协调者已核对本机为 macOS 15.7.5、Intel x64、Node 24.5.0，已安装 pnpm 10.33，P1 目标 pnpm 为 12.16.1。其余精确依赖以 P1 的 workspace catalog 和锁文件为准。
 
-协调者已核对 `0gnilc/browser-2d` 为私有仓库，远端无 heads、size 为 0、Actions 已启用、无 release。安装用户数量未知。这些仓库事实不能证明从未分发安装器。
+P0 开始时核对 `0gnilc/browser-2d` 为私有仓库，远端无 heads、size 为 0、Actions 已启用、无 release。此后为执行原生 CI，已推送原 main 基线和独立实现分支。安装用户数量未知，仓库事实不能证明从未分发安装器。
 
 旧清单保存在 [legacy-package.json](../../tests/fixtures/legacy-package.json)，标识为 `browser-bot` 0.0.1，描述为 Browser Bot。旧 Forge 配置包含 Squirrel、macOS ZIP、DEB 与 RPM，未显式声明 appId。已有安装身份和更新兼容性仍待核对。
 
@@ -42,7 +42,7 @@ P1 使用独立产品名 `Browser 2D Foundation`，提议 appId 为 `io.github.0
 
 [legacy-schema.sql](../../tests/fixtures/legacy-schema.sql) 只保存旧建表结构，不含用户行或凭据。四张表为 material、device、history、config，保留旧默认值与 `+8 hours` 时间表达式。它不是用户库备份，也不证明迁移已通过。P2 另建人工数据覆盖空值、重复记录、各种状态、WAL、较新版本与回滚。
 
-以下均为源码缺口，尚未通过旧应用运行复现，也不要求在 P1 修复。后续阶段需登记 Issue 并确定兼容规则。
+以下缺口由 [Issue #1](https://github.com/0gnilc/browser-2d/issues/1) 跟踪，不要求在 P1 修复。四列导入使用人工字符串做了纯函数复现，确认抛出 TypeError；其余项目仍为源码观察，未启动旧应用复现。后续阶段确定兼容规则并补齐行为验证。
 
 - P2、P5。导入只检查少于四列，却直接 trim 第五至第十列。缺列输入存在抛错路径。批量导入用最后一项回调报告全部完成，存在部分失败仍报告总条数的路径。
 - P2、P5。设备更新跳过空字符串与零金额。分页 SQL 使用 truthy 状态条件，数值 0 与 UI 字符串 `"0"` 行为不同。
@@ -54,4 +54,4 @@ P1 使用独立产品名 `Browser 2D Foundation`，提议 appId 为 `io.github.0
 
 已读取的 `apps/worker/tests/storage.test.ts` 包含接纳落库、完成快照、命令冲突、设备互斥、取消、正常关闭、重启 epoch、崩溃遗留 interrupted、历史保留与较新 schema 拒绝场景。`apps/ui/tests/Foundation.test.ts` 包含公共 bridge 发起任务、订阅释放、旧快照拒绝及错误呈现。此处只记录测试内容，执行结果由 P1 验收记录提供。
 
-P1 的定时合成任务不代表旧业务 CRUD、旧库迁移、真实浏览器、正式更新或四目标安装包已通过。P0 可复核命令为 `git show a0567c5:electron/db/database.js`、`git show a0567c5:src/utils/convert.js` 和 `rg -n 'onExport|onDeleteMaterial|onReset' src/views/history/index.vue`。
+P1 定时合成任务不代表旧业务 CRUD、旧库迁移、真实浏览器或正式更新已通过。实际四目标结果见[验收记录](p0-p1-acceptance.md)。P0 可复核命令为 `git show a0567c5:electron/db/database.js`、`git show a0567c5:src/utils/convert.js` 和 `rg -n 'onExport|onDeleteMaterial|onReset' src/views/history/index.vue`。
