@@ -41,14 +41,14 @@
     </div>
     <div class="material">
       <el-table :data="materials" height="100%" fit :border="true" size="small" stripe empty-text="暂无数据">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="card" label="卡号" width="210" />
-        <el-table-column prop="year" label="年" width="60" />
+        <el-table-column prop="id" label="ID" width="50" />
+        <el-table-column prop="card" label="卡号" width="150" />
         <el-table-column prop="month" label="月" width="60" />
-        <el-table-column prop="day" label="日" width="60" />
+        <el-table-column prop="year" label="年" width="60" />
         <el-table-column prop="cvv" label="cvv" width="80" />
-        <el-table-column prop="amount" label="成功金额" width="100" />
-        <el-table-column prop="device" label="设备" width="150" />
+        <el-table-column prop="name" label="姓名" width="80" show-overflow-tooltip/>
+        <el-table-column prop="amount" label="成功金额" width="100" show-overflow-tooltip/>
+        <el-table-column prop="device" label="设备" width="120" />
         <el-table-column prop="status" label="状态" width="80">
           <template #default="scope">
             <span style="color: var(--el-color-info);" v-if="scope.row.status == 0">待处理</span>
@@ -61,7 +61,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="note" label="说明" width="150" show-overflow-tooltip/>
-        <el-table-column prop="actions" label="操作">
+        <el-table-column prop="address" label="地址" width="120" show-overflow-tooltip/>
+        <el-table-column prop="city" label="城市" width="100" show-overflow-tooltip/>
+        <el-table-column prop="state" label="州" width="100" show-overflow-tooltip/>
+        <el-table-column prop="zip" label="邮编" width="100" show-overflow-tooltip/>
+        <el-table-column prop="country" label="国家" width="60" show-overflow-tooltip/>
+        <el-table-column prop="actions" align="center" label="操作" width="165" fixed="right">
           <template #default="scope">
             <el-button @click="onDeleteMaterial(scope.row)" size="small" :icon="Delete" type="danger">删除</el-button>
             <el-button @click="onResetMaterial(scope.row)" size="small" :icon="Refresh" type="warning">重置</el-button>

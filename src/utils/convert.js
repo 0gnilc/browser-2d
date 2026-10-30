@@ -1,5 +1,6 @@
 const REGEX = /----|----|--|\|\||\||\/|-/g;
 
+// 卡号|月/年|cvv|姓名|地址|城市|州|邮编|国家
 const convert = (text) => {
     if (!text || typeof text !== 'string') {
         return [];
@@ -14,7 +15,13 @@ const convert = (text) => {
         const month = parts[1].trim();
         const year = parts[2].trim();
         const cvv = parts[3].trim();
-        const extra = parts.length > 4 ? parts.slice(4).join("|") : "";
+        const name = parts[4].trim();
+        const address = parts[5].trim();
+        const city = parts[6].trim();
+        const state = parts[7].trim();
+        const zip = parts[8].trim();
+        const country = parts[9].trim();
+        const extra = parts.length > 10 ? parts.slice(10).join("|") : "";
         
         // card: 纯数字，不能小于10位
         if (card && (!/^\d+$/.test(card) || card.length < 10)) {
@@ -39,6 +46,12 @@ const convert = (text) => {
             year,
             cvv,
             extra,
+            name,
+            address,
+            city,
+            state,
+            zip,
+            country,
         }
     }).filter(item => item !== null);
 }

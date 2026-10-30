@@ -6,14 +6,20 @@ class Material {
     this.db = getDatabase();
   }
 
+  // // 卡号|月/年|cvv|姓名|地址|城市|州|邮编|国家
   /**
    * 新增料
    * @param {Object} data - 料数据
    * @param {string} data.card - 卡号（必填）
    * @param {string} data.month - 月（必填）
-   * @param {string} data.day - 日（必填）
-   * @param {string} data.cvv - CVV
-   * @param {string} data.year - 年
+   * @param {string} data.year - 年 (必填)
+   * @param {string} data.cvv - CVV (必填)
+   * @param {string} data.name - 姓名
+   * @param {string} data.address - 地址
+   * @param {string} data.city - 城市
+   * @param {string} data.state - 州
+   * @param {string} data.zip - 邮编
+   * @param {string} data.country - 国家
    * @param {string} data.extra - 额外数据
    * @param {number} data.amount - 金额
    * @param {number} data.status - 状态（0待处理、1处理中、2成功、3失败、43D验证、5余额不足、6其他）
@@ -32,6 +38,9 @@ class Material {
       if (!data.year) {
         return reject(new Error('年为必填字段'));
       }
+      if (!data.cvv) {
+        return reject(new Error('cvv为必填字段'));
+      }
 
       const existsSql = 'SELECT * FROM material WHERE card = ? AND month = ? AND year = ?';
       this.db.get(existsSql, [data.card, data.month, data.year], (err, row) => {
@@ -43,20 +52,25 @@ class Material {
         }
 
         const sql = `
-          INSERT INTO material (card, month, day, cvv, year, extra, status, device, note)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO material (card, month, year, cvv, name, address, city, state, zip, country, extra, status, device, note)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const params = [
           data.card,
           data.month,
-          data.day || null,
-          data.cvv || null,
           data.year,
-          data.extra || null,
+          data.cvv,
+          data.name,
+          data.address,
+          data.city,
+          data.state,
+          data.zip,
+          data.country,
+          data.extra,
           data.status || 0,
-          data.device || null,
-          data.note || null
+          data.device,
+          data.note
         ];
 
         this.db.run(sql, params, function (err) {
@@ -124,17 +138,37 @@ class Material {
         fields.push('month = ?');
         params.push(data.month);
       }
-      if (data.day) {
-        fields.push('day = ?');
-        params.push(data.day);
+      if (data.year) {
+        fields.push('year = ?');
+        params.push(data.year);
       }
       if (data.cvv) {
         fields.push('cvv = ?');
         params.push(data.cvv);
       }
-      if (data.year) {
-        fields.push('year = ?');
-        params.push(data.year);
+      if (data.name) {
+        fields.push('name = ?');
+        params.push(data.name);
+      }
+      if (data.address) {
+        fields.push('address = ?');
+        params.push(data.address);
+      }
+      if (data.city) {
+        fields.push('city = ?');
+        params.push(data.city);
+      }
+      if (data.state) {
+        fields.push('state = ?');
+        params.push(data.state);
+      }
+      if (data.zip) {
+        fields.push('zip = ?');
+        params.push(data.zip);
+      }
+      if (data.country) {
+        fields.push('country = ?');
+        params.push(data.country);
       }
       if (data.extra) {
         fields.push('extra = ?');

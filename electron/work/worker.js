@@ -27,13 +27,13 @@ const task = async (page, device) => {
             if (!material) {
                 break;
             }
-            const amount = device.amount;
-            const account = device.account;
             const card = material.card;
             const month = material.month;
-            const year = formatYear(material.year);
+            const year = material.year;
             const cvv = material.cvv;
-            const name = randomName();
+            const name = material.name || randomName();
+            const country = material.country || 'US';
+            const address = material.address || '';
             if (_.isNil(card) || _.isNil(month) || _.isNil(year) || _.isNil(cvv)) {
                 await updateMaterial(material.id, { status: 3, note: '卡号、月、年、cvv不能为空' });
                 continue;
@@ -43,66 +43,48 @@ const task = async (page, device) => {
                 try {
                     // 1.打开网站
                     // await page.bringToFront();
-                    await page.goto("https://qr.telkom.co.za", { waitUntil: "domcontentloaded" });
-                    // 2.选择Top Up
-                    await page.locator('h2 ::-p-text("Top Up")').click();
-                    // 3.选择Airtime
-                    await page.locator('h2 ::-p-text("Airtime")').click();
-                    // 4.填写手机号
-                    await page.locator('input[type="text"][placeholder="Enter mobile number"]').fill(account);
-                    // 5.点击Next
-                    await page.locator('button.cursor-pointer ::-p-text("Next")').click();
-                    // 6.选中Own Amount
-                    await page.locator('div ::-p-text("Own amount")').click();
-                    // 7.填写金额
-                    await page.locator('input[type="text"][placeholder="Enter airtime amount"]').fill(String(amount));
+                    await page.goto("https://claude.ai/upgrade/max", { waitUntil: "domcontentloaded" });
+                    // 2.选择Get Max plan
+                    await page.locator('button[type="button"] ::-p-text("Get Max plan")').click();
+                    // 3.点击20x more usage than Pro
+                    await page.locator('span ::-p-text("20x more usage than Pro")').click();
+                    // 4.填写Full name
+                    await page.locator('input[type="text"][id="billingAddress-nameInput"]').fill(name);
+                    // 5.选择Country or region
+                    await page.locator('select[id="billingAddress-countryInput"]').fill(country);
+                    // 6.填写Address
+                    await page.locator('input[type="text"][id="billingAddress-addressLine1Input"]').fill(address);
+                     // 7.填写卡号
+                    await page.locator('input[type="text"][id="payment-numberInput"]').fill(card);
+                    // 8.填写有效期
+                    await page.locator('input[type="text"][id="payment-expiryInput"]').fill(month + '/' + year);
+                    // 9.填写cvc/cvv
+                    await page.locator('input[type="text"][id="payment-cvcInput"]').fill(cvv);
                     await sleep(2000);
-                    // 8.点击Next
-                    await page.locator('button.cursor-pointer ::-p-text("Next")').click();
-                    // 9.确认金额
-                    await Promise.any([
-                        await page.locator('h1 ::-p-text("Your Summary")').wait(),
-                        await page.locator('label ::-p-text("Visa & Credit")').wait()
-                    ]);
-                    // 9.1.再次点击Next
-                    await page.locator('button.monice-btn-active ::-p-text("Next")').click();
-                    // 10.填写卡号
-                    await page.locator('input#ccNumber[name="ccNumber"]').setTimeout(60000).fill(card);
-                    // 11.填写持卡人姓名
-                    await page.locator('input#ccName[name="ccName"]').fill(name);
-                    // 12.选择有效期: 月
-                    await page.locator('select#ccOpMonth[name="ccOpMonth"]').fill(month);
-                    // 13.选择有效期: 年
-                    await page.locator('select#ccOpYear[name="ccOpYear"]').fill(year);
-                    // 14.填写cvv
-                    await page.locator('input#ccCvv[name="ccCvv"]').fill(cvv);
-                    // 探针
-                    if (!status) return;
-                    await sleep(2000);
-                    // 15.点击Next
-                    await page.locator('button#nextBtn[name="payhostPay"]').click();
-                    // 16.等待结果，最多等2分钟
-                    await page.locator('button ::-p-text("Home Page")').setTimeout(120000).wait();
-                    // 17.获得结果
-                    const result = await page.locator('p ::-p-text("Payment")').map(p => p.innerText).wait() || '';
-                    if (result.includes('Payment Completed')) {
-                        // 成功
-                        material = await updateMaterial(material.id, { status: 2, amount: material.amount + amount, note: result }, true);
-                        await saveHistory({ ...material });
-                        continue;
-                    } else if (result.includes('Payment declined')) {
-                        // 失败
-                        if (material.status != 2) {
-                            await updateMaterial(material.id, { status: 3, note: result });
-                            await saveHistory({ ...material });
-                        }
-                        break;
-                    } else {
-                        // 未知
-                        await updateMaterial(material.id, { status: 3, note: result });
-                        await saveHistory({ ...material });
-                        break;
-                    }
+                    // 10.点击Subscribe
+                    await page.locator('button ::-p-text("Subscribe")').click();
+                    // // 11.等待结果，最多等2分钟
+                    // await page.locator('button ::-p-text("Home Page")').setTimeout(120000).wait();
+                    // // 17.获得结果
+                    // const result = await page.locator('p ::-p-text("Payment")').map(p => p.innerText).wait() || '';
+                    // if (result.includes('Payment Completed')) {
+                    //     // 成功
+                    //     material = await updateMaterial(material.id, { status: 2, amount: material.amount + amount, note: result }, true);
+                    //     await saveHistory({ ...material });
+                    //     continue;
+                    // } else if (result.includes('Payment declined')) {
+                    //     // 失败
+                    //     if (material.status != 2) {
+                    //         await updateMaterial(material.id, { status: 3, note: result });
+                    //         await saveHistory({ ...material });
+                    //     }
+                    //     break;
+                    // } else {
+                    //     // 未知
+                    //     await updateMaterial(material.id, { status: 3, note: result });
+                    //     await saveHistory({ ...material });
+                    //     break;
+                    // }
                 } catch (error) {
                     if (error.name == "TimeoutError") {
                         // 超时
@@ -163,7 +145,7 @@ const execute = async (device, config) => {
         throw new Error('指纹浏览器URL不能为空');
     }
     if (_.isNil(config.adsPowerApiKey)) {
-        throw new Error('指纹浏览器APIKEY不能为空');
+        throw new Error('指纹浏览器API KEY不能为空');
     }
 
     // 校验设备配置
@@ -175,15 +157,15 @@ const execute = async (device, config) => {
     if (_.isNil(device.symbol)) {
         throw new Error('设备标识为空: ' + deviceId);
     }
-    if (_.isNil(device.amount)) {
-        throw new Error('金额不能为空: ' + deviceId);
-    }
-    if (_.isNil(device.account)) {
-        throw new Error('账户不能为空: ' + deviceId);
-    }
-    if (device.amount <= 0) {
-        throw new Error('金额不能小于等于0: ' + deviceId);
-    }
+    // if (_.isNil(device.amount)) {
+    //     throw new Error('金额不能为空: ' + deviceId);
+    // }
+    // if (_.isNil(device.account)) {
+    //     throw new Error('账户不能为空: ' + deviceId);
+    // }
+    // if (device.amount <= 0) {
+    //     throw new Error('金额不能小于等于0: ' + deviceId);
+    // }
     try {
         await execute(device, config);
         // 结束
