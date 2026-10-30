@@ -1,0 +1,4 @@
+{
+  "extends": "@browser-2d/tsconfig/web.json",
+  "include": ["src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"]
+}
