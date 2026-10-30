@@ -19,6 +19,7 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
 app.setName('Browser 2D Foundation');
+const rendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
 const dataDir = resolve(process.env.BROWSER2D_DATA_DIR || app.getPath('userData'));
 mkdirSync(dataDir, { recursive: true });
 app.setPath('userData', dataDir);
@@ -38,9 +39,8 @@ function allowedFrame(event: Electron.IpcMainInvokeEvent) {
   )
     return false;
   const url = new URL(event.senderFrame.url);
-  const devUrl = process.env.ELECTRON_RENDERER_URL;
-  return devUrl
-    ? url.origin === new URL(devUrl).origin
+  return rendererUrl
+    ? url.origin === new URL(rendererUrl).origin
     : url.protocol === 'app:' && url.hostname === 'ui';
 }
 for (const [method, channel] of Object.entries(channels)) {
@@ -144,6 +144,7 @@ async function verifyPackagedWindow() {
     platform: process.platform,
     arch: process.arch,
     packaged: app.isPackaged,
+    rendererUrl: window.webContents.getURL(),
     workerEntry: worker?.entry,
   };
   window.close();
@@ -226,7 +227,7 @@ async function startApplication() {
       void closeApplication();
     }
   });
-  if (process.env.ELECTRON_RENDERER_URL) await window.loadURL(process.env.ELECTRON_RENDERER_URL);
+  if (rendererUrl) await window.loadURL(rendererUrl);
   else await window.loadURL('app://ui/index.html');
   if (reportPath) await verifyPackagedWindow();
 }

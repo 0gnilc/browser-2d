@@ -97,8 +97,8 @@ for (let pass = 1; pass <= 2; pass++) {
     env: {
       ...process.env,
       BROWSER2D_DATA_DIR: dataDir,
-      BROWSER2D_NATIVE_BINDING: '',
-      ELECTRON_RENDERER_URL: '',
+      BROWSER2D_NATIVE_BINDING: join(dataDir, 'must-not-load.node'),
+      ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/must-not-load',
     },
   });
   const code = await new Promise((resolve, reject) => {
@@ -124,6 +124,8 @@ for (let pass = 1; pass <= 2; pass++) {
   );
   assert.equal(report.versions.electron, desktopRequire('electron/package.json').version);
   assert.equal(report.packaged, true);
+  assert.equal(new URL(report.rendererUrl).protocol, 'app:');
+  assert.equal(new URL(report.rendererUrl).hostname, 'ui');
   assert.equal(report.exitCode, 0);
   assert.equal(report.workerExited, true);
   assert.equal(report.result.nodeIsolation, true);
