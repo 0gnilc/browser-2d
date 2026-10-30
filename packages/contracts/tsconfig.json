@@ -1,0 +1,1 @@
+{"extends":"@browser-2d/tsconfig/base.json","compilerOptions":{"lib":["ES2022","DOM"]},"include":["src/**/*.ts"]}

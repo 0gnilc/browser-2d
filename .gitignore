@@ -1,6 +1,12 @@
-node_modules
-dist
-build
-out
+node_modules/
+dist/
+build/
+out/
+release/
+artifacts/
+.audit/
+.playwright/
+coverage/
 .DS_Store
 .idea/
+*.tsbuildinfo
