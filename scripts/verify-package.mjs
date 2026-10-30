@@ -117,6 +117,12 @@ for (let pass = 1; pass <= 2; pass++) {
   });
   assert.equal(code, 0, 'Packaged process failed');
   const report = JSON.parse(await readFile(reportPath, 'utf8'));
+  assert.equal(report.arch, target.endsWith('-arm64') ? 'arm64' : 'x64');
+  assert.equal(
+    report.platform,
+    target.startsWith('mac-') ? 'darwin' : target.startsWith('win-') ? 'win32' : 'linux',
+  );
+  assert.equal(report.versions.electron, desktopRequire('electron/package.json').version);
   assert.equal(report.packaged, true);
   assert.equal(report.exitCode, 0);
   assert.equal(report.workerExited, true);
