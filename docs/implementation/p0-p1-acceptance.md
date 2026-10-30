@@ -58,6 +58,8 @@ P1 使用 better-sqlite3 13.0.3 的随包 Node-API 二进制。元数据与平�
 
 在项目目录运行以下命令即可继续检查和开发。
 
+交付时已将 `/Volumes/fc/automator/browser-2d` 切换到实现分支，并完成一次干净的 pnpm 锁文件安装。该目录的 check、build、4 个 Electron 场景和成品验证再次通过。旧 npm 平铺依赖保存在 `/Volumes/fc/automator/browser-2d-dependencies-backup-j_bbfz2i`，当前 node_modules 不再包含未声明的 Element Plus 或 Puppeteer。原先由助手生成的未跟踪方案文档已先备份，没有覆盖新的用户修改。
+
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev
