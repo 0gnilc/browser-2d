@@ -164,6 +164,9 @@ settings:
 
 catalogs:
   default:
+    '@electron/asar':
+      specifier: 3.4.1
+      version: 3.4.1
     '@electron/fuses':
       specifier: 2.1.3
       version: 2.1.3
@@ -253,6 +256,9 @@ importers:
       '@browser-2d/test-utils':
         specifier: workspace:*
         version: link:internal/test-utils
+      '@electron/asar':
+        specifier: 'catalog:'
+        version: 3.4.1
       '@eslint/js':
         specifier: 'catalog:'
         version: 9.39.1
@@ -412,6 +418,10 @@ importers:
       '@vitejs/plugin-vue':
         specifier: 'catalog:'
         version: 6.0.10(vite@8.3.5(@types/node@24.5.2)(jiti@2.7.0))(vue@3.5.44(typescript@5.9.3))
+    devDependencies:
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.5(@types/node@24.5.2)(jiti@2.7.0)
 
   internal/lint-config:
     dependencies:
@@ -1524,6 +1534,7 @@ packages:
   eslint@9.39.1:
     resolution: {integrity: sha512-BhHmn2yNOFA9H9JmmIVKJmd288g9hrVRDkdoIgRCRuSySRUHH7r/DI6aAXW9T1WwUuY3DFgrcaqB+deURBLR5g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'

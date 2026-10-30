@@ -41,6 +41,7 @@
     "@types/node": "catalog:",
     "jsdom": "catalog:",
     "@browser-2d/lint-config": "workspace:*",
-    "@browser-2d/test-utils": "workspace:*"
+    "@browser-2d/test-utils": "workspace:*",
+    "@electron/asar": "catalog:"
   }
 }

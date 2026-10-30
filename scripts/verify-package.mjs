@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import asar from '@electron/asar';
 import { spawn } from 'node:child_process';
 import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -48,6 +49,33 @@ directory = await realpath(installedApp);
 candidates.length = 0;
 await scan(directory);
 const executable = join(installedApp, relative(appDirectory, sourceExecutable));
+const archive =
+  process.platform === 'darwin'
+    ? join(installedApp, 'Contents/Resources/app.asar')
+    : join(installedApp, 'resources/app.asar');
+const workerPrefix = '/node_modules/@browser-2d/worker-runtime';
+const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
+assert(
+  archiveFiles.includes(`${workerPrefix}/dist/entry.cjs`),
+  'Compiled worker entry missing from archive',
+);
+for (const entry of archiveFiles) {
+  if (!entry.startsWith('/node_modules/@browser-2d/')) continue;
+  assert(
+    entry === workerPrefix ||
+      entry === `${workerPrefix}/package.json` ||
+      entry === `${workerPrefix}/dist` ||
+      entry.startsWith(`${workerPrefix}/dist/`),
+    `Unexpected workspace file in package: ${entry}`,
+  );
+}
+function rejectArchiveLinks(files, path = '') {
+  for (const [name, entry] of Object.entries(files)) {
+    assert(!Object.hasOwn(entry, 'link'), `Unexpected archive link: ${path}/${name}`);
+    if (entry.files) rejectArchiveLinks(entry.files, `${path}/${name}`);
+  }
+}
+rejectArchiveLinks(asar.getRawHeader(archive).header.files);
 const fuses = await getCurrentFuseWire(process.platform === 'darwin' ? installedApp : executable);
 for (const option of [
   FuseV1Options.RunAsNode,
