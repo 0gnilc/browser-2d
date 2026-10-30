@@ -121,7 +121,12 @@ export function launchWorker(options: {
         exit,
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
-            if (child.pid) process.kill(child.pid, 'SIGKILL');
+            try {
+              if (child.pid) process.kill(child.pid, 'SIGKILL');
+            } catch (error) {
+              reject(error);
+              return;
+            }
             reject(new Error('Worker exit not confirmed'));
           }, 5_000);
         }),

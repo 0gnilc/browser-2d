@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from './process.mjs';
 import { desktopRequire } from './native.mjs';
@@ -21,9 +21,13 @@ const candidates = [];
 async function scan(path) {
   for (const entry of await readdir(path, { withFileTypes: true })) {
     const full = join(path, entry.name);
-    if (entry.isSymbolicLink())
-      assert((await realpath(full)).startsWith(directory), `Escaping package link ${full}`);
-    else if (entry.isDirectory()) await scan(full);
+    if (entry.isSymbolicLink()) {
+      const destination = relative(directory, await realpath(full));
+      assert(
+        !isAbsolute(destination) && destination.split(/[\\/]/)[0] !== '..',
+        `Escaping package link ${full}`,
+      );
+    } else if (entry.isDirectory()) await scan(full);
     else if (
       entry.name === 'browser-2d-foundation.exe' ||
       entry.name === 'browser-2d-foundation' ||

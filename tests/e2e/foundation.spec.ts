@@ -8,6 +8,15 @@ import { _electron as electron, expect, test } from '@playwright/test';
 const desktop = resolve('apps/desktop');
 const require = createRequire(join(desktop, 'package.json'));
 
+function terminateFixtureProcess(pid: number | undefined) {
+  if (!pid) return;
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error;
+  }
+}
+
 test('UI, isolated preload, real worker, SQLite persistence and graceful shutdown', async ({
   browserName: _browserName,
 }, testInfo) => {
@@ -124,6 +133,47 @@ test('worker crash fails shutdown and recovery never resumes the interrupted tas
     await expect(recovered.getByTestId('run-table')).toContainText('已中断');
     await expect(recovered.locator('[data-state="running"]')).toHaveCount(0);
   } finally {
+    await application.close().catch(() => undefined);
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('unresponsive worker cannot be reported as a clean shutdown', async ({
+  browserName: _browserName,
+}) => {
+  test.skip(
+    process.platform === 'win32',
+    'Windows has no POSIX stop signal; crash recovery is covered separately',
+  );
+  test.setTimeout(25_000);
+  const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-e2e-'));
+  const application = await electron.launch({
+    executablePath: require('electron'),
+    args: [desktop],
+    env: { ...process.env, BROWSER2D_DATA_DIR: dataDir },
+  });
+  let workerPid: number | undefined;
+  try {
+    const page = await application.firstWindow();
+    await expect(page.getByTestId('start-run')).toBeEnabled();
+    const pid = Number(await page.getByTestId('worker-pid').textContent());
+    workerPid = pid;
+    await application.evaluate((_, pid) => {
+      process.kill(pid, 'SIGSTOP');
+    }, workerPid);
+    const launchedProcess = application.process();
+    const exited = application.waitForEvent('close');
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.close());
+    await exited;
+    expect(launchedProcess.exitCode).toBe(1);
+    try {
+      process.kill(pid, 0);
+      throw new Error('Worker still exists');
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'ESRCH' });
+    }
+  } finally {
+    terminateFixtureProcess(workerPid);
     await application.close().catch(() => undefined);
     await rm(dataDir, { recursive: true, force: true });
   }

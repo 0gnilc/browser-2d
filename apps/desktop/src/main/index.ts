@@ -160,6 +160,10 @@ async function startApplication() {
     watch(control, () => {
       if (existsSync(join(control, 'stop'))) void closeApplication();
     });
+  if (control && existsSync(join(control, 'stop'))) {
+    await closeApplication();
+    return;
+  }
   const rendererRoot = join(__dirname, '../renderer');
   protocol.handle('app', async (request) => {
     const url = new URL(request.url);
@@ -196,6 +200,7 @@ async function startApplication() {
     },
   });
   await worker.ready;
+  if (quitting) return;
   if (process.argv.includes('--worker-only')) {
     log.info('Synthetic worker ready', { pid: worker.pid });
     return;

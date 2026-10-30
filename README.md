@@ -21,7 +21,7 @@ pnpm test:electron
 pnpm build
 ```
 
-`test` runs component tests. `test:storage` uses real temporary SQLite databases under host Node. `test:electron` covers the real UI/IPC/utility process, sender rejection, persistence, normal shutdown and crash recovery. better-sqlite3 13 ships Node-API platform binaries. Tests validate the driver in both runtimes without rebuilding the developer installation.
+`test` runs component tests. `test:storage` uses real temporary SQLite databases under host Node. `test:electron` covers the real UI/IPC/utility process, sender rejection, persistence, normal shutdown, crash recovery and unresponsive-worker handling on POSIX. better-sqlite3 13 ships Node-API platform binaries. Tests validate the driver in both runtimes. Packaging skips native rebuild and checks the pinned driver's prebuild policy before producing artifacts. A driver upgrade requires an explicit native-verification update.
 
 Packaging runs in a disposable workspace and refuses a target that does not match the host OS and architecture. It never uploads artifacts or uses signing credentials in P1.
 

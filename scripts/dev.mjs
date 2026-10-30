@@ -62,6 +62,7 @@ async function restart() {
       await pnpm(['build']);
       await stop();
       await rm(join(control, 'stop'), { force: true });
+      if (closing) return;
       child = spawn(
         desktopRequire('electron'),
         [join(root, 'apps/desktop'), ...(workerOnly ? ['--worker-only'] : [])],

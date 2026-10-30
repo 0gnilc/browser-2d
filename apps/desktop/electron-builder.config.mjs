@@ -9,6 +9,7 @@ export default {
   productName: 'Browser2DFoundation',
   executableName,
   asar: true,
+  npmRebuild: false,
   asarUnpack: ['**/*.node'],
   files: [
     'dist/**',

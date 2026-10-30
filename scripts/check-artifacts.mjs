@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { root } from './process.mjs';
+import { resolveNativeBinding } from './native.mjs';
+
+await resolveNativeBinding();
 
 for (const path of [
   'apps/worker/dist/entry.cjs',
