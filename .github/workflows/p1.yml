@@ -51,6 +51,16 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm verify:package -- --target=${{ matrix.target }}; else pnpm verify:package -- --target=${{ matrix.target }}; fi
+      - name: Install and run RPM in Fedora 44 userspace
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p artifacts/fedora44
+          sha256sum release/linux-x64/linux-unpacked/browser-2d-foundation | cut -d ' ' -f 1 > release/linux-x64/executable.sha256
+          docker run --rm --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
+            -v "$PWD/release/linux-x64:/artifacts:ro" \
+            -v "$PWD/scripts/verify-rpm.sh:/verify-rpm.sh:ro" \
+            -v "$PWD/artifacts/fedora44:/evidence" fedora:44 bash /verify-rpm.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -3,11 +3,12 @@ import { spawn } from 'node:child_process';
 import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { root } from './process.mjs';
 import { desktopRequire } from './native.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
-  desktopRequire.resolve('@electron/fuses')
+  pathToFileURL(desktopRequire.resolve('@electron/fuses')).href
 );
 
 const target =
