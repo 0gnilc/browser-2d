@@ -1,0 +1,57 @@
+# P0 静态基线
+
+记录日期为 2026-10-30，旧代码基准为 `a0567c519acd9ab13e9827e37b12566fd4b56ffe`。本文为[最终方案](../monorepo-refactor-plan.md)的行为对照表。表内旧行为均来自源码阅读，未运行旧应用，未读取用户数据库，未验证真实网站操作。
+
+旧入口会打开 `~/kys/data.db`、建表、重置处理中材料并更新设备状态，工作代码还会连接 AdsPower 与外部网站。因此，P0 采用静态检查和人工合成 fixture，不把未执行的行为写成通过。
+
+## 环境、身份与数据
+
+协调者已核对本机为 macOS 15.7.5、Intel x64、Node 24.5.0，已安装 pnpm 10.33，P1 目标 pnpm 为 12.16.1。其余精确依赖以 P1 的 workspace catalog 和锁文件为准。
+
+协调者已核对 `0gnilc/browser-2d` 为私有仓库，远端无 heads、size 为 0、Actions 已启用、无 release。安装用户数量未知。这些仓库事实不能证明从未分发安装器。
+
+旧清单保存在 [legacy-package.json](../../tests/fixtures/legacy-package.json)，标识为 `browser-bot` 0.0.1，描述为 Browser Bot。旧 Forge 配置包含 Squirrel、macOS ZIP、DEB 与 RPM，未显式声明 appId。已有安装身份和更新兼容性仍待核对。
+
+P1 使用独立产品名 `Browser 2D Foundation`，提议 appId 为 `io.github.0gnilc.browser2d.foundation`。默认使用该产品的独立 `userData`，允许显式指定 `BROWSER2D_DATA_DIR`。P1 只写合成库，绝不默认打开 `~/kys`。正式业务迁移、旧身份继承和数据目录决策属于 P2 与 P6。
+
+| 目标 | 首轮验收环境 | 当前证据 |
+| --- | --- | --- |
+| win-x64 | Windows 11 x64 | 待目标 runner 构建与运行 |
+| mac-arm64 | macOS 14 或之后的受支持版本 | 待独立构建与运行 |
+| mac-x64 | macOS 14 或之后的受支持版本 | 本机具备环境，实际结果另记 |
+| linux-x64 | Ubuntu 24.04 AppImage、DEB；Fedora 44 RPM | 待对应环境运行 |
+
+此表是目标范围。CI 配置存在、交叉编译成功或另一架构通过，均不等于当前目标已通过。
+
+## 旧流程与后续验收
+
+主页、历史、设置使用 hash 路由。主页可刷新设备与材料，打开搜索抽屉，进入历史或设置，再返回主页。源码依据为 `src/router/index.js`、`src/views/`、`src/utils/convert.js`、`electron/db/`、`electron/work/` 和 `electron/preload.js`。
+
+| 用户流程 | 静态观察到的实现 | P2 至 P5 的目标验收 |
+| --- | --- | --- |
+| 设备新增、编辑、删除、列表 | 表单含标识、账户、金额。标识必填；新建设备默认停止。按创建时间升序，删除有确认。 | CRUD 后刷新与重启一致；错误可见；零金额与清空可选字段有明确语义。 |
+| 材料导入 | 多行文本按竖线、斜线、短横线等拆分。字段依次为卡号、月、年、cvv、姓名、地址、城市、州、邮编、国家，其后合并为 extra。校验卡号至少十位数字、月 1 至 12、年为数字、cvv 至少三位数字。同卡号、月、年已有记录时拒绝。 | 合成有效行、无效行、缺列行、重复行与混合批次均有逐行结果；成功数等于实际落库数。 |
+| 材料分页与筛选 | 首屏每页 20 条，支持换页、改页长。卡号精确匹配，状态选项为字符串 0 至 6。搜索与清空条件回到第一页，按创建时间升序。 | 状态 0、空条件、末页和空结果可核对；筛选后的总数、行与页码一致。 |
+| 材料重置、删除、清空 | 单条重置把状态设为 0，并清空 device 与 note，保留金额。删除和清空有确认。启动预处理只将状态 1 改为 0。 | 重置保留其余数据；取消确认不写库；活动任务与材料修改冲突有明确结果。 |
+| 历史查询、清空、导出 | 按卡号、状态、创建时间区间筛选，支持分页、条件重置和返回主页。导出当前条件的全部记录，文件为 `history.txt`，每行为 `card\|month\|day\|cvv`，尾有换行；空结果显示提示。 | 列表、日期边界与导出集合一致；清空结果重启可读；day 与 year 的兼容规则需先决定。 |
+| 设置刷新与保存 | AdsPower URL、ApiKey、视口宽高、页面数五项，以字符串读写 config，批量保存使用事务。旧 API 可返回 ApiKey 明文。 | 五项持久化、输入校验和失败回滚；凭据只写公共入口，密文与引用重启可读。 |
+| 单设备与全部启动、停止 | UI 开关调用 start 或 stop，另有全部启动/重启、全部停止。每设备创建 Worker，收到 started 才返回；stop 发消息等待 stopped。设备状态为运行 1、停止 2、异常 3。 | 命令接纳与终态区分；设备互斥、逐项批量结果、持久化取消、超时和重复命令可核对。 |
+| 执行、刷新与退出 | Worker 连接 AdsPower，按配置创建页面与设置视口，认领最早待处理材料；发送重载通知。will-quit 调用关库与停止，但未等待。 | P3 验证恢复与关闭；P4 仅用受控目标验证页面并发和资源归属；P5 验证快照刷新与订阅释放。 |
+
+## fixture 与已知缺口
+
+[legacy-schema.sql](../../tests/fixtures/legacy-schema.sql) 只保存旧建表结构，不含用户行或凭据。四张表为 material、device、history、config，保留旧默认值与 `+8 hours` 时间表达式。它不是用户库备份，也不证明迁移已通过。P2 另建人工数据覆盖空值、重复记录、各种状态、WAL、较新版本与回滚。
+
+以下均为源码缺口，尚未通过旧应用运行复现，也不要求在 P1 修复。后续阶段需登记 Issue 并确定兼容规则。
+
+- P2、P5。导入只检查少于四列，却直接 trim 第五至第十列。缺列输入存在抛错路径。批量导入用最后一项回调报告全部完成，存在部分失败仍报告总条数的路径。
+- P2、P5。设备更新跳过空字符串与零金额。分页 SQL 使用 truthy 状态条件，数值 0 与 UI 字符串 `"0"` 行为不同。
+- P2、P5。历史删除绑定未定义的 `onDeleteMaterial`，重置按钮无处理器。历史导出取 day，材料导入取 year。真实执行的结果判断和 saveHistory 调用被注释。
+- P3。start 未 await `Device.get`，也未阻止同设备重复 Worker。启动预处理会覆盖处理中状态。退出清理未等待完成，未建立外部资源所有权台账。
+- P5。旧重载监听没有返回取消订阅函数，页面反复挂载有累积风险。
+
+## P1 合成覆盖边界
+
+已读取的 `apps/worker/tests/storage.test.ts` 包含接纳落库、完成快照、命令冲突、设备互斥、取消、正常关闭、重启 epoch、崩溃遗留 interrupted、历史保留与较新 schema 拒绝场景。`apps/ui/tests/Foundation.test.ts` 包含公共 bridge 发起任务、订阅释放、旧快照拒绝及错误呈现。此处只记录测试内容，执行结果由 P1 验收记录提供。
+
+P1 的定时合成任务不代表旧业务 CRUD、旧库迁移、真实浏览器、正式更新或四目标安装包已通过。P0 可复核命令为 `git show a0567c5:electron/db/database.js`、`git show a0567c5:src/utils/convert.js` 和 `rg -n 'onExport|onDeleteMaterial|onReset' src/views/history/index.vue`。
