@@ -52,6 +52,13 @@ export function createBusinessStore(db: Database.Database) {
     (id === undefined
       ? db.prepare('SELECT id FROM material WHERE status = 1').get()
       : db.prepare('SELECT id FROM material WHERE id = ? AND status = 1').get(id)) !== undefined;
+  const deviceReserved = (id: number) =>
+    db
+      .prepare(
+        "SELECT 1 FROM work_runs WHERE device_id = ? AND state IN ('queued','starting','running','stopping') UNION ALL SELECT 1 FROM work_resources WHERE device_id = ? AND state != 'resolved' LIMIT 1",
+      )
+      .get(id, id) !== undefined;
+  const deviceConflict = () => failure('CONFLICT', 'Device has active work or unresolved cleanup');
   const conflict = () => failure('CONFLICT', 'Material is currently claimed');
   function createMaterial(input: MaterialCreate): Result<Material> {
     if (input.status === 1) return failure('CONFLICT', 'Only a worker claim can enter processing');
@@ -224,13 +231,18 @@ export function createBusinessStore(db: Database.Database) {
       update: db.transaction((input: DeviceUpdate): Result<Device> => {
         if (db.prepare('SELECT id FROM device WHERE id = ?').get(input.id) === undefined)
           return failure('NOT_FOUND', 'Device does not exist');
+        if (deviceReserved(input.id)) return deviceConflict();
         patch('device', input);
         return { ok: true, value: deviceById(input.id) };
       }),
-      delete: ({ id }: { id: number }) => ({
-        ok: true as const,
-        value: { deleted: db.prepare('DELETE FROM device WHERE id = ?').run(id).changes },
-      }),
+      delete: db.transaction(({ id }: { id: number }) =>
+        deviceReserved(id)
+          ? deviceConflict()
+          : {
+              ok: true as const,
+              value: { deleted: db.prepare('DELETE FROM device WHERE id = ?').run(id).changes },
+            },
+      ),
     },
     materials: {
       page: db.transaction((input: MaterialQuery = {}) =>

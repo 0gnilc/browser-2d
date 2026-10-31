@@ -1,169 +1,333 @@
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runSchema, type RunResult, type Snapshot } from '@browser-2d/contracts/public';
-import { createRunService } from '../src/service';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type Result } from '@browser-2d/contracts/public';
+import { openBusinessStore } from '../src/storage/open-business-store';
+import { createControlledDriver } from '../src/work/controlled-driver';
+import { createWorkService, type ControlledDriver } from '../src/work/service';
+import type { Acquisition } from '../src/work/repository';
 
-let dataDir: string;
-const services: ReturnType<typeof createRunService>[] = [];
-function open(onSnapshot: (snapshot: Snapshot) => void = () => {}) {
-  const service = createRunService({ dataDir, onSnapshot });
-  services.push(service);
-  return service;
+let directory: string;
+const opened: Awaited<ReturnType<typeof openBusinessStore>>[] = [];
+const services: ReturnType<typeof createWorkService>[] = [];
+const gates: (() => void)[] = [];
+function gate() {
+  let release = () => {};
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  gates.push(release);
+  return { promise, release };
 }
-function accepted(result: RunResult) {
-  expect(result.ok).toBe(true);
+function value<T>(result: Result<T>): T {
   if (!result.ok) throw new Error(result.error.message);
   return result.value;
 }
-function input(deviceId = 'device-1') {
-  return { commandId: randomUUID(), deviceId, durationMs: 100 };
+async function open() {
+  const storage = await openBusinessStore({
+    path: join(directory, 'data.db'),
+    confirmLegacy: async () => true,
+    prepareLegacy: async () => {
+      throw new Error('Unexpected credential migration');
+    },
+    verifyCredential: async () => {},
+  });
+  opened.push(storage);
+  return storage;
+}
+function runtime(storage: Awaited<ReturnType<typeof open>>, driver?: ControlledDriver) {
+  const actual = driver ?? {
+    ...createControlledDriver({ root: join(directory, 'resources') }),
+    async execute() {},
+  };
+  const service = createWorkService({ repository: storage.work, driver: actual, publish() {} });
+  services.push(service);
+  return service;
+}
+function device(storage: Awaited<ReturnType<typeof open>>) {
+  return value(storage.store.devices.create({ symbol: randomUUID() })).id;
+}
+function start(service: ReturnType<typeof runtime>, deviceId: number) {
+  return value(service.start({ commandId: randomUUID(), deviceId }));
+}
+async function until(check: () => boolean) {
+  await expect.poll(check, { timeout: 3000, interval: 10 }).toBe(true);
 }
 beforeEach(() => {
-  dataDir = mkdtempSync(join(tmpdir(), 'browser-2d-worker-'));
-  vi.useFakeTimers();
+  directory = mkdtempSync(join(tmpdir(), 'browser-2d-work-'));
 });
-afterEach(() => {
-  for (const service of services.splice(0)) service.close();
-  vi.useRealTimers();
-  rmSync(dataDir, { recursive: true, force: true });
+afterEach(async () => {
+  for (const release of gates.splice(0)) release();
+  for (const service of services.splice(0)) await service.stop().catch(() => {});
+  for (const storage of opened.splice(0)) storage.store.close();
+  rmSync(directory, { recursive: true, force: true });
 });
 
-describe('synthetic run storage', () => {
-  it('persists acceptance before returning and publishes completion with an increasing revision', () => {
-    const snapshots: Snapshot[] = [];
-    const service = open((snapshot) => snapshots.push(snapshot));
-    const run = accepted(service.start(input()));
-    const reader = new Database(join(dataDir, 'synthetic.sqlite3'), { readonly: true });
-    try {
-      expect(
-        runSchema.parse(reader.prepare('SELECT * FROM runs WHERE id = ?').get(run.id)),
-      ).toEqual(run);
-    } finally {
-      reader.close();
+describe('durable work commands and resource lifecycle', () => {
+  it('replays immutable acceptance/refusal/cancellation across changes and restart, and rejects changed kind/input', async () => {
+    const storage = await open();
+    const service = runtime(storage);
+    const deviceId = device(storage);
+    const input = { commandId: randomUUID(), deviceId };
+    const receipt = service.start(input);
+    const runId = value(receipt).runId;
+    const cancel = { commandId: randomUUID(), runId };
+    const cancellation = service.cancel(cancel);
+    expect(service.start(input)).toEqual(receipt);
+    expect(service.cancel(cancel)).toEqual(cancellation);
+    expect(service.start({ ...input, deviceId: 999 })).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT' },
+    });
+    expect(service.cancel({ commandId: input.commandId, runId })).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT' },
+    });
+    const missing = { commandId: randomUUID(), deviceId: 999 };
+    const refusal = service.start(missing);
+    value(storage.store.devices.delete({ id: deviceId }));
+    await service.stop();
+    storage.store.close();
+    const second = await open();
+    const restarted = runtime(second);
+    expect(restarted.start(input)).toEqual(receipt);
+    expect(restarted.cancel(cancel)).toEqual(cancellation);
+    expect(restarted.start(missing)).toEqual(refusal);
+    expect(value(restarted.getCommand({ commandId: input.commandId }))).toEqual({
+      status: 'recorded',
+      receipt,
+    });
+    expect(value(restarted.getCommand({ commandId: randomUUID() }))).toEqual({ status: 'unknown' });
+  });
+  it('reserves all pages atomically, holds device mutation and freezes settings at acceptance', async () => {
+    const storage = await open();
+    const settings = value(storage.store.settings.get());
+    value(
+      storage.store.settings.commit({
+        expectedRevision: 0,
+        values: { ...settings, pageCount: 3 },
+        credential: { action: 'retain' },
+      }),
+    );
+    const barrier = gate();
+    const driver = {
+      ...createControlledDriver({ root: join(directory, 'resources') }),
+      async execute() {
+        await barrier.promise;
+      },
+    };
+    const service = runtime(storage, driver);
+    const ids = [device(storage), device(storage), device(storage)];
+    const receipts = ids.map((id) => start(service, id));
+    await until(() => service.snapshot().runs.some((run) => run.state === 'running'));
+    expect(service.snapshot().resources.map((resource) => resource.pages)).toEqual([3]);
+    expect(service.snapshot().runs.filter((run) => run.state === 'queued')).toHaveLength(2);
+    expect(readdirSync(join(directory, 'resources'))).toHaveLength(1);
+    for (const id of ids) {
+      expect(storage.store.devices.delete({ id })).toMatchObject({
+        ok: false,
+        error: { code: 'CONFLICT' },
+      });
+      expect(storage.store.devices.update({ id, symbol: 'changed' })).toMatchObject({
+        ok: false,
+        error: { code: 'CONFLICT' },
+      });
     }
-    expect(snapshots.map((snapshot) => snapshot.revision)).toEqual([1]);
-    vi.advanceTimersByTime(100);
-    expect(service.snapshot().runs[0]?.state).toBe('completed');
-    expect(snapshots.map((snapshot) => snapshot.revision)).toEqual([1, 2]);
-    expect(new Set(snapshots.map((snapshot) => snapshot.epoch)).size).toBe(1);
+    value(
+      storage.store.settings.commit({
+        expectedRevision: 1,
+        values: { ...settings, pageCount: 1 },
+        credential: { action: 'retain' },
+      }),
+    );
+    expect(
+      service
+        .snapshot()
+        .runs.every((run) => run.config.pageCount === 3 && run.config.revision === 1),
+    ).toBe(true);
+    const queued = receipts[1];
+    if (!queued) throw new Error('Missing queued run');
+    service.cancel({ commandId: randomUUID(), runId: queued.runId });
+    expect(service.snapshot().runs.find((run) => run.id === queued.runId)?.state).toBe('cancelled');
+    barrier.release();
+    await until(() =>
+      service.snapshot().runs.every((run) => ['completed', 'cancelled'].includes(run.state)),
+    );
+    expect(readdirSync(join(directory, 'resources'))).toEqual([]);
   });
-
-  it('replays the original acceptance for duplicate commands and rejects conflicting payloads or active devices', () => {
-    const service = open();
-    const command = input();
-    const first = service.start(command);
-    expect(service.start(command)).toEqual(first);
-    expect(service.snapshot().revision).toBe(1);
-    expect(service.start({ ...command, durationMs: 200 })).toMatchObject({
+  it('enforces the two-device limit and durably refuses oversized demand', async () => {
+    const storage = await open();
+    const barrier = gate();
+    const service = runtime(storage, {
+      ...createControlledDriver({ root: join(directory, 'resources') }),
+      async execute() {
+        await barrier.promise;
+      },
+    });
+    for (let index = 0; index < 4; index++) start(service, device(storage));
+    await until(
+      () => service.snapshot().runs.filter((run) => run.state === 'running').length === 2,
+    );
+    expect(service.snapshot().resources).toHaveLength(2);
+    expect(readdirSync(join(directory, 'resources'))).toHaveLength(2);
+    const settings = value(storage.store.settings.get());
+    value(
+      storage.store.settings.commit({
+        expectedRevision: 0,
+        values: { ...settings, pageCount: 5 },
+        credential: { action: 'retain' },
+      }),
+    );
+    const input = { commandId: randomUUID(), deviceId: device(storage) };
+    const refusal = service.start(input);
+    expect(refusal).toMatchObject({ ok: false, error: { code: 'CONFLICT' } });
+    value(
+      storage.store.settings.commit({
+        expectedRevision: 1,
+        values: settings,
+        credential: { action: 'retain' },
+      }),
+    );
+    expect(service.start(input)).toEqual(refusal);
+    barrier.release();
+    await until(() => service.snapshot().runs.every((run) => run.state === 'completed'));
+  });
+  it('records a successful acquisition after cancellation and cleans it without executing', async () => {
+    const storage = await open();
+    const acquired = gate();
+    const actual = createControlledDriver({ root: join(directory, 'resources') });
+    let executions = 0;
+    const service = runtime(storage, {
+      ...actual,
+      async acquire(intent) {
+        await acquired.promise;
+        return actual.acquire(intent, new AbortController().signal);
+      },
+      async execute() {
+        executions += 1;
+      },
+    });
+    const accepted = start(service, device(storage));
+    await until(() => service.snapshot().runs[0]?.state === 'starting');
+    service.cancel({ commandId: randomUUID(), runId: accepted.runId });
+    expect(service.snapshot().runs[0]?.state).toBe('stopping');
+    expect(service.snapshot().resources).toHaveLength(1);
+    acquired.release();
+    await until(() => service.snapshot().runs[0]?.state === 'cancelled');
+    expect(executions).toBe(0);
+    expect(readdirSync(join(directory, 'resources'))).toEqual([]);
+  });
+  it('keeps failed cleanup stopping with occupied capacity until a later bounded reconciliation succeeds', async () => {
+    const storage = await open();
+    const root = join(directory, 'resources');
+    const fixture = join(directory, 'fixture');
+    const actual = createControlledDriver({
+      root,
+      fixture: { directory: fixture, scenario: 'cleanup-fails' },
+    });
+    const service = runtime(storage, { ...actual, async execute() {} });
+    const id = device(storage);
+    start(service, id);
+    await until(() => service.snapshot().resources[0]?.failure === 'CLEANUP_FAILED');
+    expect(service.snapshot().runs[0]?.state).toBe('stopping');
+    expect(service.start({ commandId: randomUUID(), deviceId: id })).toMatchObject({
       ok: false,
       error: { code: 'CONFLICT' },
     });
-    expect(service.start({ ...command, deviceId: 'device-2' })).toMatchObject({
+    expect(storage.store.devices.delete({ id })).toMatchObject({
       ok: false,
       error: { code: 'CONFLICT' },
     });
-    expect(service.start(input())).toMatchObject({ ok: false, error: { code: 'CONFLICT' } });
-    vi.advanceTimersByTime(100);
-    expect(service.start(command)).toEqual(first);
-    expect(service.snapshot().runs).toHaveLength(1);
-    expect(service.snapshot().revision).toBe(2);
-    service.close();
-    const reopened = open();
-    expect(reopened.start(command)).toEqual(first);
-    expect(reopened.snapshot().runs[0]?.state).toBe('completed');
-    expect(reopened.snapshot().revision).toBe(0);
+    writeFileSync(join(fixture, 'allow-cleanup'), '');
+    await until(() => service.snapshot().runs[0]?.state === 'completed');
+    expect(readdirSync(root)).toEqual([]);
   });
-
-  it('cancels a timer, persists cancellation, and allows a new task on that device', () => {
-    const service = open();
-    const run = accepted(service.start(input()));
-    expect(service.cancel({ runId: run.id })).toMatchObject({
-      ok: true,
-      value: { state: 'cancelled' },
+  it('interrupts every previous nonterminal and reconciles a created resource whose result was never recorded', async () => {
+    const storage = await open();
+    const receipts = Array.from({ length: 4 }, () =>
+      value(storage.work.start({ commandId: randomUUID(), deviceId: device(storage) })),
+    );
+    const admitted = storage.work.admit();
+    if (!admitted) throw new Error('Missing admission');
+    const actual = createControlledDriver({ root: join(directory, 'resources') });
+    await actual.acquire(admitted.intent, new AbortController().signal);
+    expect(readdirSync(join(directory, 'resources'))).toHaveLength(1);
+    storage.store.close();
+    const db = new Database(join(directory, 'data.db'));
+    for (const [index, state] of ['queued', 'starting', 'running', 'stopping'].entries())
+      db.prepare('UPDATE work_runs SET state = ? WHERE id = ?').run(state, receipts[index]?.runId);
+    db.close();
+    const recovered = await open();
+    let executions = 0;
+    const service = runtime(recovered, {
+      ...actual,
+      async execute() {
+        executions += 1;
+      },
     });
-    const revision = service.snapshot().revision;
-    vi.advanceTimersByTime(100);
-    expect(service.snapshot().revision).toBe(revision);
-    expect(service.cancel({ runId: run.id })).toMatchObject({
-      ok: true,
-      value: { state: 'cancelled' },
-    });
-    expect(service.cancel({ runId: randomUUID() })).toMatchObject({
-      ok: false,
-      error: { code: 'NOT_FOUND' },
-    });
-    accepted(service.start(input()));
-    service.close();
-    const reopened = open();
-    expect(reopened.snapshot().runs.map((item) => item.state)).toEqual(['cancelled', 'cancelled']);
-  });
-
-  it('changes epochs on restart, preserves completed runs, and cancels every pending timer on normal close', () => {
-    const service = open();
-    const epoch = service.snapshot().epoch;
-    accepted(service.start(input()));
-    vi.advanceTimersByTime(100);
-    accepted(service.start(input('device-2')));
-    accepted(service.start(input('device-3')));
-    service.close();
-    expect(vi.getTimerCount()).toBe(0);
-    expect(service.start(input())).toMatchObject({ ok: false, error: { code: 'UNAVAILABLE' } });
-    const reopened = open();
-    expect(reopened.snapshot().epoch).not.toBe(epoch);
-    expect(reopened.snapshot().runs.map((run) => run.state)).toEqual([
-      'cancelled',
-      'cancelled',
-      'completed',
+    await until(() => service.snapshot().resources.length === 0);
+    expect(service.snapshot().runs.map((run) => run.state)).toEqual([
+      'interrupted',
+      'interrupted',
+      'interrupted',
+      'interrupted',
     ]);
+    expect(executions).toBe(0);
+    expect(readdirSync(join(directory, 'resources'))).toEqual([]);
+    await service.stop();
+    recovered.store.close();
+    expect(
+      runtime(await open())
+        .snapshot()
+        .runs.every((run) => run.state === 'interrupted'),
+    ).toBe(true);
   });
-
-  it('classifies persisted running rows left by a crash as interrupted without replaying them', () => {
-    const service = open();
-    const run = accepted(service.start(input()));
-    service.close();
-    const fixture = new Database(join(dataDir, 'synthetic.sqlite3'));
-    fixture
-      .prepare("UPDATE runs SET state = 'running', updatedAt = createdAt WHERE id = ?")
-      .run(run.id);
-    fixture.close();
-    const reopened = open();
-    expect(reopened.snapshot().runs[0]).toMatchObject({ id: run.id, state: 'interrupted' });
-    expect(vi.getTimerCount()).toBe(0);
-    vi.advanceTimersByTime(30_000);
-    expect(reopened.snapshot().runs[0]?.state).toBe('interrupted');
-    reopened.close();
-    expect(open().snapshot().runs[0]?.state).toBe('interrupted');
+  it('never deletes borrowed resources and retains unknown ownership as an obligation', async () => {
+    const storage = await open();
+    const actual = createControlledDriver({
+      root: join(directory, 'resources'),
+      fixture: { directory: join(directory, 'fixture'), scenario: 'borrowed' },
+    });
+    const service = runtime(storage, { ...actual, async execute() {} });
+    start(service, device(storage));
+    await until(() => service.snapshot().runs[0]?.state === 'completed');
+    expect(readdirSync(join(directory, 'fixture'))).toContain('borrowed-resource');
+    await service.stop();
+    const unknown = runtime(storage, {
+      async acquire(): Promise<Acquisition> {
+        throw new Error('Uncertain acquisition');
+      },
+      async execute() {},
+      async reconcile() {
+        return { kind: 'unknown' };
+      },
+      async release() {
+        throw new Error('Must not release unknown');
+      },
+    });
+    start(unknown, device(storage));
+    await until(() => unknown.snapshot().resources[0]?.failure === 'OWNERSHIP_UNCERTAIN');
+    expect(unknown.snapshot().runs[0]?.state).toBe('stopping');
   });
-
-  it('returns only the newest 100 runs while retaining older persisted command results', () => {
-    const service = open();
-    const first = input();
-    const result = service.start(first);
-    vi.advanceTimersByTime(100);
-    for (let index = 0; index < 100; index += 1) {
-      accepted(service.start(input()));
-      vi.advanceTimersByTime(100);
+  it('includes every active run and unresolved resource beyond bounded terminal history', async () => {
+    const storage = await open();
+    const id = device(storage);
+    const firstInput = { commandId: randomUUID(), deviceId: id };
+    const first = storage.work.start(firstInput);
+    storage.work.cancel({ commandId: randomUUID(), runId: value(first).runId });
+    for (let index = 0; index < 105; index++) {
+      const receipt = value(storage.work.start({ commandId: randomUUID(), deviceId: id }));
+      storage.work.cancel({ commandId: randomUUID(), runId: receipt.runId });
     }
-    const newest = service.snapshot().runs;
-    expect(newest).toHaveLength(100);
-    expect(newest[0]?.createdAt).not.toBe(newest[99]?.createdAt);
-    expect(service.start(first)).toEqual(result);
-    expect(service.snapshot().runs).toEqual(newest);
-  });
-
-  it('refuses newer or unrelated databases without changing their schema', () => {
-    const file = join(dataDir, 'synthetic.sqlite3');
-    const fixture = new Database(file);
-    fixture.exec('PRAGMA user_version = 2');
-    expect(() => open()).toThrow('Unsupported synthetic database schema');
-    expect(fixture.pragma('user_version', { simple: true })).toBe(2);
-    fixture.exec('PRAGMA user_version = 0; CREATE TABLE unrelated (value TEXT)');
-    expect(() => open()).toThrow('Synthetic database must be empty');
-    expect(fixture.pragma('user_version', { simple: true })).toBe(0);
-    fixture.close();
+    for (let index = 0; index < 105; index++)
+      storage.work.start({ commandId: randomUUID(), deviceId: device(storage) });
+    expect(storage.work.snapshot().runs.filter((run) => run.state === 'queued')).toHaveLength(105);
+    expect(storage.work.snapshot().runs.filter((run) => run.state === 'cancelled')).toHaveLength(
+      100,
+    );
+    expect(storage.work.start(firstInput)).toEqual(first);
   });
 });
