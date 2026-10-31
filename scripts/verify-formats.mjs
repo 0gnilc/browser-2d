@@ -28,6 +28,7 @@ await rm(join(evidence, 'format-summary.json'), { force: true });
 const context = await jsonFile(join(directory, 'build-context.json'));
 assert.equal(context.target, target);
 assert.equal(context.mode, 'preview', 'This rehearsal accepts preview artifacts only');
+assert.equal(context.dirty, false, 'Exact format verification requires a clean-source build');
 assert.equal(context.sourceCommit, gitState(root).sourceCommit, 'Artifact source is stale');
 assert.equal(context.lockSha256, await hashFile(join(root, 'pnpm-lock.yaml')), 'Lockfile mismatch');
 const inventory = await jsonFile(join(directory, 'artifact-inventory.json'));
