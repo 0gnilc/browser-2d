@@ -1,0 +1,8 @@
+
+ RUN  v5.0.5 /private/tmp/browser-2d-audit-profile-race/apps/worker
+
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  12:42:01
+   Duration  27.29s (tests 99%, import 1%)

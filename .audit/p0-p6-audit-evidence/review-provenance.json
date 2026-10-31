@@ -1,0 +1,10 @@
+{
+  "reviewTask": "/root/final_audit_trail_review",
+  "dispatchModel": "gpt-6-astra",
+  "dispatchReasoningEffort": "high",
+  "parentModel": "gpt-6.1-sol",
+  "verdict": "PASS",
+  "report": "final-audit-review.md",
+  "selfLabelMismatch": "The final agent reply labelled itself gpt-6.1-sol. The dispatch explicitly selected gpt-6-astra; report text is preserved rather than silently rewritten.",
+  "limits": "Dispatch configuration is recorded, not independent service-model attestation. Commit and tracker closure occurred after the review."
+}

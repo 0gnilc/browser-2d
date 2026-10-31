@@ -1,0 +1,782 @@
+﻿2026-10-31T15:32:13.7584126Z Current runner version: '2.338.2'
+2026-10-31T15:32:13.7610440Z ##[group]Runner Image Provisioner
+2026-10-31T15:32:13.7611216Z Hosted Compute Agent
+2026-10-31T15:32:13.7611772Z Version: 20261021.618
+2026-10-31T15:32:13.7612324Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-31T15:32:13.7612963Z Build Date: 2026-10-21T00:45:21Z
+2026-10-31T15:32:13.7613640Z Worker ID: {c94cca81-e3b1-47ef-910e-a35880e4152a}
+2026-10-31T15:32:13.7614272Z Region: westus3
+2026-10-31T15:32:13.7614772Z Cloud: Azure
+2026-10-31T15:32:13.7615236Z ##[endgroup]
+2026-10-31T15:32:13.7616504Z ##[group]Operating System
+2026-10-31T15:32:13.7617245Z Microsoft Windows Server 2025
+2026-10-31T15:32:13.7618017Z 10.0.26100
+2026-10-31T15:32:13.7618490Z Datacenter
+2026-10-31T15:32:13.7618966Z ##[endgroup]
+2026-10-31T15:32:13.7619435Z ##[group]Runner Image
+2026-10-31T15:32:13.7620021Z Image: windows-2025-vs2026
+2026-10-31T15:32:13.7620559Z Version: 20261021.278.1
+2026-10-31T15:32:13.7622140Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261021.278/images/windows/Windows2025-VS2026-Readme.md
+2026-10-31T15:32:13.7623649Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261021.278
+2026-10-31T15:32:13.7625061Z ##[endgroup]
+2026-10-31T15:32:13.7626089Z ##[group]GITHUB_TOKEN Permissions
+2026-10-31T15:32:13.7628130Z Contents: read
+2026-10-31T15:32:13.7628648Z Metadata: read
+2026-10-31T15:32:13.7629136Z ##[endgroup]
+2026-10-31T15:32:13.7631179Z Secret source: Actions
+2026-10-31T15:32:13.7631999Z Cache mode: write
+2026-10-31T15:32:13.7632660Z Prepare workflow directory
+2026-10-31T15:32:13.8051908Z Prepare all required actions
+2026-10-31T15:32:13.8116202Z Getting action download info
+2026-10-31T15:32:14.1109918Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-31T15:32:14.2434333Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-31T15:32:14.3964171Z Download action repository 'browser-actions/setup-chrome@v2' (SHA:48ad923757ca74d66703209fe939badbdf80f2f4)
+2026-10-31T15:32:14.8359670Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-31T15:32:15.1600030Z Complete job name: native (windows-2025, win-x64)
+2026-10-31T15:32:15.3331751Z ##[group]Run actions/checkout@v4
+2026-10-31T15:32:15.3333020Z with:
+2026-10-31T15:32:15.3333461Z   repository: 0gnilc/browser-2d
+2026-10-31T15:32:15.3337919Z   token: ***
+2026-10-31T15:32:15.3338340Z   ssh-strict: true
+2026-10-31T15:32:15.3338757Z   ssh-user: git
+2026-10-31T15:32:15.3339181Z   persist-credentials: true
+2026-10-31T15:32:15.3339637Z   clean: true
+2026-10-31T15:32:15.3340054Z   sparse-checkout-cone-mode: true
+2026-10-31T15:32:15.3340542Z   fetch-depth: 1
+2026-10-31T15:32:15.3340946Z   fetch-tags: false
+2026-10-31T15:32:15.3341374Z   show-progress: true
+2026-10-31T15:32:15.3341794Z   lfs: false
+2026-10-31T15:32:15.3342173Z   submodules: false
+2026-10-31T15:32:15.3342629Z   set-safe-directory: true
+2026-10-31T15:32:15.3343103Z   allow-unsafe-pr-checkout: false
+2026-10-31T15:32:15.3343970Z ##[endgroup]
+2026-10-31T15:32:15.5024844Z Syncing repository: 0gnilc/browser-2d
+2026-10-31T15:32:15.5026925Z ##[group]Getting Git version info
+2026-10-31T15:32:15.5027662Z Working directory is 'D:\a\browser-2d\browser-2d'
+2026-10-31T15:32:15.5857592Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-31T15:32:15.9709822Z git version 2.56.0.windows.2
+2026-10-31T15:32:15.9769993Z ##[endgroup]
+2026-10-31T15:32:15.9788289Z Temporarily overriding HOME='D:\a\_temp\8a83a199-1629-453f-8094-0370f39d7ce6' before making global git config changes
+2026-10-31T15:32:15.9790135Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T15:32:15.9803960Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\browser-2d\browser-2d
+2026-10-31T15:32:16.0736113Z Deleting the contents of 'D:\a\browser-2d\browser-2d'
+2026-10-31T15:32:16.0742313Z ##[group]Initializing the repository
+2026-10-31T15:32:16.0750734Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\browser-2d\browser-2d
+2026-10-31T15:32:16.1828866Z Initialized empty Git repository in D:/a/browser-2d/browser-2d/.git/
+2026-10-31T15:32:16.1883058Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/0gnilc/browser-2d
+2026-10-31T15:32:16.2568152Z ##[endgroup]
+2026-10-31T15:32:16.2569515Z ##[group]Disabling automatic garbage collection
+2026-10-31T15:32:16.2578685Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-31T15:32:16.2977679Z ##[endgroup]
+2026-10-31T15:32:16.2978389Z ##[group]Setting up auth
+2026-10-31T15:32:16.2997078Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T15:32:16.3460511Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-31T15:32:17.9113367Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T15:32:17.9565537Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-31T15:32:18.5151260Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T15:32:18.5581495Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-31T15:32:19.1339041Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-31T15:32:19.1742160Z ##[endgroup]
+2026-10-31T15:32:19.1742928Z ##[group]Fetching the repository
+2026-10-31T15:32:19.1760887Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +beeaba0c9fae03192714dbe51be753a882c0c6e5:refs/remotes/origin/codex/p0-p6-audit
+2026-10-31T15:32:20.6736645Z From https://github.com/0gnilc/browser-2d
+2026-10-31T15:32:20.6737818Z  * [new ref]         beeaba0c9fae03192714dbe51be753a882c0c6e5 -> origin/codex/p0-p6-audit
+2026-10-31T15:32:20.6785930Z ##[endgroup]
+2026-10-31T15:32:20.6786661Z ##[group]Determining the checkout info
+2026-10-31T15:32:20.6788651Z ##[endgroup]
+2026-10-31T15:32:20.6798240Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-31T15:32:20.7335688Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-31T15:32:20.7780360Z ##[group]Checking out the ref
+2026-10-31T15:32:20.7790325Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B codex/p0-p6-audit refs/remotes/origin/codex/p0-p6-audit
+2026-10-31T15:32:20.9227467Z Switched to a new branch 'codex/p0-p6-audit'
+2026-10-31T15:32:20.9508087Z branch 'codex/p0-p6-audit' set up to track 'origin/codex/p0-p6-audit'.
+2026-10-31T15:32:20.9560329Z ##[endgroup]
+2026-10-31T15:32:21.0067353Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-31T15:32:21.0416829Z beeaba0c9fae03192714dbe51be753a882c0c6e5
+2026-10-31T15:32:21.0909472Z ##[group]Run actions/setup-node@v4
+2026-10-31T15:32:21.0909898Z with:
+2026-10-31T15:32:21.0910097Z   node-version-file: .node-version
+2026-10-31T15:32:21.0910366Z   always-auth: false
+2026-10-31T15:32:21.0910572Z   check-latest: false
+2026-10-31T15:32:21.0913053Z   token: ***
+2026-10-31T15:32:21.0913238Z ##[endgroup]
+2026-10-31T15:32:21.2617054Z Node version file is not JSON file
+2026-10-31T15:32:21.2619279Z Resolved .node-version as 24.22.1
+2026-10-31T15:32:21.2701429Z Found in cache @ C:\hostedtoolcache\windows\node\24.22.1\x64
+2026-10-31T15:32:21.2709485Z (node:1924) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T15:32:21.2710638Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T15:32:21.2713244Z ##[group]Environment details
+2026-10-31T15:32:26.8819286Z node: v24.22.1
+2026-10-31T15:32:26.8819582Z npm: 11.19.1
+2026-10-31T15:32:26.8819756Z yarn: 1.22.22
+2026-10-31T15:32:26.8821430Z ##[endgroup]
+2026-10-31T15:32:26.9144457Z ##[group]Run npm install --global pnpm@12.16.1
+2026-10-31T15:32:26.9144920Z npm install --global pnpm@12.16.1
+2026-10-31T15:32:26.9873454Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:32:26.9873807Z ##[endgroup]
+2026-10-31T15:32:48.0176135Z
+2026-10-31T15:32:48.0181887Z added 2 packages in 20s
+2026-10-31T15:32:48.0204179Z npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+2026-10-31T15:32:48.0205147Z npm warn install-scripts   pnpm@12.16.1 (preinstall: node install.js; postinstall: node install.js)
+2026-10-31T15:32:48.0205724Z npm warn install-scripts
+2026-10-31T15:32:48.0206877Z npm warn install-scripts Run `npm install -g --allow-scripts=pnpm` to allow these scripts once, or `npm config set allow-scripts=pnpm --location=user` to allow them for all global installs.
+2026-10-31T15:32:49.2098800Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-31T15:32:49.2099244Z pnpm install --frozen-lockfile
+2026-10-31T15:32:49.2167843Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:32:49.2168190Z ##[endgroup]
+2026-10-31T15:32:49.6241874Z Scope: all 9 workspace projects
+2026-10-31T15:32:49.7798427Z ? Verifying lockfile against supply-chain policies (588 entries)...
+2026-10-31T15:32:50.1103098Z Packages are copied from the content-addressable store to the virtual store.
+2026-10-31T15:32:50.1104152Z   Content-addressable store is at: D:\.pnpm-store\v11
+2026-10-31T15:32:50.1118306Z   Virtual store is at:             node_modules/.pnpm
+2026-10-31T15:32:51.1302256Z Downloading naive-ui@2.45.3: 0.00 B/9.35 MB
+2026-10-31T15:32:51.2914341Z Downloading @rolldown/binding-win32-x64-msvc@1.2.16: 0.00 B/8.91 MB
+2026-10-31T15:32:51.5411984Z Downloading better-sqlite3@13.0.3: 0.00 B/11.40 MB
+2026-10-31T15:32:51.6152224Z Downloading electron-winstaller@5.4.0: 0.00 B/9.14 MB
+2026-10-31T15:32:52.6681302Z Progress: resolved 563, reused 0, downloaded 203, added 177
+2026-10-31T15:32:53.0061522Z ✓ Lockfile passes supply-chain policies (588 entries in 3.2s)
+2026-10-31T15:32:53.0062337Z Lockfile is up to date, resolution step is skipped
+2026-10-31T15:32:54.0079783Z Progress: resolved 563, reused 0, downloaded 324, added 310
+2026-10-31T15:32:55.0291971Z Progress: resolved 563, reused 0, downloaded 432, added 368
+2026-10-31T15:32:56.3451675Z Progress: resolved 563, reused 0, downloaded 556, added 368
+2026-10-31T15:32:57.3576156Z Progress: resolved 563, reused 0, downloaded 556, added 441
+2026-10-31T15:32:58.3627163Z Progress: resolved 563, reused 0, downloaded 563, added 561
+2026-10-31T15:32:58.8383453Z Packages: +563
+2026-10-31T15:32:58.8384096Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-31T15:32:59.2117933Z Progress: resolved 563, reused 0, downloaded 563, added 563, done
+2026-10-31T15:32:59.2739094Z
+2026-10-31T15:32:59.2739602Z devDependencies:
+2026-10-31T15:32:59.2740282Z + @browser-2d/lint-config <- internal/lint-config
+2026-10-31T15:32:59.2740860Z + @browser-2d/test-utils <- internal/test-utils
+2026-10-31T15:32:59.2741284Z + @electron/asar 3.4.1
+2026-10-31T15:32:59.2741657Z + @eslint/js 9.39.1
+2026-10-31T15:32:59.2742039Z + @playwright/test 1.64.1
+2026-10-31T15:32:59.2742678Z + @types/node 24.5.2
+2026-10-31T15:32:59.2743366Z + @vitejs/plugin-vue 6.0.10
+2026-10-31T15:32:59.2743786Z + @vue/test-utils 2.5.1
+2026-10-31T15:32:59.2744516Z + eslint 9.39.1
+2026-10-31T15:32:59.2744915Z + eslint-plugin-vue 10.5.1
+2026-10-31T15:32:59.2745642Z + jsdom 26.1.0
+2026-10-31T15:32:59.2745960Z + prettier 3.9.10
+2026-10-31T15:32:59.2746299Z + typescript 5.9.3
+2026-10-31T15:32:59.2746663Z + typescript-eslint 8.72.1
+2026-10-31T15:32:59.2747029Z + vite 8.3.5
+2026-10-31T15:32:59.2747343Z + vitest 5.0.5
+2026-10-31T15:32:59.2747658Z + yaml 2.9.1
+2026-10-31T15:32:59.2747831Z
+2026-10-31T15:32:59.3193265Z Done in 9.7s using pnpm v12.16.1
+2026-10-31T15:32:59.4287904Z ##[group]Run browser-actions/setup-chrome@v2
+2026-10-31T15:32:59.4288251Z with:
+2026-10-31T15:32:59.4288454Z   chrome-version: stable
+2026-10-31T15:32:59.4288685Z   install-dependencies: false
+2026-10-31T15:32:59.4288931Z   install-chromedriver: false
+2026-10-31T15:32:59.4289154Z   no-sudo: false
+2026-10-31T15:32:59.4289343Z ##[endgroup]
+2026-10-31T15:32:59.5330294Z Setup chrome stable
+2026-10-31T15:32:59.5343261Z Attempting to download chrome stable...
+2026-10-31T15:32:59.5705540Z Acquiring chrome stable from https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.80/win64/chrome-win64.zip
+2026-10-31T15:33:00.8256891Z Installing chrome...
+2026-10-31T15:33:00.9043742Z [command]"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command "$ErrorActionPreference = 'Stop' ; try { Add-Type -AssemblyName System.IO.Compression.ZipFile } catch { } ; try { [System.IO.Compression.ZipFile]::ExtractToDirectory('D:\a\_temp\b729062b-f1ad-42f1-a424-6452225fb134', 'D:\a\_temp\67302a90-93cb-4bbb-b8df-31e328c8e640', $true) } catch { if (($_.Exception.GetType().FullName -eq 'System.Management.Automation.MethodException') -or ($_.Exception.GetType().FullName -eq 'System.Management.Automation.RuntimeException') ){ Expand-Archive -LiteralPath 'D:\a\_temp\b729062b-f1ad-42f1-a424-6452225fb134' -DestinationPath 'D:\a\_temp\67302a90-93cb-4bbb-b8df-31e328c8e640' -Force } else { throw $_ } } ;"
+2026-10-31T15:33:03.2031389Z Successfully Installed chrome to C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64
+2026-10-31T15:33:03.2682700Z [command]C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command "(Get-Item (Get-Command 'C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe').Source).VersionInfo.ProductVersion"
+2026-10-31T15:33:06.1185564Z 156.0.8078.80
+2026-10-31T15:33:06.1677798Z Successfully setup chrome 156.0.8078.80
+2026-10-31T15:33:06.1992880Z ##[group]Run node scripts/prepare-test-chrome.mjs
+2026-10-31T15:33:06.1993314Z node scripts/prepare-test-chrome.mjs
+2026-10-31T15:33:06.2061592Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:33:06.2061933Z env:
+2026-10-31T15:33:06.2062264Z   CHROME_PATH: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:33:06.2062646Z ##[endgroup]
+2026-10-31T15:33:06.7143031Z ##[group]Run pnpm check
+2026-10-31T15:33:06.7143337Z pnpm check
+2026-10-31T15:33:06.7211469Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:33:06.7211820Z env:
+2026-10-31T15:33:06.7212226Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:33:06.7212684Z ##[endgroup]
+2026-10-31T15:33:07.1077885Z $ pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries
+2026-10-31T15:33:07.1465748Z $ prettier --check .
+2026-10-31T15:33:07.3156915Z Checking formatting...
+2026-10-31T15:33:10.8810500Z All matched files use Prettier code style!
+2026-10-31T15:33:11.0379865Z $ eslint apps packages internal tests/e2e
+2026-10-31T15:33:18.3761567Z $ pnpm -r --if-present typecheck && tsc --noEmit -p tests/e2e/tsconfig.json
+2026-10-31T15:33:18.4294378Z packages/contracts typecheck$ tsc --noEmit
+2026-10-31T15:33:20.2939653Z packages/contracts typecheck: Done
+2026-10-31T15:33:20.2946701Z apps/ui typecheck$ vue-tsc --noEmit
+2026-10-31T15:33:20.2947257Z apps/worker typecheck$ tsc --noEmit
+2026-10-31T15:33:24.7759406Z apps/worker typecheck: Done
+2026-10-31T15:33:26.3231441Z apps/ui typecheck: Done
+2026-10-31T15:33:26.3236211Z apps/desktop typecheck$ tsc --noEmit
+2026-10-31T15:33:28.7084497Z apps/desktop typecheck: Done
+2026-10-31T15:33:31.6611932Z $ node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs
+2026-10-31T15:33:32.2759994Z Workspace manifests and source boundaries verified.
+2026-10-31T15:33:32.9837559Z ✔ the actual workspace graph allows build tooling and worker runtime resolution (319.7264ms)
+2026-10-31T15:33:33.6907210Z ✔ retired root forge.config.js cannot reintroduce a second toolchain (707.5498ms)
+2026-10-31T15:33:34.0779176Z ✔ retired root vite.config.js cannot reintroduce a second toolchain (387.1077ms)
+2026-10-31T15:33:34.4072180Z ✔ retired root package-lock.json cannot reintroduce a second toolchain (329.0562ms)
+2026-10-31T15:33:34.7316792Z ✔ retired dependency @electron-forge/cli cannot reenter a workspace manifest (324.4943ms)
+2026-10-31T15:33:35.0540338Z ✔ retired dependency element-plus cannot reenter a workspace manifest (322.1872ms)
+2026-10-31T15:33:35.4080242Z ✔ retired dependency sqlite3 cannot reenter a workspace manifest (353.7156ms)
+2026-10-31T15:33:35.7606235Z ✔ public contracts cannot re-export host (352.5761ms)
+2026-10-31T15:33:36.0820809Z ✔ public contracts cannot use bare Node builtins (321.2178ms)
+2026-10-31T15:33:36.3955079Z ✔ UI side-effect imports cannot load Node (313.4762ms)
+2026-10-31T15:33:36.7237549Z ✔ UI dynamic imports cannot load Electron (328.2198ms)
+2026-10-31T15:33:37.0506742Z ✔ Vue script imports are checked (326.7789ms)
+2026-10-31T15:33:37.3872196Z ✔ Vue external scripts are checked (336.4213ms)
+2026-10-31T15:33:37.7307195Z ✔ applications cannot import another application source (343.3981ms)
+2026-10-31T15:33:38.0557813Z ✔ applications cannot import the worker implementation (325.045ms)
+2026-10-31T15:33:38.3663456Z ✔ production imports cannot use internal tooling (310.4311ms)
+2026-10-31T15:33:38.6649755Z ✔ desktop cannot load SQLite through require (298.4851ms)
+2026-10-31T15:33:38.9759753Z ✔ desktop cannot load builtin SQLite (310.936ms)
+2026-10-31T15:33:39.2762827Z ✔ worker cannot load UI frameworks (300.1804ms)
+2026-10-31T15:33:39.6100844Z ✔ source imports require declared dependencies (333.7972ms)
+2026-10-31T15:33:39.9133747Z ✔ workspace imports must use exported subpaths (303.0552ms)
+2026-10-31T15:33:40.2181778Z ✔ import type expressions are checked (304.6963ms)
+2026-10-31T15:33:40.5267380Z ✔ public contracts cannot hide a privileged import in a shared helper (308.4395ms)
+2026-10-31T15:33:40.8562100Z ✔ workspace manifest cycles fail even without source imports (329.3939ms)
+2026-10-31T15:33:41.1654779Z ✔ source cycles fail even without a manifest cycle (309.2602ms)
+2026-10-31T15:33:41.4682544Z ✔ desktop cannot declare SQLite in any dependency field (302.4848ms)
+2026-10-31T15:33:41.7867324Z ✔ app manifests cannot create a worker to UI dependency (318.3584ms)
+2026-10-31T15:33:42.0838210Z ✔ unknown workspace packages fail (297.2179ms)
+2026-10-31T15:33:42.4447085Z ✔ import-like text in comments and strings is not an import (360.7599ms)
+2026-10-31T15:33:42.7414946Z ✔ UI manifests cannot declare Electron (296.7432ms)
+2026-10-31T15:33:43.4201132Z ✔ public contracts cannot import UI frameworks (678.4111ms)
+2026-10-31T15:33:43.7304666Z ✔ computed runtime imports cannot bypass the static graph (310.3832ms)
+2026-10-31T15:33:44.0295928Z ✔ worker runtime resolution must use a compiled export (299.0428ms)
+2026-10-31T15:33:44.3249213Z ✔ TypeScript helpers imported through emitted .js names are checked (295.0569ms)
+2026-10-31T15:33:44.6409145Z ✔ browser conditional exports cannot expose host contracts to UI (315.87ms)
+2026-10-31T15:33:44.9875271Z ✔ computed imports in package-root helpers reachable from public contracts fail (346.5732ms)
+2026-10-31T15:33:45.0196284Z ℹ tests 36
+2026-10-31T15:33:45.0196674Z ℹ suites 0
+2026-10-31T15:33:45.0196947Z ℹ pass 36
+2026-10-31T15:33:45.0197204Z ℹ fail 0
+2026-10-31T15:33:45.0197479Z ℹ cancelled 0
+2026-10-31T15:33:45.0197793Z ℹ skipped 0
+2026-10-31T15:33:45.0198083Z ℹ todo 0
+2026-10-31T15:33:45.0199835Z ℹ duration_ms 12672.4941
+2026-10-31T15:33:45.0865997Z ##[group]Run pnpm test
+2026-10-31T15:33:45.0866359Z pnpm test
+2026-10-31T15:33:45.0938118Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:33:45.0938450Z env:
+2026-10-31T15:33:45.0938824Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:33:45.0939258Z ##[endgroup]
+2026-10-31T15:33:45.4608216Z $ vitest run
+2026-10-31T15:33:45.9790003Z
+2026-10-31T15:33:45.9794034Z  RUN  v5.0.5 D:/a/browser-2d/browser-2d
+2026-10-31T15:33:45.9797066Z
+2026-10-31T15:33:48.7474902Z  ✓ apps/ui/tests/Updates.test.ts (3 tests) 230ms
+2026-10-31T15:33:51.5583133Z stderr | apps/ui/tests/Foundation.test.ts > scheduling screen > keeps the development fixture explicitly unavailable
+2026-10-31T15:33:51.5584873Z [Vue Router warn]: No match found for location with path "/devices"
+2026-10-31T15:33:51.5585697Z [Vue Router warn]: No match found for location with path "/materials"
+2026-10-31T15:33:51.5586462Z [Vue Router warn]: No match found for location with path "/history"
+2026-10-31T15:33:51.5587210Z [Vue Router warn]: No match found for location with path "/settings"
+2026-10-31T15:33:51.5587666Z
+2026-10-31T15:33:51.5748109Z stderr | apps/ui/tests/Foundation.test.ts > scheduling screen > keeps the development fixture explicitly unavailable
+2026-10-31T15:33:51.5749997Z [Vue Router warn]: No match found for location with path "/devices"
+2026-10-31T15:33:51.5750956Z [Vue Router warn]: No match found for location with path "/materials"
+2026-10-31T15:33:51.5751880Z [Vue Router warn]: No match found for location with path "/history"
+2026-10-31T15:33:51.5752794Z [Vue Router warn]: No match found for location with path "/settings"
+2026-10-31T15:33:51.5753351Z
+2026-10-31T15:33:51.5920388Z  ✓ apps/ui/tests/Foundation.test.ts (19 tests) 2644ms
+2026-10-31T15:33:51.5921385Z    ✓ scheduling screen (19)
+2026-10-31T15:33:51.5922446Z      ✓ starts with a numeric business device and treats the receipt as acceptance 347ms
+2026-10-31T15:33:51.5923953Z      ✓ keeps one subscription and pending command through repeated route navigation 635ms
+2026-10-31T15:33:51.6338489Z stderr | apps/ui/tests/Business.test.ts > business screens > reports an absent desktop API and an explicitly unavailable preview API
+2026-10-31T15:33:51.6340128Z [Vue warn]: injection "Symbol(browser2d)" not found.
+2026-10-31T15:33:51.6340731Z   at <Devices ref="VTU_COMPONENT" >
+2026-10-31T15:33:51.6341475Z   at <VTUROOT>
+2026-10-31T15:33:51.6341693Z
+2026-10-31T15:33:51.6980204Z  ✓ apps/ui/tests/Business.test.ts (8 tests) 2802ms
+2026-10-31T15:33:51.6981140Z    ✓ business screens (8)
+2026-10-31T15:33:51.6981885Z      ✓ preserves zero, null and an existing empty string when editing a device 577ms
+2026-10-31T15:33:51.6982678Z      ✓ shows actual committed import count and each original line outcome 574ms
+2026-10-31T15:33:51.6983499Z      ✓ filters status zero, changes pages, and preserves nullable material fields on edit 595ms
+2026-10-31T15:33:51.6984285Z      ✓ surfaces a processing conflict and keeps the material visible 329ms
+2026-10-31T15:33:51.6985103Z      ✓ saves launch and connect settings with the current revision and no credential controls 303ms
+2026-10-31T15:33:51.7052788Z
+2026-10-31T15:33:51.7057217Z  Test Files  3 passed (3)
+2026-10-31T15:33:51.7061658Z       Tests  30 passed (30)
+2026-10-31T15:33:51.7062583Z    Start at  15:33:45
+2026-10-31T15:33:51.7065493Z    Duration  5.72s (tests 42%, import 36%, environment 15%, transform 7%)
+2026-10-31T15:33:51.7076262Z
+2026-10-31T15:33:51.8344009Z ##[group]Run pnpm test:release
+2026-10-31T15:33:51.8344346Z pnpm test:release
+2026-10-31T15:33:51.8414226Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:33:51.8414563Z env:
+2026-10-31T15:33:51.8415120Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:33:51.8415585Z ##[endgroup]
+2026-10-31T15:33:52.2063268Z $ node --test scripts/release.test.mjs
+2026-10-31T15:33:52.4047650Z ✔ builder receives the installed updater version instead of the pnpm catalog protocol (8.8982ms)
+2026-10-31T15:33:52.4842083Z ✔ staging rejects a descendant whose name only begins with two dots (5.3144ms)
+2026-10-31T15:33:52.4846851Z ✔ preview configuration is independent of feed and signing secrets (1.2079ms)
+2026-10-31T15:33:52.4848274Z ✔ production configuration needs explicit mode, channel, target and trustworthy feed URL (0.9005ms)
+2026-10-31T15:33:52.4850147Z ✔ production signing inputs and clean source fail closed before build (0.7326ms)
+2026-10-31T15:33:52.4852414Z ✔ unknown CLI arguments and missing values fail instead of selecting preview accidentally (0.5313ms)
+2026-10-31T15:33:52.4855901Z ✔ production CLI refuses a missing feed before invoking pnpm (71.2362ms)
+2026-10-31T15:33:52.5243081Z ✔ metadata checks final file size and SHA512 using real file bytes (40.3645ms)
+2026-10-31T15:33:52.5394373Z ✔ same-size payload corruption fails the SHA512 check (14.9585ms)
+2026-10-31T15:33:52.5534332Z ✔ missing final metadata blocks production verification (13.1198ms)
+2026-10-31T15:33:52.5826531Z ✔ metadata rejects traversal, remote URLs, version mismatch and duplicate YAML keys (29.9949ms)
+2026-10-31T15:33:52.5969153Z ✔ preview build never mints a receipt and removes stale receipt (14.2573ms)
+2026-10-31T15:33:52.6176054Z ✔ valid metadata and hashes without real acceptance reports cannot mint a release receipt (20.5358ms)
+2026-10-31T15:33:52.6389982Z ✔ acceptance schema requires observations and hashed logs, never a passed flag (21.1693ms)
+2026-10-31T15:33:52.6577989Z ✔ modified evidence logs and reports for a different artifact fail (18.8873ms)
+2026-10-31T15:33:52.6763677Z ✔ unknown Squirrel distribution is an explicit failed gate (18.2233ms)
+2026-10-31T15:33:52.6873029Z ✔ evidence traversal and symbolic links are rejected (10.9066ms)
+2026-10-31T15:33:52.6995329Z ✔ artifact links cannot smuggle outside bytes into an inventory (12.4307ms)
+2026-10-31T15:33:52.7711049Z ✔ staging rejects fabricated preview receipt and never builds or publishes (14.0419ms)
+2026-10-31T15:33:52.7712733Z ✔ remote release command always refuses publication without destination and authorization (57.0339ms)
+2026-10-31T15:33:52.7888874Z ✔ receipt rejects changed artifact bytes even if a previous check succeeded (17.9432ms)
+2026-10-31T15:33:52.8165623Z ✔ macOS finalization keeps ZIP bytes and removes stale DMG differential metadata after stapling (27.6717ms)
+2026-10-31T15:33:52.8343338Z ℹ tests 22
+2026-10-31T15:33:52.8343838Z ℹ suites 0
+2026-10-31T15:33:52.8344206Z ℹ pass 22
+2026-10-31T15:33:52.8344576Z ℹ fail 0
+2026-10-31T15:33:52.8344942Z ℹ cancelled 0
+2026-10-31T15:33:52.8345325Z ℹ skipped 0
+2026-10-31T15:33:52.8345664Z ℹ todo 0
+2026-10-31T15:33:52.8346068Z ℹ duration_ms 568.5594
+2026-10-31T15:33:52.9219666Z ##[group]Run pnpm test:storage
+2026-10-31T15:33:52.9220011Z pnpm test:storage
+2026-10-31T15:33:52.9288325Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:33:52.9288658Z env:
+2026-10-31T15:33:52.9289047Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:33:52.9289673Z ##[endgroup]
+2026-10-31T15:33:53.3098145Z $ pnpm --filter @browser-2d/worker-runtime test:storage
+2026-10-31T15:33:53.3578833Z $ vitest run --config vitest.config.ts
+2026-10-31T15:33:53.7655702Z
+2026-10-31T15:33:53.7659275Z  RUN  v5.0.5 D:/a/browser-2d/browser-2d/apps/worker
+2026-10-31T15:33:53.7660610Z
+2026-10-31T15:34:40.3133581Z  ✓ tests/chrome.test.ts (14 tests) 45892ms
+2026-10-31T15:34:40.3134706Z    ✓ real Chrome execution with local pages (10)
+2026-10-31T15:34:40.3136609Z      ✓ keeps the borrowed default page, cookies, storage and business rows unchanged 3160ms
+2026-10-31T15:34:40.3137819Z      ✓ reserves two devices and four actual pages and freezes a queued run settings 6977ms
+2026-10-31T15:34:40.3140287Z      ✓ isolates a closed work page from the other device and leaves the borrowed browser alive 3436ms
+2026-10-31T15:34:40.3141611Z      ✓ cleans a borrowed context after timeout during local navigation 4214ms
+2026-10-31T15:34:40.3142844Z      ✓ cleans a borrowed context after cancel during local navigation 2505ms
+2026-10-31T15:34:40.3144131Z      ✓ cancels before a newly created page target is published 2139ms
+2026-10-31T15:34:40.3145511Z      ✓ blocks a local page redirect before Chrome can request an external origin 2348ms
+2026-10-31T15:34:40.3146988Z      ✓ cancels a pending endpoint discovery before creating a Chrome context 2264ms
+2026-10-31T15:34:40.3148586Z      ✓ proves the owned Chrome process has exited before releasing its reservation 2536ms
+2026-10-31T15:34:40.3150124Z      ✓ retains capacity when the saved browser identity does not match the live endpoint 4880ms
+2026-10-31T15:34:40.3153417Z    ✓ killing owned Chrome during execution must fail the run 1993ms
+2026-10-31T15:34:40.3155968Z    ✓ refuses to close an unrelated Chrome found through a forged owned discovery file 4420ms
+2026-10-31T15:34:40.3157830Z    ✓ recovers a verified owned browser that exited before its release was journaled (transient EPERM: false) 2051ms
+2026-10-31T15:34:40.3159940Z    ✓ recovers a verified owned browser that exited before its release was journaled (transient EPERM: true) 2966ms
+2026-10-31T15:34:48.3742006Z  ✓ tests/business-storage.test.ts (32 tests) 7603ms
+2026-10-31T15:34:48.3743210Z    ✓ business database ownership and migration (24)
+2026-10-31T15:34:48.3744264Z      ✓ upgrades a populated v2 WAL prefix without resetting settings, references or historical claims 460ms
+2026-10-31T15:34:48.3745402Z      ✓ upgrades v3 without rewriting old work obligations or dormant references 481ms
+2026-10-31T15:34:48.3746550Z      ✓ preserves legacy rows, duplicate tuples, timestamps, day/year and sequences with an intact backup 376ms
+2026-10-31T15:34:48.3750824Z      ✓ backs up a WAL-only committed row from its retained source connection and excludes an idle old connection 402ms
+2026-10-31T15:34:48.3752861Z      ✓ excludes a still-running legacy process without claiming that the lock proves process exit 335ms
+2026-10-31T15:34:48.3755213Z      ✓ refuses ownership while another connection holds an active write transaction 1232ms
+2026-10-31T15:34:48.3757590Z      ✓ rejects a changed migration checksum and preserves the current database 328ms
+2026-10-31T15:34:48.3759006Z    ✓ business transactions (8)
+2026-10-31T15:34:48.3760566Z      ✓ uses status zero in count/list, inclusive history filters, full export bytes and twenty-row defaults 555ms
+2026-10-31T15:34:48.8431525Z  ↓ tests/chrome-family.test.ts (4 tests | 4 skipped)
+2026-10-31T15:34:53.8133128Z  ✓ tests/storage.test.ts (10 tests) 4528ms
+2026-10-31T15:34:53.8134862Z    ✓ durable work commands and resource lifecycle (10)
+2026-10-31T15:34:53.8136244Z      ✓ reserves all pages atomically, holds device mutation and freezes settings at acceptance 335ms
+2026-10-31T15:34:53.8137343Z      ✓ enforces the two-device limit and durably refuses oversized demand 529ms
+2026-10-31T15:34:53.8138365Z      ✓ interrupts every previous nonterminal and reconciles a created resource whose result was never recorded 323ms
+2026-10-31T15:34:53.8139441Z      ✓ bounds cleanup retries and aborts each timed-out attempt while retaining unresolved resources 2227ms
+2026-10-31T15:34:56.6927626Z  ✓ tests/chrome-journal.test.ts (18 tests | 2 skipped) 2432ms
+2026-10-31T15:35:00.6101168Z  ✓ tests/resource-service.test.ts (4 tests) 3481ms
+2026-10-31T15:35:00.6101953Z    ✓ scheduler against a separate resource service (4)
+2026-10-31T15:35:00.6102755Z      ✓ cleans a successful late acquire after durable cancellation without executing it 389ms
+2026-10-31T15:35:00.6103705Z      ✓ retains unknown acquisition capacity until fencing prevents future creation 1346ms
+2026-10-31T15:35:00.6104589Z      ✓ detaches a borrowed resource while keeping its external resource alive 346ms
+2026-10-31T15:35:00.6105553Z      ✓ keeps refused cleanup visible and blocks the device and page capacity until release succeeds 1399ms
+2026-10-31T15:35:04.8746814Z  ✓ tests/chrome-profile-cleanup.test.ts (6 tests) 3808ms
+2026-10-31T15:35:04.8748782Z    ✓ retains prepared launch cleanup failures and retries the partially deleted profile after cold recovery 411ms
+2026-10-31T15:35:04.8750681Z    ✓ retains spawned launch cleanup failures and retries the partially deleted profile after cold recovery 434ms
+2026-10-31T15:35:04.8752611Z    ✓ retains attached launch cleanup failures and retries the partially deleted profile after cold recovery 2420ms
+2026-10-31T15:35:05.4344170Z  ✓ tests/chrome-process.test.ts (7 tests) 171ms
+2026-10-31T15:35:08.7500426Z  ✓ tests/chrome-browser-connection.test.ts (2 tests) 2935ms
+2026-10-31T15:35:08.7501513Z    ✓ reads browser identity after the client owning its cached browser target disconnects 1491ms
+2026-10-31T15:35:08.7503282Z    ✓ disposes only the contexts owned by a disconnected root connection 1442ms
+2026-10-31T15:35:08.9842717Z  ✓ tests/controlled-driver.test.ts (1 test) 13ms
+2026-10-31T15:35:09.3871181Z  ✓ tests/chrome-connection.test.ts (2 tests) 11ms
+2026-10-31T15:35:09.3926809Z
+2026-10-31T15:35:09.3931651Z  Test Files  10 passed | 1 skipped (11)
+2026-10-31T15:35:09.3933067Z       Tests  94 passed | 6 skipped (100)
+2026-10-31T15:35:09.3933911Z    Start at  15:33:53
+2026-10-31T15:35:09.3938530Z    Duration  75.62s (tests 96%, import 4%, transform 1%)
+2026-10-31T15:35:09.3949707Z
+2026-10-31T15:35:09.4807721Z ##[group]Run pnpm test:observer
+2026-10-31T15:35:09.4808245Z pnpm test:observer
+2026-10-31T15:35:09.4889922Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:35:09.4890264Z env:
+2026-10-31T15:35:09.4890637Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:35:09.4891076Z ##[endgroup]
+2026-10-31T15:35:09.8429928Z $ node --test scripts/chrome-observer.test.mjs
+2026-10-31T15:35:11.5925717Z ✔ Chrome observation preserves the actual workload viewport (1441.1554ms)
+2026-10-31T15:35:11.6082873Z ℹ tests 1
+2026-10-31T15:35:11.6083249Z ℹ suites 0
+2026-10-31T15:35:11.6083597Z ℹ pass 1
+2026-10-31T15:35:11.6083927Z ℹ fail 0
+2026-10-31T15:35:11.6084277Z ℹ cancelled 0
+2026-10-31T15:35:11.6084622Z ℹ skipped 0
+2026-10-31T15:35:11.6084888Z ℹ todo 0
+2026-10-31T15:35:11.6085135Z ℹ duration_ms 1705.3282
+2026-10-31T15:35:11.6894591Z ##[group]Run pnpm test:credentials
+2026-10-31T15:35:11.6894997Z pnpm test:credentials
+2026-10-31T15:35:11.6961935Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:35:11.6962281Z env:
+2026-10-31T15:35:11.6962674Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:35:11.6963480Z ##[endgroup]
+2026-10-31T15:35:12.0531895Z $ pnpm --filter @browser-2d/desktop test:credentials
+2026-10-31T15:35:12.0987881Z $ vitest run --config vitest.credentials.config.ts
+2026-10-31T15:35:12.4460711Z (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+2026-10-31T15:35:12.4462655Z   - ESM syntax in a file loaded as CommonJS (vitest.credentials.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+2026-10-31T15:35:12.4464308Z Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+2026-10-31T15:35:12.4877579Z
+2026-10-31T15:35:12.4879287Z  RUN  v5.0.5 D:/a/browser-2d/browser-2d/apps/desktop
+2026-10-31T15:35:12.4879880Z
+2026-10-31T15:35:13.1367015Z [warn] `inlineDynamicImports` option is deprecated, please use `codeSplitting: false` instead.
+2026-10-31T15:35:13.2138306Z  ✓ tests/credentials.test.ts (25 tests) 267ms
+2026-10-31T15:35:14.1322860Z  ✓ tests/worker-ownership.test.ts (6 tests) 1097ms
+2026-10-31T15:35:14.1324160Z    ✓ worker ownership authorization (6)
+2026-10-31T15:35:14.1325467Z      ✓ never authorizes both concurrent host processes even when they observe the same stale owner 656ms
+2026-10-31T15:35:14.1374015Z
+2026-10-31T15:35:14.1378728Z  Test Files  2 passed (2)
+2026-10-31T15:35:14.1380358Z       Tests  31 passed (31)
+2026-10-31T15:35:14.1381438Z    Start at  15:35:12
+2026-10-31T15:35:14.1385590Z    Duration  1.64s (tests 68%, import 22%, transform 10%, worker 1%)
+2026-10-31T15:35:14.1396508Z
+2026-10-31T15:35:14.2515711Z ##[group]Run if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
+2026-10-31T15:35:14.2516381Z if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
+2026-10-31T15:35:14.2532722Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-31T15:35:14.2533281Z env:
+2026-10-31T15:35:14.2533668Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:35:14.2534109Z ##[endgroup]
+2026-10-31T15:35:14.6236107Z $ pnpm --filter @browser-2d/desktop test:updates
+2026-10-31T15:35:14.6685100Z $ vitest run --config vitest.updates.config.ts
+2026-10-31T15:35:15.0132644Z (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+2026-10-31T15:35:15.0133815Z   - ESM syntax in a file loaded as CommonJS (vitest.updates.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+2026-10-31T15:35:15.0134639Z Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+2026-10-31T15:35:15.0619679Z
+2026-10-31T15:35:15.0621360Z  RUN  v5.0.5 D:/a/browser-2d/browser-2d/apps/desktop
+2026-10-31T15:35:15.0622044Z
+2026-10-31T15:35:15.3532796Z  ✓ tests/lifecycle.test.ts (6 tests) 13ms
+2026-10-31T15:35:15.3605990Z  ✓ tests/update-driver.test.ts (2 tests) 7ms
+2026-10-31T15:35:15.5850218Z  ✓ tests/updates.test.ts (17 tests) 35ms
+2026-10-31T15:35:15.7282107Z  ✓ tests/update-subscription.test.ts (1 test) 7ms
+2026-10-31T15:35:21.7985279Z stdout | tests/update-feed.test.ts > checks and downloads through the pinned updater against a controlled loopback feed
+2026-10-31T15:35:21.7986493Z Downloading Electron binary...
+2026-10-31T15:35:21.7987156Z
+2026-10-31T15:35:22.5596040Z  ✓ tests/update-feed.test.ts (1 test) 6958ms
+2026-10-31T15:35:22.5597365Z    ✓ checks and downloads through the pinned updater against a controlled loopback feed 6955ms
+2026-10-31T15:35:22.5640718Z
+2026-10-31T15:35:22.5646387Z  Test Files  5 passed (5)
+2026-10-31T15:35:22.5647499Z       Tests  27 passed (27)
+2026-10-31T15:35:22.5648192Z    Start at  15:35:15
+2026-10-31T15:35:22.5653008Z    Duration  7.50s (tests 92%, import 4%, transform 4%, worker 1%)
+2026-10-31T15:35:22.5668175Z
+2026-10-31T15:35:22.6256377Z ##[group]Run if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
+2026-10-31T15:35:22.6257427Z if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
+2026-10-31T15:35:22.6271346Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-31T15:35:22.6271730Z env:
+2026-10-31T15:35:22.6272092Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:35:22.6272518Z ##[endgroup]
+2026-10-31T15:35:22.8324066Z $ node scripts/electron-test.mjs
+2026-10-31T15:35:22.9170981Z $ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+2026-10-31T15:35:22.9640383Z $ vite build
+2026-10-31T15:35:23.2320293Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:35:23.2538382Z [warn] `inlineDynamicImports` option is deprecated, please use `codeSplitting: false` instead.
+2026-10-31T15:35:23.2637522Z transforming...
+2026-10-31T15:35:23.2975413Z ✓ 115 modules transformed.
+2026-10-31T15:35:23.3099156Z rendering chunks...
+2026-10-31T15:35:23.3291021Z computing gzip size...
+2026-10-31T15:35:23.3334075Z dist/entry.cjs  279.47 kB │ gzip: 62.88 kB
+2026-10-31T15:35:23.3334713Z
+2026-10-31T15:35:23.3337485Z ✓ built in 100ms
+2026-10-31T15:35:23.4644533Z $ electron-vite build
+2026-10-31T15:35:23.8020079Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:35:23.8193670Z transforming...
+2026-10-31T15:35:23.8729738Z ✓ 112 modules transformed.
+2026-10-31T15:35:23.8861643Z rendering chunks...
+2026-10-31T15:35:23.9015549Z dist/main/index.cjs  244.33 kB
+2026-10-31T15:35:23.9015856Z
+2026-10-31T15:35:23.9019790Z ✓ built in 98ms
+2026-10-31T15:35:23.9078508Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:35:23.9136204Z transforming...
+2026-10-31T15:35:23.9393210Z ✓ 106 modules transformed.
+2026-10-31T15:35:23.9482221Z rendering chunks...
+2026-10-31T15:35:23.9596717Z dist/preload/index.cjs  209.04 kB
+2026-10-31T15:35:23.9597122Z
+2026-10-31T15:35:23.9598839Z ✓ built in 52ms
+2026-10-31T15:35:24.0175623Z vite v8.3.5 building client environment for production...
+2026-10-31T15:35:24.0278975Z transforming...
+2026-10-31T15:35:24.5344725Z ✓ 2802 modules transformed.
+2026-10-31T15:35:24.5820204Z rendering chunks...
+2026-10-31T15:35:24.6451380Z dist/renderer/index.html                     0.46 kB
+2026-10-31T15:35:24.6451836Z dist/renderer/assets/index-UbkR51Wm.css      9.18 kB
+2026-10-31T15:35:24.6452193Z dist/renderer/assets/index-D6S3rCDw.js   1,260.35 kB
+2026-10-31T15:35:24.6452398Z
+2026-10-31T15:35:24.6454660Z ✓ built in 628ms
+2026-10-31T15:35:24.7731518Z All runtime entries, bundled contracts and migration assets are present.
+2026-10-31T15:35:26.3783013Z
+2026-10-31T15:35:26.3783879Z Running 33 tests using 1 worker
+2026-10-31T15:35:26.3784981Z
+2026-10-31T15:35:28.9063015Z   ok  1 tests\e2e\bootstrap.spec.ts:12:1 › initialization rejects stale receipts and cooperatively shuts down while awaiting consent (2.0s)
+2026-10-31T15:35:37.2362204Z   ok  2 tests\e2e\browser.spec.ts:97:3 › owned Chrome running cleanup confirms actual process exit (8.2s)
+2026-10-31T15:35:40.8893485Z   ok  3 tests\e2e\browser.spec.ts:97:3 › owned Chrome spawned cleanup confirms actual process exit (3.6s)
+2026-10-31T15:35:53.3589945Z   ok  4 tests\e2e\browser.spec.ts:97:3 › owned Chrome cancel-spawned cleanup confirms actual process exit (12.5s)
+2026-10-31T15:35:58.2774969Z   ok  5 tests\e2e\browser.spec.ts:181:3 › borrowed Chrome running crash preserves original tab and honest cleanup state (4.9s)
+2026-10-31T15:36:01.9056941Z   ok  6 tests\e2e\browser.spec.ts:181:3 › borrowed Chrome context-created crash preserves original tab and honest cleanup state (3.6s)
+2026-10-31T15:36:14.0727694Z   ok  7 tests\e2e\browser.spec.ts:181:3 › borrowed Chrome cleanup crash preserves original tab and honest cleanup state (12.2s)
+2026-10-31T15:36:21.3937049Z   ok  8 tests\e2e\browser.spec.ts:270:1 › page checkpoint releases only its operation and shutdown cancels the next held run (7.3s)
+2026-10-31T15:36:24.7431657Z   ok  9 tests\e2e\business.spec.ts:11:1 › business screens save through the real bridge and display refreshed records (3.3s)
+2026-10-31T15:36:28.6020967Z   ok 10 tests\e2e\business.spec.ts:67:1 › legacy CRUD crosses the public bridge, commits, refreshes and survives restart (3.8s)
+2026-10-31T15:36:30.6976459Z   ok 11 tests\e2e\business.spec.ts:261:1 › legacy plaintext migrates only after OS-encrypted persistence and remains in the recovery backup (2.1s)
+2026-10-31T15:36:34.0996657Z   ok 12 tests\e2e\business.spec.ts:331:1 › Chrome settings persist across modes, stale saves conflict and no credentials are required (3.4s)
+2026-10-31T15:36:38.8024302Z   ok 13 tests\e2e\development-entrypoints.spec.ts:81:1 › dev:ui serves fixture-only routes in Chrome and shuts down its server (4.5s)
+2026-10-31T15:36:45.1818407Z   ok 14 tests\e2e\development-entrypoints.spec.ts:166:1 › dev:worker starts without a window, drains on stdin stop and cold restarts the same database (6.4s)
+2026-10-31T15:36:56.4483937Z   ok 15 tests\e2e\development-restart.spec.ts:108:1 › real source rebuild preserves the old worker on build failure and replaces only after clean exit (11.2s)
+2026-10-31T15:36:56.4621705Z   -  16 tests\e2e\development-restart.spec.ts:142:1 › development restart refuses to replace an unresponsive predecessor after forced shutdown
+2026-10-31T15:37:05.5702144Z   ok 17 tests\e2e\development-restart.spec.ts:173:1 › shared TypeScript preset changes restart only after the previous worker exits (9.1s)
+2026-10-31T15:37:16.0941502Z   ok 18 tests\e2e\development-restart.spec.ts:195:1 › renderer preset changes reach the live page after coordinated restart (10.5s)
+2026-10-31T15:37:19.4758039Z 3:37:19 PM [vite] (client) hmr update /src/style.css
+2026-10-31T15:37:19.5116131Z 3:37:19 PM [vite] (client) hmr update /src/App.vue
+2026-10-31T15:37:23.2959309Z 3:37:23 PM [vite] (client) hmr update /src/style.css
+2026-10-31T15:37:23.3057350Z 3:37:23 PM [vite] (client) hmr update /src/App.vue
+2026-10-31T15:37:23.6611540Z   ok 19 tests\e2e\development.spec.ts:9:1 › Vite development origin uses the real preload and updates CSS without restarting work (7.5s)
+2026-10-31T15:37:26.7363138Z   ok 20 tests\e2e\foundation.spec.ts:19:1 › UI, isolated preload, real worker, SQLite persistence and graceful shutdown (3.0s)
+2026-10-31T15:37:29.3591797Z   ok 21 tests\e2e\foundation.spec.ts:99:1 › worker crash fails shutdown and recovery never resumes the interrupted task (2.6s)
+2026-10-31T15:37:29.3699980Z   -  22 tests\e2e\foundation.spec.ts:140:1 › unresponsive worker cannot be reported as a clean shutdown
+2026-10-31T15:37:31.4706922Z   ok 23 tests\e2e\scheduler.spec.ts:105:3 › worker crash during acquire-result-lost reconciles owned resources without execution replay (2.1s)
+2026-10-31T15:37:37.3127702Z   ok 24 tests\e2e\scheduler.spec.ts:105:3 › worker crash during hold-release reconciles owned resources without execution replay (5.8s)
+2026-10-31T15:37:44.6649020Z   ok 25 tests\e2e\scheduler.spec.ts:147:1 › borrowed fixture survives cancellation and heartbeat loss stops a live executor (7.3s)
+2026-10-31T15:37:50.7164430Z   ok 26 tests\e2e\scheduler.spec.ts:189:1 › cleanup refusal retains device and page reservations, and restart only reconciles (6.0s)
+2026-10-31T15:38:02.4644470Z   ok 27 tests\e2e\scheduler.spec.ts:251:3 › portable uncooperative acquire cannot produce a clean shutdown acknowledgment (11.7s)
+2026-10-31T15:38:14.2705753Z   ok 28 tests\e2e\scheduler.spec.ts:251:3 › portable uncooperative execute cannot produce a clean shutdown acknowledgment (11.8s)
+2026-10-31T15:38:29.8165699Z   ok 29 tests\e2e\scheduler.spec.ts:251:3 › portable uncooperative release cannot produce a clean shutdown acknowledgment (15.5s)
+2026-10-31T15:38:32.7998582Z   ok 30 tests\e2e\scheduler.spec.ts:287:1 › host death leaves interrupted work that a new application cleans without replay (3.0s)
+2026-10-31T15:38:39.9105885Z   ok 31 tests\e2e\scheduler.spec.ts:324:1 › an uninitialized child expires and a live stale owner blocks startup without being signaled (7.1s)
+2026-10-31T15:38:48.4740477Z   ok 32 tests\e2e\ui.spec.ts:24:1 › complete local workspace journey preserves data and work state across routes (8.5s)
+2026-10-31T15:38:49.6202417Z   ok 33 tests\e2e\updates.spec.ts:8:1 › update API stays manual and disabled in development and rejects untrusted frames (1.1s)
+2026-10-31T15:38:49.7018797Z
+2026-10-31T15:38:49.7024743Z   2 skipped
+2026-10-31T15:38:49.7025063Z   31 passed (3.4m)
+2026-10-31T15:38:49.8692524Z ##[group]Run pnpm dist -- --target=win-x64
+2026-10-31T15:38:49.8692965Z pnpm dist -- --target=win-x64
+2026-10-31T15:38:49.8771004Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-31T15:38:49.8771412Z env:
+2026-10-31T15:38:49.8771830Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:38:49.8772329Z ##[endgroup]
+2026-10-31T15:38:50.2514415Z $ node scripts/package.mjs --dist --target=win-x64
+2026-10-31T15:38:50.6641102Z Scope: all 9 workspace projects
+2026-10-31T15:38:50.7059200Z ✓ Lockfile passes supply-chain policies (verified 5m ago)
+2026-10-31T15:38:50.7060393Z Lockfile is up to date, resolution step is skipped
+2026-10-31T15:38:51.0766267Z Downloading @rolldown/binding-win32-x64-msvc@1.2.16: 0.00 B/8.91 MB
+2026-10-31T15:38:51.0785085Z Packages are copied from the content-addressable store to the virtual store.
+2026-10-31T15:38:51.0809390Z   Content-addressable store is at: C:\Users\runneradmin\AppData\Local\pnpm\store\v11
+2026-10-31T15:38:51.0812748Z   Virtual store is at:             node_modules/.pnpm
+2026-10-31T15:38:51.1028845Z Downloading naive-ui@2.45.3: 0.00 B/9.35 MB
+2026-10-31T15:38:51.1883827Z Downloading better-sqlite3@13.0.3: 0.00 B/11.40 MB
+2026-10-31T15:38:51.2491672Z Downloading electron-winstaller@5.4.0: 0.00 B/9.14 MB
+2026-10-31T15:38:52.2837253Z Downloading better-sqlite3@13.0.3: 11.40 MB/11.40 MB, done
+2026-10-31T15:38:53.3963275Z Progress: resolved 563, reused 0, downloaded 70, added 46
+2026-10-31T15:38:54.4040717Z Progress: resolved 563, reused 0, downloaded 78, added 78
+2026-10-31T15:38:56.9042790Z Progress: resolved 563, reused 0, downloaded 79, added 78
+2026-10-31T15:38:57.9227395Z Progress: resolved 563, reused 0, downloaded 181, added 103
+2026-10-31T15:39:01.3544784Z Progress: resolved 563, reused 0, downloaded 216, added 106
+2026-10-31T15:39:02.7211553Z Progress: resolved 563, reused 0, downloaded 314, added 106
+2026-10-31T15:39:06.8572298Z Progress: resolved 563, reused 0, downloaded 379, added 142
+2026-10-31T15:39:07.8590225Z Progress: resolved 563, reused 0, downloaded 416, added 175
+2026-10-31T15:39:08.9373967Z Progress: resolved 563, reused 0, downloaded 419, added 210
+2026-10-31T15:39:09.9478579Z Progress: resolved 563, reused 0, downloaded 419, added 216
+2026-10-31T15:39:16.3867144Z Progress: resolved 563, reused 0, downloaded 437, added 239
+2026-10-31T15:39:17.4005972Z Progress: resolved 563, reused 0, downloaded 439, added 257
+2026-10-31T15:39:18.4530853Z Progress: resolved 563, reused 0, downloaded 472, added 275
+2026-10-31T15:39:19.6170685Z Progress: resolved 563, reused 0, downloaded 509, added 301
+2026-10-31T15:39:30.2513996Z Progress: resolved 563, reused 0, downloaded 509, added 306
+2026-10-31T15:39:31.7637190Z Progress: resolved 563, reused 0, downloaded 563, added 359
+2026-10-31T15:39:32.8127861Z Progress: resolved 563, reused 0, downloaded 563, added 440
+2026-10-31T15:39:34.5978468Z Progress: resolved 563, reused 0, downloaded 563, added 465
+2026-10-31T15:39:36.5698610Z Progress: resolved 563, reused 0, downloaded 563, added 509
+2026-10-31T15:39:37.5917181Z Progress: resolved 563, reused 0, downloaded 563, added 557
+2026-10-31T15:39:39.5097718Z Progress: resolved 563, reused 0, downloaded 563, added 562
+2026-10-31T15:39:39.5226391Z Packages: +563
+2026-10-31T15:39:39.5226938Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-31T15:39:40.0504352Z Progress: resolved 563, reused 0, downloaded 563, added 563, done
+2026-10-31T15:39:40.4761835Z
+2026-10-31T15:39:40.4762454Z devDependencies:
+2026-10-31T15:39:40.4763755Z + @browser-2d/lint-config <- internal/lint-config
+2026-10-31T15:39:40.4764589Z + @browser-2d/test-utils <- internal/test-utils
+2026-10-31T15:39:40.4765138Z + @electron/asar 3.4.1
+2026-10-31T15:39:40.4765583Z + @eslint/js 9.39.1
+2026-10-31T15:39:40.4765986Z + @playwright/test 1.64.1
+2026-10-31T15:39:40.4766342Z + @types/node 24.5.2
+2026-10-31T15:39:40.4768543Z + @vitejs/plugin-vue 6.0.10
+2026-10-31T15:39:40.4768984Z + @vue/test-utils 2.5.1
+2026-10-31T15:39:40.4769254Z + eslint 9.39.1
+2026-10-31T15:39:40.4769517Z + eslint-plugin-vue 10.5.1
+2026-10-31T15:39:40.4769788Z + jsdom 26.1.0
+2026-10-31T15:39:40.4770046Z + prettier 3.9.10
+2026-10-31T15:39:40.4770303Z + typescript 5.9.3
+2026-10-31T15:39:40.4770560Z + typescript-eslint 8.72.1
+2026-10-31T15:39:40.4770847Z + vite 8.3.5
+2026-10-31T15:39:40.4771076Z + vitest 5.0.5
+2026-10-31T15:39:40.4771301Z + yaml 2.9.1
+2026-10-31T15:39:40.4771415Z
+2026-10-31T15:39:40.5881382Z Done in 49.9s using pnpm v12.16.1
+2026-10-31T15:39:40.6400352Z $ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+2026-10-31T15:39:41.4187211Z $ vite build
+2026-10-31T15:39:41.7240228Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:39:41.7464227Z [warn] `inlineDynamicImports` option is deprecated, please use `codeSplitting: false` instead.
+2026-10-31T15:39:41.7557067Z transforming...
+2026-10-31T15:39:41.7928012Z ✓ 115 modules transformed.
+2026-10-31T15:39:41.8053874Z rendering chunks...
+2026-10-31T15:39:41.8240965Z computing gzip size...
+2026-10-31T15:39:41.8285732Z dist/entry.cjs  279.47 kB │ gzip: 62.88 kB
+2026-10-31T15:39:41.8286096Z
+2026-10-31T15:39:41.8290223Z ✓ built in 103ms
+2026-10-31T15:39:47.5934371Z $ electron-vite build
+2026-10-31T15:39:47.9792208Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:39:47.9935220Z transforming...
+2026-10-31T15:39:48.0485840Z ✓ 112 modules transformed.
+2026-10-31T15:39:48.0627048Z rendering chunks...
+2026-10-31T15:39:48.0801078Z dist/main/index.cjs  244.33 kB
+2026-10-31T15:39:48.0801459Z
+2026-10-31T15:39:48.0804996Z ✓ built in 99ms
+2026-10-31T15:39:48.0872645Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:39:48.0931622Z transforming...
+2026-10-31T15:39:48.1234168Z ✓ 106 modules transformed.
+2026-10-31T15:39:48.1338369Z rendering chunks...
+2026-10-31T15:39:48.1462793Z dist/preload/index.cjs  209.04 kB
+2026-10-31T15:39:48.1463147Z
+2026-10-31T15:39:48.1466646Z ✓ built in 59ms
+2026-10-31T15:39:48.2139842Z vite v8.3.5 building client environment for production...
+2026-10-31T15:39:48.2225755Z transforming...
+2026-10-31T15:39:48.7940495Z ✓ 2802 modules transformed.
+2026-10-31T15:39:48.8521333Z rendering chunks...
+2026-10-31T15:39:48.9216308Z dist/renderer/index.html                     0.46 kB
+2026-10-31T15:39:48.9216824Z dist/renderer/assets/index-UbkR51Wm.css      9.18 kB
+2026-10-31T15:39:48.9217296Z dist/renderer/assets/index-D6S3rCDw.js   1,260.35 kB
+2026-10-31T15:39:48.9217518Z
+2026-10-31T15:39:48.9220379Z ✓ built in 708ms
+2026-10-31T15:39:49.0801065Z All runtime entries, bundled contracts and migration assets are present.
+2026-10-31T15:39:50.1579910Z   • electron-builder  version=26.18.0 os=10.0.26100
+2026-10-31T15:39:50.1717352Z   • loaded configuration  file=C:\Users\runneradmin\AppData\Local\Temp\browser-2d-build-tFoDEY\apps\desktop\electron-builder.config.mjs
+2026-10-31T15:39:50.8775704Z   • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=pnpm detected=D:\a\browser-2d\browser-2d
+2026-10-31T15:39:50.8792078Z   • detected workspace root for project using packageManager field  pm=pnpm config=pnpm@12.16.1 resolved=C:\Users\runneradmin\AppData\Local\Temp\browser-2d-build-tFoDEY projectDir=C:\Users\runneradmin\AppData\Local\Temp\browser-2d-build-tFoDEY\apps\desktop
+2026-10-31T15:39:50.8830943Z   • skipped dependencies rebuild  reason=npmRebuild is set to false
+2026-10-31T15:39:50.8832038Z   • packaging       platform=win32 arch=x64 electron=45.2.0 appOutDir=D:\a\browser-2d\browser-2d\release\win-x64\win-unpacked
+2026-10-31T15:39:51.1698291Z   • downloaded      label=electron progress=100%
+2026-10-31T15:39:54.9739851Z   • downloaded electron zip extracted successfully  output=D:\a\browser-2d\browser-2d\release\win-x64\win-unpacked
+2026-10-31T15:39:54.9908278Z   • searching for node modules  pm=pnpm searchDir=C:\Users\runneradmin\AppData\Local\Temp\browser-2d-build-tFoDEY\apps\desktop
+2026-10-31T15:39:56.0508183Z   • duplicate dependency references  dependencies=["strip-ansi@7.2.0"]
+2026-10-31T15:40:02.8650546Z   • updating asar integrity executable resource  executablePath=D:\a\browser-2d\browser-2d\release\win-x64\win-unpacked\browser-2d-foundation.exe
+2026-10-31T15:40:02.9613089Z   • executable resource editing and code signing skipped — signAndEditExecutable is false. To skip only code signing while keeping icon and metadata applied, use signExecutable: false instead.  exe=D:\a\browser-2d\browser-2d\release\win-x64\win-unpacked\browser-2d-foundation.exe
+2026-10-31T15:40:02.9623877Z   • building        target=nsis file=D:\a\browser-2d\browser-2d\release\win-x64\browser-2d-foundation-0.1.0-win-x64.exe archs=x64 oneClick=false perMachine=false
+2026-10-31T15:40:02.9674043Z   • default Electron icon is used  reason=application icon is not set
+2026-10-31T15:40:03.7767381Z   • downloaded      label=7zip-win-x64.tar.gz progress=100%
+2026-10-31T15:40:58.1735800Z   • downloaded      label=nsis-3.0.4.1.7z progress=100%
+2026-10-31T15:40:59.3069853Z   • downloaded      label=nsis-resources-3.4.1.7z progress=100%
+2026-10-31T15:41:01.6141235Z   • file signing skipped via signExecutable configuration  file=D:\a\browser-2d\browser-2d\release\win-x64\browser-2d-foundation-0.1.0-win-x64.__uninstaller.exe
+2026-10-31T15:41:03.5419978Z   • file signing skipped via signExecutable configuration  file=D:\a\browser-2d\browser-2d\release\win-x64\browser-2d-foundation-0.1.0-win-x64.exe
+2026-10-31T15:41:03.5427836Z   • building block map  blockMapFile=D:\a\browser-2d\browser-2d\release\win-x64\browser-2d-foundation-0.1.0-win-x64.exe.blockmap
+2026-10-31T15:41:10.3691194Z preview packaged target ready: D:\a\browser-2d\browser-2d\release\win-x64
+2026-10-31T15:41:41.7721100Z ##[group]Run if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=win-x64; else pnpm verify:package -- --target=win-x64; fi
+2026-10-31T15:41:41.7722509Z if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=win-x64; else pnpm verify:package -- --target=win-x64; fi
+2026-10-31T15:41:41.7739289Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-31T15:41:41.7739709Z env:
+2026-10-31T15:41:41.7740142Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:41:41.7740667Z ##[endgroup]
+2026-10-31T15:41:42.1363331Z $ node scripts/verify-package.mjs -- --target=win-x64
+2026-10-31T15:41:45.8103821Z
+2026-10-31T15:42:16.6638280Z 15:42:16.660 > startup failed INITIALIZATION_FAILED
+2026-10-31T15:42:21.3830314Z 15:42:21.380 > shutdown failed { reason: 'Worker did not shut down cleanly', resources: [] }
+2026-10-31T15:42:21.7934117Z node:internal/modules/run_main:107
+2026-10-31T15:42:21.7935101Z     triggerUncaughtException(
+2026-10-31T15:42:21.7937240Z     ^
+2026-10-31T15:42:21.7937507Z
+2026-10-31T15:42:21.7937909Z AssertionError [ERR_ASSERTION]: Packaged process failed
+2026-10-31T15:42:21.7938286Z
+2026-10-31T15:42:21.7938447Z 1 !== 0
+2026-10-31T15:42:21.7938643Z
+2026-10-31T15:42:21.7939042Z     at file:///D:/a/browser-2d/browser-2d/scripts/verify-package.mjs:190:10 {
+2026-10-31T15:42:21.7939753Z   generatedMessage: false,
+2026-10-31T15:42:21.7940576Z   code: 'ERR_ASSERTION',
+2026-10-31T15:42:21.7941053Z   actual: 1,
+2026-10-31T15:42:21.7941428Z   expected: 0,
+2026-10-31T15:42:21.7941836Z   operator: 'strictEqual',
+2026-10-31T15:42:21.7942285Z   diff: 'simple'
+2026-10-31T15:42:21.7942649Z }
+2026-10-31T15:42:21.7942860Z
+2026-10-31T15:42:21.7943020Z Node.js v24.22.1
+2026-10-31T15:42:21.8091240Z [ELIFECYCLE] Command failed with exit code 1.
+2026-10-31T15:42:21.8227483Z ##[error]Process completed with exit code 1.
+2026-10-31T15:42:21.8442690Z ##[group]Run actions/upload-artifact@v4
+2026-10-31T15:42:21.8443090Z with:
+2026-10-31T15:42:21.8443323Z   name: p6-win-x64
+2026-10-31T15:42:21.8444065Z   path: artifacts/
+release/*/*.dmg
+release/*/*.zip
+release/*/*.exe
+release/*/*.AppImage
+release/*/*.deb
+release/*/*.rpm
+release/*/*.blockmap
+release/*/*.yml
+release/*/build-context.json
+release/*/artifact-inventory.json
+
+2026-10-31T15:42:21.8444840Z   retention-days: 7
+2026-10-31T15:42:21.8445110Z   if-no-files-found: warn
+2026-10-31T15:42:21.8445373Z   compression-level: 6
+2026-10-31T15:42:21.8445828Z   overwrite: false
+2026-10-31T15:42:21.8446083Z   include-hidden-files: false
+2026-10-31T15:42:21.8446346Z env:
+2026-10-31T15:42:21.8446755Z   BROWSER2D_CHROME_EXECUTABLE: C:\hostedtoolcache\windows\setup-chrome\chrome\stable\x64\chrome.exe
+2026-10-31T15:42:21.8447226Z ##[endgroup]
+2026-10-31T15:42:22.0903831Z (node:916) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T15:42:22.0927595Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T15:42:22.1184907Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-31T15:42:22.1188346Z The least common ancestor is D:\a\browser-2d\browser-2d. This will be the root directory of the artifact
+2026-10-31T15:42:22.1189425Z With the provided path, there will be 19 files uploaded
+2026-10-31T15:42:22.1194510Z Artifact name is valid!
+2026-10-31T15:42:22.1195910Z Root directory input is valid!
+2026-10-31T15:42:22.4872547Z Beginning upload of artifact content to blob storage
+2026-10-31T15:42:22.8860797Z (node:916) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T15:42:23.9406442Z Uploaded bytes 8388608
+2026-10-31T15:42:24.2220709Z Uploaded bytes 16777216
+2026-10-31T15:42:24.4040334Z Uploaded bytes 25165824
+2026-10-31T15:42:24.4481410Z Uploaded bytes 33554432
+2026-10-31T15:42:24.6562600Z Uploaded bytes 41943040
+2026-10-31T15:42:24.8476378Z Uploaded bytes 50331648
+2026-10-31T15:42:24.9209716Z Uploaded bytes 58720256
+2026-10-31T15:42:25.2234573Z Uploaded bytes 67108864
+2026-10-31T15:42:25.4948674Z Uploaded bytes 75497472
+2026-10-31T15:42:25.7735100Z Uploaded bytes 83886080
+2026-10-31T15:42:26.0937209Z Uploaded bytes 92274688
+2026-10-31T15:42:26.3377399Z Uploaded bytes 100663296
+2026-10-31T15:42:26.6184886Z Uploaded bytes 109051904
+2026-10-31T15:42:26.9302349Z Uploaded bytes 117440512
+2026-10-31T15:42:27.1994305Z Uploaded bytes 125829120
+2026-10-31T15:42:27.4616393Z Uploaded bytes 134217728
+2026-10-31T15:42:27.5610216Z Uploaded bytes 136333435
+2026-10-31T15:42:27.6244244Z Finished uploading artifact content to blob storage!
+2026-10-31T15:42:27.6248742Z SHA256 digest of uploaded artifact zip is 97bd1bad7eb087776fb008cce0311877a1362bc2a1209f2120a3f8692a8f59db
+2026-10-31T15:42:27.6251419Z Finalizing artifact upload
+2026-10-31T15:42:28.1657720Z Artifact p6-win-x64.zip successfully finalized. Artifact ID 13048062119
+2026-10-31T15:42:28.1658749Z Artifact p6-win-x64 has been successfully uploaded! Final size is 136333435 bytes. Artifact ID is 13048062119
+2026-10-31T15:42:28.1670904Z Artifact download URL: https://github.com/0gnilc/browser-2d/actions/runs/41215312103/artifacts/13048062119
+2026-10-31T15:42:28.2104030Z Post job cleanup.
+2026-10-31T15:42:28.4091379Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-31T15:42:28.4514010Z git version 2.56.0.windows.2
+2026-10-31T15:42:28.4598892Z Temporarily overriding HOME='D:\a\_temp\dcd50df4-077c-450a-a2a4-ff1a8743e227' before making global git config changes
+2026-10-31T15:42:28.4600859Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T15:42:28.4612807Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\browser-2d\browser-2d
+2026-10-31T15:42:28.5110789Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T15:42:28.5571916Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-31T15:42:29.2142670Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T15:42:29.2523050Z http.https://github.com/.extraheader
+2026-10-31T15:42:29.2594437Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-31T15:42:29.3052123Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-31T15:42:29.9482262Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T15:42:29.9916028Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-31T15:42:30.6713362Z Cleaning up orphan processes
+2026-10-31T15:42:30.7738473Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

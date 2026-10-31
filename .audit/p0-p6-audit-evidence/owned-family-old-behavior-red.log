@@ -1,0 +1,40 @@
+
+ RUN  v5.0.5 /private/tmp/browser-2d-audit-owned-family/apps/worker
+
+ ❯ tests/chrome-family.test.ts (1 test | 1 failed) 1409ms
+   × holds cold recovery and capacity until the inherited helper exits 1408ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  14:49:07
+   Duration  1.88s (tests 84%, import 14%, transform 2%)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/chrome-family.test.ts > holds cold recovery and capacity until the inherited helper exits
+AssertionError: expected { kind: 'resolved' } to deeply equal { kind: 'blocked', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "blocked",
+-   "reason": "CLEANUP_FAILED",
++   "kind": "resolved",
+  }
+
+ ❯ tests/chrome-family.test.ts:81:74
+     79|     await delay(100);
+     80|     abort.abort();
+     81|     expect(await Promise.race([cleanup, delay(250, 'deadline missed')]…
+       |                                                                          ^
+     82|     await access(profile);
+     83|     expect(storage.work.chrome.get(intent.operationId)?.phase).toBe('a…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in /private/tmp/browser-2d-audit-owned-
+  │ family/apps/worker

@@ -50,6 +50,8 @@ Set `BROWSER2D_CHROME_EXECUTABLE` to use a specific Chrome binary in tests. Runt
 
 A task acceptance receipt does not mean execution finished. Inspect its final state and unresolved resources. Unresolved cleanup retains capacity and blocks reuse of that device. Restarting reconciles owned resources and marks unfinished runs interrupted; it does not replay work.
 
+On POSIX, owned Chrome runs in a private process group. Cleanup waits for group disappearance before deleting its profile, including after the browser leader exits. Unknown final observations keep waiting within the existing deadline; they never count as empty. Windows uses a separately tagged child-exit contract. Historical unfinished browser rows without the required evidence remain visibly uncertain. Restarting does not invent proof or signal stored identifiers.
+
 A settings revision conflict means another save occurred. Reload settings, compare the values and save again. An uncertain task command retains its ID so querying or retrying cannot create a second task.
 
 For packaging and release gates, read [Release engineering](release.md). Preview packages and signed release candidates have different acceptance requirements.

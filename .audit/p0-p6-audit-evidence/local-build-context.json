@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "b1b592fbacd33f20fc2bf42a7583280b2b6f184d",
+  "dirty": false,
+  "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+  "version": "0.1.0",
+  "target": "mac-x64",
+  "mode": "preview",
+  "configuration": {
+    "mode": "preview"
+  },
+  "identity": {
+    "appId": "io.github.0gnilc.browser2d.foundation",
+    "productName": "Browser2DFoundation",
+    "executableName": "browser-2d-foundation"
+  },
+  "node": "v24.5.0",
+  "packageManager": "pnpm@12.16.1",
+  "createdAt": "2026-10-31T11:47:58.664Z",
+  "tools": {
+    "electron": "45.2.0",
+    "electron-builder": "26.18.0",
+    "electron-updater": "6.8.11"
+  }
+}

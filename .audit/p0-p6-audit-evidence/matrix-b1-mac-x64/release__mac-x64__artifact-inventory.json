@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "name": "browser-2d-foundation-0.1.0-mac-x64.dmg",
+      "size": 140602965,
+      "sha256": "14df5951caeccaf7337f716c841d5892b7161cb1143f3fbbe3d62821594bea2d",
+      "sha512": "XEBSKjcNygR3Of01OMIOJ3+ou08yi93Loc2RnLp4py+rfmEsZg54iBqJZRvVTEul6I/P25uNyaMp1p8HWhZyKQ=="
+    },
+    {
+      "name": "browser-2d-foundation-0.1.0-mac-x64.dmg.blockmap",
+      "size": 148110,
+      "sha256": "1b2209617a61381cb082a705b9814276e56ba13b6d803ab41b07ea6c3893be5f",
+      "sha512": "5fpGfIziZ3xuq7BPQuIJyg0Wfof5GXoz+gBb++GwUD0nqccPn/4hFyznvnkjcQLLuDZPYlWID4ns/U4u/8B+Dw=="
+    },
+    {
+      "name": "browser-2d-foundation-0.1.0-mac-x64.zip",
+      "size": 136578847,
+      "sha256": "26af5e37bfcd321aa46c14a93e9488497c9f34153f13b7dcfd4f40ad4f8ac406",
+      "sha512": "fQIIxDyoJ4wc26mcXtv6gaRM/GJPzrMqT1+2zNIB9tf38vRARSi63LwT1+tSrGl/N6SF3LbmBJkvEVSSBqETlg=="
+    },
+    {
+      "name": "browser-2d-foundation-0.1.0-mac-x64.zip.blockmap",
+      "size": 144126,
+      "sha256": "d36b713669223379122ed58ffe41e771852a863b81a2526784b1db871c6d42b9",
+      "sha512": "onl/k8y0ScUHwP3/I9tzaGvC8TpBclfXQqKIlitcsJbBIaV+z+DSmNiQWKNPte2gDTYY9TsT8vwMZu5NkfRwSw=="
+    }
+  ]
+}

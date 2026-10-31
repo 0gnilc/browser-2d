@@ -2,7 +2,9 @@ Browser-2d 最终重构方案，2026-10-30。
 
 本文件保留已确认的设计基线。截至 2026-10-31，P0、P1、P2、P3、P4 已实施，实际结果和阶段边界见 [P0/P1 验收](implementation/p0-p1-acceptance.md)、[P2 验收](implementation/p2-acceptance.md)及 [P3 验收](implementation/p3-acceptance.md)。P4 实施期间用户明确将浏览器方案调整为 Google Chrome 与 puppeteer-core，不引入 AdsPower。调整后的边界见 [P4 设计](implementation/p4-design.md)。P4 已完成三平台验收，见 [P4 验收记录](implementation/p4-acceptance.md)。P5 与 P6 工程已实施，结果和保留的正式分发条件见 [P5/P6 验收记录](implementation/p5-p6-acceptance.md)。用户确认签名、公证和 HTTPS 更新源尚未准备，正式发布验收仍未完成。下文“本轮”指原设计轮次，实施状态以验收记录为准。
 
-本方案依据已选技术栈整理应用边界、依赖关系、开发和交付流程。技术选型依据见[调研记录](research/electron-stack-2026-10-30.md)。本轮仅编写方案，没有创建目标目录、修改业务代码、安装依赖或运行应用。下文命令和目录均为实施目标，验收框尚未完成。
+全部阶段现已汇总核查，工程补齐和最终四目标预览结果见 [P0 到 P6 汇总验收](implementation/p0-p6-acceptance.md)。整体条件中的正式升级、签名、公证及发布仍未完成；一次未定位的 Windows 获取超时另由 Issue #8 跟踪，没有被改写成已修复。
+
+本方案依据已选技术栈整理应用边界、依赖关系、开发和交付流程。技术选型依据见[调研记录](research/electron-stack-2026-10-30.md)。原设计轮次只编写方案。下文目录和命令保留设计目标，底部验收框依据当前汇总结果更新。
 
 产品继续交付为一个 Electron 桌面应用。关闭主业务窗口即停止任务并退出，Windows、macOS、Linux 使用相同语义。工作模块不作为独立常驻服务发布。设备、材料、历史、设置及任务操作保持可核对的业务行为，UI 最终统一到 Naive UI。工程实施阶段由仓库的 GitHub Issues 承接，本轮不创建 Issue 或 PR。
 
@@ -268,16 +270,16 @@ P2 的每个业务切片迁移其全部调用方，不并存两套可继续扩�
 
 整体完成条件如下，全部满足后才可称为基础架构重构完成。
 
-- [ ] apps、packages、internal 的边界检查通过，没有循环依赖或跨应用源码导入。
-- [ ] 一个锁文件和包依赖图能解释全部生产依赖，worker 原生依赖未在根目录手工复制。
-- [ ] 干净检出可完成规定命令，UI 开发、工作模块重启和完整桌面开发均可使用。
-- [ ] 旧数据可备份、迁移和恢复，worker 是唯一业务数据库访问者。
-- [ ] 任务接纳、取消、完成、中断和清理状态有一致语义，关闭桌面后不再继续执行任务。
-- [ ] 所有原有用户流程有验收结果，目标 UI 已完成 Naive UI 迁移。
+- [x] apps、packages、internal 的边界检查通过，没有循环依赖或跨应用源码导入。
+- [x] 一个锁文件和包依赖图能解释全部生产依赖，worker 原生依赖未在根目录手工复制。
+- [x] 干净检出可完成规定命令，UI 开发、工作模块重启和完整桌面开发均可使用。
+- [x] 旧数据可备份、迁移和恢复，worker 是唯一业务数据库访问者。
+- [x] 任务接纳、取消、完成、中断和清理状态有一致语义，关闭桌面后不再继续执行任务。
+- [x] 所有原有用户流程有验收结果，目标 UI 已完成 Naive UI 迁移。
 - [ ] Windows、macOS 两种架构和 Linux 的最终安装产物及更新流程通过对应验收。
 - [ ] 正式成品的安全配置、签名、公证与验收产物一致，发布使用同一份已验证文件。
-- [ ] 旧构建、数据库驱动、入口和重复依赖已移除，README、运行说明和故障恢复说明与实际命令一致。
+- [x] 旧构建、数据库驱动、入口和重复依赖已移除，README、运行说明和故障恢复说明与实际命令一致。
 
 本方案综合了三个独立候选及一次独立设计评审。采用私有 worker 运行包作为产物边界，保留原数据路径，使用单一 renderer 构建链。凭据采用私有启动上下文，存储按业务垂直切片验收。未采用整体解包 node_modules、手工复制生产依赖清单、迁移驱动时同时搬迁数据库或提前引入反向通用 RPC 的方案。
 
-Laziness Protocol 决定初期只建立必要共享包。Boundary Discipline 决定公共契约与宿主协议的区分。Separate Before Serializing Shared State 决定 worker 的数据所有权。Sequence Work into Verifiable Units 决定阶段顺序，Prove It Works 决定以真实运行及最终安装产物验收。当前完成的是方案一致性核查，以上实现和运行验收尚未执行。
+Laziness Protocol 决定初期只建立必要共享包。Boundary Discipline 决定公共契约与宿主协议的区分。Separate Before Serializing Shared State 决定 worker 的数据所有权。Sequence Work into Verifiable Units 决定阶段顺序，Prove It Works 决定以真实运行及最终安装产物验收。以上为设计时的取舍，当前实施、测试及保留条件以汇总验收记录为准。

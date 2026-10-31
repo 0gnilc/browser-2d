@@ -1,0 +1,104 @@
+{
+  "target": "mac-x64",
+  "mode": "preview",
+  "source": {
+    "schemaVersion": 1,
+    "sourceCommit": "b1b592fbacd33f20fc2bf42a7583280b2b6f184d",
+    "dirty": false,
+    "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+    "version": "0.1.0",
+    "target": "mac-x64",
+    "mode": "preview",
+    "configuration": {
+      "mode": "preview"
+    },
+    "identity": {
+      "appId": "io.github.0gnilc.browser2d.foundation",
+      "productName": "Browser2DFoundation",
+      "executableName": "browser-2d-foundation"
+    },
+    "node": "v24.5.0",
+    "packageManager": "pnpm@12.16.1",
+    "createdAt": "2026-10-31T11:47:58.664Z",
+    "tools": {
+      "electron": "45.2.0",
+      "electron-builder": "26.18.0",
+      "electron-updater": "6.8.11"
+    }
+  },
+  "installer": {
+    "name": "browser-2d-foundation-0.1.0-mac-x64.dmg",
+    "sha256": "83dd8da54fb48415e2816dd0842d95f1ea5edcc045cc001447105b5db337a077"
+  },
+  "result": "VERIFIED",
+  "sameVersionReinstall": true,
+  "nativeUpgrade": "NOT_VERIFIED",
+  "dataPreservedOnUninstall": true,
+  "launchCount": 4,
+  "commands": [
+    {
+      "file": "hdiutil",
+      "args": [
+        "attach",
+        "/Volumes/fc/automator/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg",
+        "-readonly",
+        "-nobrowse",
+        "-mountpoint",
+        "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-native-install-sdCKzA/volume"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "hdiutil",
+      "args": [
+        "detach",
+        "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-native-install-sdCKzA/volume"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "/Users/kyhns7/.cache/node/corepack/v1/pnpm/12.16.1/pnpm-native",
+      "args": [
+        "verify:package",
+        "--",
+        "--target=mac-x64",
+        "--in-place",
+        "--data-dir=/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-release-VFxv90",
+        "--initial-pass=0"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "hdiutil",
+      "args": [
+        "attach",
+        "/Volumes/fc/automator/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg",
+        "-readonly",
+        "-nobrowse",
+        "-mountpoint",
+        "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-native-install-sdCKzA/volume"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "hdiutil",
+      "args": [
+        "detach",
+        "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-native-install-sdCKzA/volume"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "/Users/kyhns7/.cache/node/corepack/v1/pnpm/12.16.1/pnpm-native",
+      "args": [
+        "verify:package",
+        "--",
+        "--target=mac-x64",
+        "--in-place",
+        "--data-dir=/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-release-VFxv90",
+        "--initial-pass=2"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "baseline": "ee6b87d447d99a8e7b0b30c245e7c346c58a1905",
+  "finalProductSource": "beeaba0c9fae03192714dbe51be753a882c0c6e5",
+  "finalRun": "https://github.com/0gnilc/browser-2d/actions/runs/41215312103",
+  "attempt": 2,
+  "finalNativeState": "SUCCESS, four preview targets",
+  "formalRelease": "NOT_VERIFIED, user-deferred",
+  "windowsReliabilityObservation": "OPEN: https://github.com/0gnilc/browser-2d/issues/8",
+  "prCreated": false,
+  "mainMerged": false
+}

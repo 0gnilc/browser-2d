@@ -1,0 +1,136 @@
+{
+  "target": "linux-x64",
+  "mode": "preview",
+  "source": {
+    "schemaVersion": 1,
+    "sourceCommit": "beeaba0c9fae03192714dbe51be753a882c0c6e5",
+    "dirty": false,
+    "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+    "version": "0.1.0",
+    "target": "linux-x64",
+    "mode": "preview",
+    "configuration": {
+      "mode": "preview"
+    },
+    "identity": {
+      "appId": "io.github.0gnilc.browser2d.foundation",
+      "productName": "Browser2DFoundation",
+      "executableName": "browser-2d-foundation"
+    },
+    "node": "v24.22.1",
+    "packageManager": "pnpm@12.16.1",
+    "createdAt": "2026-10-31T15:36:58.448Z",
+    "tools": {
+      "electron": "45.2.0",
+      "electron-builder": "26.18.0",
+      "electron-updater": "6.8.11"
+    }
+  },
+  "installer": {
+    "name": "browser-2d-foundation-0.1.0-linux-amd64.deb",
+    "sha256": "4fcc75e5fc0d70d7f4402e21d25b21ab4b004a7de5e1aa1aac9b04739f9b6c85"
+  },
+  "result": "VERIFIED",
+  "sameVersionReinstall": true,
+  "nativeUpgrade": "NOT_VERIFIED",
+  "dataPreservedOnUninstall": true,
+  "launchCount": 4,
+  "commands": [
+    {
+      "file": "dpkg-deb",
+      "args": [
+        "--field",
+        "/home/runner/work/browser-2d/browser-2d/release/linux-x64/browser-2d-foundation-0.1.0-linux-amd64.deb",
+        "Package"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "sudo",
+      "args": [
+        "apt-get",
+        "install",
+        "--yes",
+        "/home/runner/work/browser-2d/browser-2d/release/linux-x64/browser-2d-foundation-0.1.0-linux-amd64.deb"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "dpkg",
+      "args": [
+        "--listfiles",
+        "browser2dfoundation"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "/opt/hostedtoolcache/node/24.22.1/x64/lib/node_modules/pnpm/pnpm",
+      "args": [
+        "verify:package",
+        "--",
+        "--target=linux-x64",
+        "--in-place",
+        "--data-dir=/tmp/browser-2d-release-QRoVro",
+        "--initial-pass=0"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "sudo",
+      "args": [
+        "dpkg",
+        "--remove",
+        "browser2dfoundation"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "dpkg-deb",
+      "args": [
+        "--field",
+        "/home/runner/work/browser-2d/browser-2d/release/linux-x64/browser-2d-foundation-0.1.0-linux-amd64.deb",
+        "Package"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "sudo",
+      "args": [
+        "apt-get",
+        "install",
+        "--yes",
+        "/home/runner/work/browser-2d/browser-2d/release/linux-x64/browser-2d-foundation-0.1.0-linux-amd64.deb"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "dpkg",
+      "args": [
+        "--listfiles",
+        "browser2dfoundation"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "/opt/hostedtoolcache/node/24.22.1/x64/lib/node_modules/pnpm/pnpm",
+      "args": [
+        "verify:package",
+        "--",
+        "--target=linux-x64",
+        "--in-place",
+        "--data-dir=/tmp/browser-2d-release-QRoVro",
+        "--initial-pass=2"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "sudo",
+      "args": [
+        "dpkg",
+        "--remove",
+        "browser2dfoundation"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

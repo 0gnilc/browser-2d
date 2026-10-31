@@ -1,0 +1,21 @@
+{
+  "diagnosticRun": 41212860572,
+  "diagnosticSource": "f92f0e6438d245ddb300c1255a408b240bc0d62b",
+  "productionBase": "ee9a0e68da942295f3a5611ddbb4b0a99abe5953",
+  "surface": "fused copied Mac ARM preview package outside checkout",
+  "actualVerifierResult": "FAIL",
+  "workflowSummary": "success because tee masked exit status; not acceptance evidence",
+  "operationId": "1d1249a1-7d6a-46c1-8b62-d1635ad89096",
+  "workerPid": 12060,
+  "pgid": 12341,
+  "unknownAt": 1793459338332,
+  "groupProbe": "EPERM",
+  "mainProbe": "ESRCH",
+  "liveChildExited": true,
+  "phase": "attached",
+  "laterProbeAt": 1793459338664,
+  "laterGroupProbe": "ESRCH",
+  "conclusion": "awaitOwnedLifetime returns undefined immediately on transient group uncertainty after successful main-process close, failing shutdown before the existing cleanup deadline",
+  "log": "/tmp/browser-2d-arm-cleanup-41212860572.log",
+  "artifacts": "/tmp/browser-2d-arm-cleanup-41212860572"
+}

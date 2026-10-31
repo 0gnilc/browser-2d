@@ -1,0 +1,60 @@
+$ pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries
+$ prettier --check .
+Checking formatting...
+All matched files use Prettier code style!
+$ eslint apps packages internal tests/e2e
+$ pnpm -r --if-present typecheck && tsc --noEmit -p tests/e2e/tsconfig.json
+packages/contracts typecheck$ tsc --noEmit
+packages/contracts typecheck: Done
+apps/ui typecheck$ vue-tsc --noEmit
+apps/worker typecheck$ tsc --noEmit
+apps/worker typecheck: Done
+apps/ui typecheck: Done
+apps/desktop typecheck$ tsc --noEmit
+apps/desktop typecheck: Done
+$ node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs
+Workspace manifests and source boundaries verified.
+✔ the actual workspace graph allows build tooling and worker runtime resolution (290.737268ms)
+✔ retired root forge.config.js cannot reintroduce a second toolchain (238.92245ms)
+✔ retired root vite.config.js cannot reintroduce a second toolchain (197.614716ms)
+✔ retired root package-lock.json cannot reintroduce a second toolchain (226.87856ms)
+✔ retired dependency @electron-forge/cli cannot reenter a workspace manifest (171.692855ms)
+✔ retired dependency element-plus cannot reenter a workspace manifest (169.156818ms)
+✔ retired dependency sqlite3 cannot reenter a workspace manifest (163.720777ms)
+✔ public contracts cannot re-export host (181.012423ms)
+✔ public contracts cannot use bare Node builtins (164.855606ms)
+✔ UI side-effect imports cannot load Node (161.296219ms)
+✔ UI dynamic imports cannot load Electron (166.167471ms)
+✔ Vue script imports are checked (144.215886ms)
+✔ Vue external scripts are checked (166.05187ms)
+✔ applications cannot import another application source (159.574892ms)
+✔ applications cannot import the worker implementation (155.501596ms)
+✔ production imports cannot use internal tooling (138.76526ms)
+✔ desktop cannot load SQLite through require (140.923974ms)
+✔ desktop cannot load builtin SQLite (139.451236ms)
+✔ worker cannot load UI frameworks (150.215284ms)
+✔ source imports require declared dependencies (184.87608ms)
+✔ workspace imports must use exported subpaths (159.573427ms)
+✔ import type expressions are checked (153.538608ms)
+✔ public contracts cannot hide a privileged import in a shared helper (138.238615ms)
+✔ workspace manifest cycles fail even without source imports (138.947507ms)
+✔ source cycles fail even without a manifest cycle (175.176022ms)
+✔ desktop cannot declare SQLite in any dependency field (158.962947ms)
+✔ app manifests cannot create a worker to UI dependency (165.987989ms)
+✔ unknown workspace packages fail (163.28768ms)
+✔ import-like text in comments and strings is not an import (158.117973ms)
+✔ UI manifests cannot declare Electron (159.241881ms)
+✔ public contracts cannot import UI frameworks (193.545446ms)
+✔ computed runtime imports cannot bypass the static graph (165.516519ms)
+✔ worker runtime resolution must use a compiled export (185.047774ms)
+✔ TypeScript helpers imported through emitted .js names are checked (167.918362ms)
+✔ browser conditional exports cannot expose host contracts to UI (177.083906ms)
+✔ computed imports in package-root helpers reachable from public contracts fail (183.943206ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6747.50698

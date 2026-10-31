@@ -1,0 +1,51 @@
+
+ RUN  v5.0.5 /private/tmp/browser-2d-audit-cold-service/apps/worker
+
+ ❯ tests/chrome.test.ts (14 tests | 1 failed | 13 skipped) 1482ms
+   × recovers a verified owned browser that exited before its release was journaled (transient EPERM: true) 1479ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/chrome.test.ts > recovers a verified owned browser that exited before its release was journaled (transient EPERM: true)
+AssertionError: expected { snapshot: { …(7) }, …(2) } to match object { …(3) }
+(8 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "observedAbsence": false,
+-   "profilePresent": true,
++   "observedAbsence": true,
++   "profilePresent": false,
+    "snapshot": {
+-     "resources": [
+-       {
+-         "failure": "OWNERSHIP_UNCERTAIN",
+-         "operationId": "c625fc20-db17-4e81-9574-6438d1bae6e7",
+-       },
+-     ],
++     "resources": [],
+    },
+  }
+
+ ❯ tests/chrome.test.ts:770:33
+    768|       if (transientPermissionFailure) {
+    769|         expect(injected).toBe(true);
+    770|         expect(publications[0]).toMatchObject({
+       |                                 ^
+    771|           snapshot: {
+    772|             resources: [
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 skipped (14)
+   Start at  15:31:10
+   Duration  1.92s (tests 86%, import 11%, transform 3%)
+
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in /private/tmp/browser-2d-audit-cold-
+  │ service/apps/worker

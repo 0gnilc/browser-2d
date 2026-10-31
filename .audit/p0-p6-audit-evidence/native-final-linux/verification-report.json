@@ -1,0 +1,89 @@
+{
+  "run": "https://github.com/0gnilc/browser-2d/actions/runs/41216081120",
+  "conclusion": "success",
+  "diagnosticSource": "bee383a7a64378229fdd07e96b6b80b989d30a71",
+  "productSource": "beeaba0c9fae03192714dbe51be753a882c0c6e5",
+  "workerTreeDigest": "cdfca40bf4251a801e831906f75a6b64b3178508",
+  "workerSourceTreeDigest": "d9aec39f1859793b1258ac9139b7ac9bdd49504b",
+  "lockDigest": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+  "familyTests": "4 passed",
+  "nativeWriterCount": 46,
+  "nativeHelperWriterCount": 9,
+  "observedNativeWriterGroups": [
+    3204
+  ],
+  "mintedGroup": 3204,
+  "heldHelperPositiveWritableOpen": [
+    {
+      "kind": "NS_ENTRY",
+      "start": 64882783589,
+      "pid": 3205,
+      "tid": 3335,
+      "ppid": 1,
+      "pgid": 3204,
+      "name": "libuv-worker",
+      "syscall": "openat",
+      "argument": 524865,
+      "path": "/tmp/b2d-family-vyEjp6/chrome-sessions/667418e2-015c-4f79-95d1-987c7f1f3b59/late-helper-write",
+      "end": 64882841696,
+      "result": 23,
+      "entryPath": "/tmp/b2d-family-vyEjp6/chrome-sessions/667418e2-015c-4f79-95d1-987c7f1f3b59/late-helper-write"
+    }
+  ],
+  "kernelESRCHFirstReturnNs": 64912716292,
+  "firstCapturedWorkerDeletion": {
+    "kind": "NS_ENTRY",
+    "start": 64915874550,
+    "pid": 3189,
+    "tid": 3199,
+    "ppid": 3161,
+    "pgid": 3161,
+    "name": "libuv-worker",
+    "syscall": "rmdir",
+    "argument": 0,
+    "path": "/tmp/b2d-family-vyEjp6/chrome-sessions/667418e2-015c-4f79-95d1-987c7f1f3b59/AmountExtractionHeuristicRegexes",
+    "end": 64915965557,
+    "result": 0,
+    "entryPath": "/tmp/b2d-family-vyEjp6/chrome-sessions/667418e2-015c-4f79-95d1-987c7f1f3b59/AmountExtractionHeuristicRegexes"
+  },
+  "exactProfileRootSuccessfulVfsRmdir": [
+    {
+      "start": 64930862231,
+      "end": 64930915592,
+      "pid": 3189,
+      "tid": 3200,
+      "ppid": 3161,
+      "pgid": 3161,
+      "function": "vfs_rmdir",
+      "rootUuid": "667418e2-015c-4f79-95d1-987c7f1f3b59",
+      "result": 0
+    }
+  ],
+  "exactRootIdentification": "Kernel dentry name equals fixture operation UUID. Probe emits only after its parent name is chrome-sessions and its grandparent name starts b2d-family-. The complete path in analysis is bound from that UUID and the fixture profile path.",
+  "vfsArgumentBinding": {
+    "vfs_rmdir": 2,
+    "vfs_create": 1
+  },
+  "vfsDentryBtfRecords": {
+    "vfs_rmdir": "FUNC 'vfs_rmdir' type_id=56465 linkage=static\n\nFUNC_PROTO '(anon)' ret_type_id=127616 vlen=4\n\t'idmap' type_id=938\n\t'dir' type_id=791\n\t'dentry' type_id=406\n\t'delegated_inode' type_id=18777\n",
+    "vfs_create": "FUNC 'vfs_create' type_id=56455 linkage=static\n\nFUNC_PROTO '(anon)' ret_type_id=127616 vlen=4\n\t'idmap' type_id=938\n\t'dentry' type_id=406\n\t'mode' type_id=166882\n\t'di' type_id=18777\n"
+  },
+  "groupESRCHBeforeExactRootRemoval": true,
+  "namespaceAbsentBeforeTeardown": true,
+  "unmatchedSyscallEntries": 0,
+  "unmatchedVfsEntries": 0,
+  "traceStderrEmpty": true,
+  "traceSha256": "973de4964ae1ed24d86191b1f8479ba32d96d3bf745ccc359fd620c846d42214",
+  "analysisSha256": "94b6d23a2af172f0152cbd83e079645b8b323b4eadbce9a845e70ab086a800f9",
+  "priorIntermediateEvidence": "/tmp/browser-2d-linux-family-41214657721/verification-report.json",
+  "limits": [
+    "Positive trace evidence only. No exhaustive absence or universal descendant-containment claim follows.",
+    "The exact successful root removal was captured at vfs_rmdir. Its userspace rmdir syscall event was absent. The reason for that syscall coverage gap is unproven; io_uring remains a hypothesis.",
+    "Syscall path captures are limited to 128 bytes; unresolved relative paths and unlisted operations remain outside that coverage. Exact root UUID and helper positive-control paths are not truncated.",
+    "Runtime BTF determines PIDTYPE_PGID index 2, struct pid.numbers byte offset 128, upid.nr byte offset 0, vfs_rmdir dentry argument 2, and vfs_create dentry argument 1.",
+    "Observed runtime is Ubuntu 24.04 kernel 7.0.0-1017-azure, Node 24.22.1, pnpm 12.16.1 and CfT 156.0.8078.80.",
+    "No root checkout, production implementation beyond the exact supplied beeaba0 worker tree, dependencies or Chrome launch flags were changed.",
+    "Four family tests are the scope of this diagnostic. The root owns the full 100-test worker and four-target engineering matrix. Windows remains child-only evidence."
+  ],
+  "instrumentHistory": "The first two final-source attempts passed all four product fixtures but failed the exact-root or positive-control coverage gate. Enlarging the event buffer did not resolve the syscall coverage gap. Filesystem-level probes were added with runtime BTF signatures; two compiler stack failures were corrected by emitting only the scoped root UUID. No failed attempt was counted as acceptance."
+}

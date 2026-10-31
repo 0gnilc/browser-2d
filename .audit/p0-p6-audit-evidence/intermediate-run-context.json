@@ -1,0 +1,10 @@
+{
+  "baseline": "ee6b87d447d99a8e7b0b30c245e7c346c58a1905",
+  "testedNativeHead": "b1b592fbacd33f20fc2bf42a7583280b2b6f184d",
+  "nativeRun": "https://github.com/0gnilc/browser-2d/actions/runs/41198140676",
+  "nativeState": "PENDING",
+  "firstRun": "https://github.com/0gnilc/browser-2d/actions/runs/41197214120",
+  "firstRunResult": "Mac Intel profile directory assertion failed; other three native targets succeeded",
+  "diagnosisRun": "https://github.com/0gnilc/browser-2d/actions/runs/41198251677",
+  "formalRelease": "NOT_VERIFIED, user-deferred resources"
+}

@@ -1,0 +1,874 @@
+﻿2026-10-31T15:32:15.8404900Z Current runner version: '2.338.2'
+2026-10-31T15:32:15.8459340Z ##[group]Runner Image Provisioner
+2026-10-31T15:32:15.8461120Z Hosted Compute Agent
+2026-10-31T15:32:15.8462210Z Version: 20260819.586
+2026-10-31T15:32:15.8463520Z Commit: 3cc4a88dfa507ef76119ad1bb3eccc6378bb2b76
+2026-10-31T15:32:15.8464940Z Build Date: 2026-08-18T23:20:18Z
+2026-10-31T15:32:15.8466220Z Worker ID: {ef1ff96a-897f-4933-869c-a3ac87e32337}
+2026-10-31T15:32:15.8467690Z Azure Region: westus
+2026-10-31T15:32:15.8468740Z ##[endgroup]
+2026-10-31T15:32:15.8471730Z ##[group]Operating System
+2026-10-31T15:32:15.8473290Z macOS
+2026-10-31T15:32:15.8474240Z 15.7.9
+2026-10-31T15:32:15.8475120Z 24G830
+2026-10-31T15:32:15.8476000Z ##[endgroup]
+2026-10-31T15:32:15.8477010Z ##[group]Runner Image
+2026-10-31T15:32:15.8478090Z Image: macos-15
+2026-10-31T15:32:15.8479460Z Version: 20260824.0482.1
+2026-10-31T15:32:15.8482030Z Included Software: https://github.com/actions/runner-images/blob/macos-15/20260824.0482/images/macos/macos-15-Readme.md
+2026-10-31T15:32:15.8485380Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15%2F20260824.0482
+2026-10-31T15:32:15.8487470Z ##[endgroup]
+2026-10-31T15:32:15.8489800Z ##[group]GITHUB_TOKEN Permissions
+2026-10-31T15:32:15.8494450Z Contents: read
+2026-10-31T15:32:15.8495500Z Metadata: read
+2026-10-31T15:32:15.8496550Z ##[endgroup]
+2026-10-31T15:32:15.8501950Z Secret source: Actions
+2026-10-31T15:32:15.8503710Z Cache mode: write
+2026-10-31T15:32:15.8506160Z Prepare workflow directory
+2026-10-31T15:32:15.9660320Z Prepare all required actions
+2026-10-31T15:32:15.9759910Z Getting action download info
+2026-10-31T15:32:16.5256500Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-31T15:32:16.8182740Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-31T15:32:17.0995570Z Download action repository 'browser-actions/setup-chrome@v2' (SHA:48ad923757ca74d66703209fe939badbdf80f2f4)
+2026-10-31T15:32:17.4958530Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-31T15:32:18.1861190Z Complete job name: native (macos-15-intel, mac-x64)
+2026-10-31T15:32:18.4364290Z ##[group]Run actions/checkout@v4
+2026-10-31T15:32:18.4368150Z with:
+2026-10-31T15:32:18.4370980Z   repository: 0gnilc/browser-2d
+2026-10-31T15:32:18.4401400Z   token: ***
+2026-10-31T15:32:18.4403010Z   ssh-strict: true
+2026-10-31T15:32:18.4404540Z   ssh-user: git
+2026-10-31T15:32:18.4406080Z   persist-credentials: true
+2026-10-31T15:32:18.4407770Z   clean: true
+2026-10-31T15:32:18.4409270Z   sparse-checkout-cone-mode: true
+2026-10-31T15:32:18.4411420Z   fetch-depth: 1
+2026-10-31T15:32:18.4412780Z   fetch-tags: false
+2026-10-31T15:32:18.4414260Z   show-progress: true
+2026-10-31T15:32:18.4416190Z   lfs: false
+2026-10-31T15:32:18.4417520Z   submodules: false
+2026-10-31T15:32:18.4419070Z   set-safe-directory: true
+2026-10-31T15:32:18.4421130Z   allow-unsafe-pr-checkout: false
+2026-10-31T15:32:18.4427800Z ##[endgroup]
+2026-10-31T15:32:18.9299150Z Syncing repository: 0gnilc/browser-2d
+2026-10-31T15:32:18.9305600Z ##[group]Getting Git version info
+2026-10-31T15:32:18.9308900Z Working directory is '/Users/runner/work/browser-2d/browser-2d'
+2026-10-31T15:32:18.9312870Z [command]/usr/local/bin/git version
+2026-10-31T15:32:18.9532950Z git version 2.55.0
+2026-10-31T15:32:18.9704660Z ##[endgroup]
+2026-10-31T15:32:18.9776170Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/45f66847-957b-4748-946c-3476344b5cac/.gitconfig'
+2026-10-31T15:32:18.9882560Z Temporarily overriding HOME='/Users/runner/work/_temp/45f66847-957b-4748-946c-3476344b5cac' before making global git config changes
+2026-10-31T15:32:18.9956940Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T15:32:19.0015250Z [command]/usr/local/bin/git config --global --add safe.directory /Users/runner/work/browser-2d/browser-2d
+2026-10-31T15:32:19.0337290Z Deleting the contents of '/Users/runner/work/browser-2d/browser-2d'
+2026-10-31T15:32:19.0379060Z ##[group]Initializing the repository
+2026-10-31T15:32:19.0423940Z [command]/usr/local/bin/git init /Users/runner/work/browser-2d/browser-2d
+2026-10-31T15:32:19.0794320Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-31T15:32:19.0862300Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-31T15:32:19.1019310Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-31T15:32:19.1098740Z hint: call:
+2026-10-31T15:32:19.1132310Z hint:
+2026-10-31T15:32:19.1180840Z hint: 	git config --global init.defaultBranch <name>
+2026-10-31T15:32:19.1215120Z hint:
+2026-10-31T15:32:19.1248280Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-31T15:32:19.1254390Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-31T15:32:19.1288680Z hint:
+2026-10-31T15:32:19.1311680Z hint: 	git branch -m <name>
+2026-10-31T15:32:19.1335790Z hint:
+2026-10-31T15:32:19.1367300Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-31T15:32:19.1442510Z Initialized empty Git repository in /Users/runner/work/browser-2d/browser-2d/.git/
+2026-10-31T15:32:19.1561790Z [command]/usr/local/bin/git remote add origin https://github.com/0gnilc/browser-2d
+2026-10-31T15:32:19.1689550Z ##[endgroup]
+2026-10-31T15:32:19.1796930Z ##[group]Disabling automatic garbage collection
+2026-10-31T15:32:19.1862280Z [command]/usr/local/bin/git config --local gc.auto 0
+2026-10-31T15:32:19.1953220Z ##[endgroup]
+2026-10-31T15:32:19.1979000Z ##[group]Setting up auth
+2026-10-31T15:32:19.2001790Z [command]/usr/local/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T15:32:19.2090370Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T15:32:19.6322420Z [command]/usr/local/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T15:32:19.6556500Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T15:32:19.8971980Z [command]/usr/local/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T15:32:19.9193280Z [command]/usr/local/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-31T15:32:20.1914240Z [command]/usr/local/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-31T15:32:20.2082280Z ##[endgroup]
+2026-10-31T15:32:20.2143780Z ##[group]Fetching the repository
+2026-10-31T15:32:20.2200630Z [command]/usr/local/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +beeaba0c9fae03192714dbe51be753a882c0c6e5:refs/remotes/origin/codex/p0-p6-audit
+2026-10-31T15:32:20.9564310Z From https://github.com/0gnilc/browser-2d
+2026-10-31T15:32:20.9593000Z  * [new ref]         beeaba0c9fae03192714dbe51be753a882c0c6e5 -> origin/codex/p0-p6-audit
+2026-10-31T15:32:20.9687600Z ##[endgroup]
+2026-10-31T15:32:20.9718390Z ##[group]Determining the checkout info
+2026-10-31T15:32:20.9720920Z ##[endgroup]
+2026-10-31T15:32:20.9751550Z [command]/usr/local/bin/git sparse-checkout disable
+2026-10-31T15:32:20.9880040Z [command]/usr/local/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-31T15:32:21.0021800Z ##[group]Checking out the ref
+2026-10-31T15:32:21.0055280Z [command]/usr/local/bin/git checkout --progress --force -B codex/p0-p6-audit refs/remotes/origin/codex/p0-p6-audit
+2026-10-31T15:32:21.1389330Z Switched to a new branch 'codex/p0-p6-audit'
+2026-10-31T15:32:21.1404260Z branch 'codex/p0-p6-audit' set up to track 'origin/codex/p0-p6-audit'.
+2026-10-31T15:32:21.1418560Z ##[endgroup]
+2026-10-31T15:32:21.1617340Z [command]/usr/local/bin/git log -1 --format=%H
+2026-10-31T15:32:21.1771990Z beeaba0c9fae03192714dbe51be753a882c0c6e5
+2026-10-31T15:32:21.2428540Z ##[group]Run actions/setup-node@v4
+2026-10-31T15:32:21.2429910Z with:
+2026-10-31T15:32:21.2430930Z   node-version-file: .node-version
+2026-10-31T15:32:21.2432040Z   always-auth: false
+2026-10-31T15:32:21.2432930Z   check-latest: false
+2026-10-31T15:32:21.2439090Z   token: ***
+2026-10-31T15:32:21.2440040Z ##[endgroup]
+2026-10-31T15:32:21.5133010Z Node version file is not JSON file
+2026-10-31T15:32:21.5135850Z Resolved .node-version as 24.22.1
+2026-10-31T15:32:21.5161990Z Attempting to download 24.22.1...
+2026-10-31T15:32:21.5383020Z (node:2542) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T15:32:21.5521800Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T15:32:22.8496490Z Acquiring 24.22.1 - x64 from https://github.com/actions/node-versions/releases/download/24.22.1-39619001896/node-24.22.1-darwin-x64.tar.gz
+2026-10-31T15:32:23.8284550Z Extracting ...
+2026-10-31T15:32:23.8530690Z [command]/usr/bin/tar xz --strip 1 -C /Users/runner/work/_temp/8a83858d-57da-48dc-865e-915cbc20f2df -f /Users/runner/work/_temp/240b0d5c-7a7f-46d3-8060-de6c772ba529
+2026-10-31T15:32:29.8591350Z Adding to the cache ...
+2026-10-31T15:32:38.4577440Z ##[group]Environment details
+2026-10-31T15:32:39.9714180Z node: v24.22.1
+2026-10-31T15:32:39.9755460Z npm: 11.19.1
+2026-10-31T15:32:39.9769950Z yarn: 1.22.22
+2026-10-31T15:32:39.9774640Z ##[endgroup]
+2026-10-31T15:32:40.0187400Z ##[group]Run npm install --global pnpm@12.16.1
+2026-10-31T15:32:40.0188540Z npm install --global pnpm@12.16.1
+2026-10-31T15:32:40.0313050Z shell: /bin/bash -e {0}
+2026-10-31T15:32:40.0313760Z ##[endgroup]
+2026-10-31T15:32:45.8794470Z
+2026-10-31T15:32:45.8874110Z npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+2026-10-31T15:32:45.8876190Z added 2 packages in 6s
+2026-10-31T15:32:45.8997800Z npm warn install-scripts   pnpm@12.16.1 (preinstall: node install.js; postinstall: node install.js)
+2026-10-31T15:32:45.9080860Z npm warn install-scripts
+2026-10-31T15:32:45.9226450Z npm warn install-scripts Run `npm install -g --allow-scripts=pnpm` to allow these scripts once, or `npm config set allow-scripts=pnpm --location=user` to allow them for all global installs.
+2026-10-31T15:32:46.1809520Z ##[group]Run pnpm install --frozen-lockfile
+2026-10-31T15:32:46.1810780Z pnpm install --frozen-lockfile
+2026-10-31T15:32:46.1913120Z shell: /bin/bash -e {0}
+2026-10-31T15:32:46.1913810Z ##[endgroup]
+2026-10-31T15:32:46.3130760Z Scope: all 9 workspace projects
+2026-10-31T15:32:46.4280610Z ? Verifying lockfile against supply-chain policies (588 entries)...
+2026-10-31T15:32:47.1664300Z Downloading better-sqlite3@13.0.3: 0.00 B/11.40 MB
+2026-10-31T15:32:47.1836010Z Packages are copied from the content-addressable store to the virtual store.
+2026-10-31T15:32:47.2145710Z   Content-addressable store is at: /Users/runner/Library/pnpm/store/v11
+2026-10-31T15:32:47.2384770Z   Virtual store is at:             node_modules/.pnpm
+2026-10-31T15:32:47.3856800Z Downloading electron-winstaller@5.4.0: 0.00 B/9.14 MB
+2026-10-31T15:32:48.5737390Z Progress: resolved 560, reused 0, downloaded 41, added 40
+2026-10-31T15:32:49.1877720Z Downloading @rolldown/binding-darwin-x64@1.2.16: 0.00 B/8.41 MB
+2026-10-31T15:32:49.7675810Z [WARN] Tarball download average speed 21 KiB/s (size 22 KiB) is below 50 KiB/s: https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz (GET)
+2026-10-31T15:32:50.0684850Z Downloading naive-ui@2.45.3: 0.00 B/9.35 MB
+2026-10-31T15:32:51.0244610Z Downloading naive-ui@2.45.3: 1.73 MB/9.35 MB
+2026-10-31T15:32:52.3370110Z Progress: resolved 560, reused 0, downloaded 185, added 162
+2026-10-31T15:32:53.3646750Z Progress: resolved 560, reused 0, downloaded 210, added 186
+2026-10-31T15:32:54.5064900Z Downloading better-sqlite3@13.0.3: 11.40 MB/11.40 MB, done
+2026-10-31T15:32:54.7983600Z ✓ Lockfile passes supply-chain policies (588 entries in 8.3s)
+2026-10-31T15:32:54.8466600Z Lockfile is up to date, resolution step is skipped
+2026-10-31T15:32:55.8700840Z Progress: resolved 560, reused 0, downloaded 249, added 232
+2026-10-31T15:32:56.8803830Z Progress: resolved 560, reused 0, downloaded 292, added 242
+2026-10-31T15:32:58.0208080Z Progress: resolved 560, reused 0, downloaded 319, added 310
+2026-10-31T15:32:59.1134160Z Progress: resolved 560, reused 0, downloaded 333, added 324
+2026-10-31T15:33:00.2558340Z Progress: resolved 560, reused 0, downloaded 406, added 352
+2026-10-31T15:33:02.0072670Z Progress: resolved 560, reused 0, downloaded 431, added 412
+2026-10-31T15:33:03.0419270Z Progress: resolved 560, reused 0, downloaded 451, added 432
+2026-10-31T15:33:03.9883740Z Progress: resolved 560, reused 0, downloaded 506, added 444
+2026-10-31T15:33:05.0351480Z Progress: resolved 560, reused 0, downloaded 528, added 480
+2026-10-31T15:33:06.4994590Z Progress: resolved 560, reused 0, downloaded 538, added 488
+2026-10-31T15:33:07.5307810Z Progress: resolved 560, reused 0, downloaded 542, added 525
+2026-10-31T15:33:08.8546190Z Progress: resolved 560, reused 0, downloaded 546, added 540
+2026-10-31T15:33:11.0977210Z Progress: resolved 560, reused 0, downloaded 549, added 541
+2026-10-31T15:33:12.2651210Z Progress: resolved 560, reused 0, downloaded 549, added 543
+2026-10-31T15:33:13.2990000Z Progress: resolved 560, reused 0, downloaded 550, added 549
+2026-10-31T15:33:16.6452020Z Progress: resolved 560, reused 0, downloaded 559, added 556
+2026-10-31T15:33:18.3047910Z Progress: resolved 560, reused 0, downloaded 560, added 556
+2026-10-31T15:33:20.0076540Z Progress: resolved 560, reused 0, downloaded 560, added 560
+2026-10-31T15:33:20.0210930Z Packages: +560
+2026-10-31T15:33:20.0211790Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-31T15:33:20.1783690Z Progress: resolved 560, reused 0, downloaded 560, added 560, done
+2026-10-31T15:33:20.2866850Z
+2026-10-31T15:33:20.2868350Z devDependencies:
+2026-10-31T15:33:20.2869650Z + @browser-2d/lint-config <- internal/lint-config
+2026-10-31T15:33:20.2871560Z + @browser-2d/test-utils <- internal/test-utils
+2026-10-31T15:33:20.2872680Z + @electron/asar 3.4.1
+2026-10-31T15:33:20.2873390Z + @eslint/js 9.39.1
+2026-10-31T15:33:20.2874100Z + @playwright/test 1.64.1
+2026-10-31T15:33:20.2874830Z + @types/node 24.5.2
+2026-10-31T15:33:20.2877010Z + @vitejs/plugin-vue 6.0.10
+2026-10-31T15:33:20.2877890Z + @vue/test-utils 2.5.1
+2026-10-31T15:33:20.2878730Z + eslint 9.39.1
+2026-10-31T15:33:20.2879550Z + eslint-plugin-vue 10.5.1
+2026-10-31T15:33:20.2880210Z + jsdom 26.1.0
+2026-10-31T15:33:20.2880970Z + prettier 3.9.10
+2026-10-31T15:33:20.2881700Z + typescript 5.9.3
+2026-10-31T15:33:20.2882410Z + typescript-eslint 8.72.1
+2026-10-31T15:33:20.2883270Z + vite 8.3.5
+2026-10-31T15:33:20.2884010Z + vitest 5.0.5
+2026-10-31T15:33:20.2884610Z + yaml 2.9.1
+2026-10-31T15:33:20.2884960Z
+2026-10-31T15:33:20.2914110Z Done in 34s using pnpm v12.16.1
+2026-10-31T15:33:20.3736080Z ##[group]Run browser-actions/setup-chrome@v2
+2026-10-31T15:33:20.3737150Z with:
+2026-10-31T15:33:20.3737710Z   chrome-version: stable
+2026-10-31T15:33:20.3738350Z   install-dependencies: false
+2026-10-31T15:33:20.3739140Z   install-chromedriver: false
+2026-10-31T15:33:20.3739820Z   no-sudo: false
+2026-10-31T15:33:20.3740390Z ##[endgroup]
+2026-10-31T15:33:20.5435630Z Setup chrome stable
+2026-10-31T15:33:20.5456810Z Attempting to download chrome stable...
+2026-10-31T15:33:20.5988480Z Acquiring chrome stable from https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.80/mac-x64/chrome-mac-x64.zip
+2026-10-31T15:33:22.6332330Z Installing chrome...
+2026-10-31T15:33:22.6430200Z [command]/usr/bin/unzip -o -q /Users/runner/work/_temp/2bc0020b-bada-44be-b505-17042e09b68e
+2026-10-31T15:33:31.0068160Z Successfully Installed chrome to /Users/runner/hostedtoolcache/setup-chrome/chrome/stable/x64
+2026-10-31T15:33:31.0072300Z [command]/Users/runner/hostedtoolcache/setup-chrome/chrome/stable/x64/Contents/MacOS/Google Chrome for Testing --version
+2026-10-31T15:33:31.1315050Z Google Chrome for Testing 156.0.8078.80
+2026-10-31T15:33:31.1407330Z Successfully setup chrome 156.0.8078.80
+2026-10-31T15:33:31.1692590Z ##[group]Run node scripts/prepare-test-chrome.mjs
+2026-10-31T15:33:31.1693700Z node scripts/prepare-test-chrome.mjs
+2026-10-31T15:33:31.1804700Z shell: /bin/bash -e {0}
+2026-10-31T15:33:31.1805420Z env:
+2026-10-31T15:33:31.1806720Z   CHROME_PATH: /Users/runner/hostedtoolcache/setup-chrome/chrome/stable/x64/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:33:31.1808230Z ##[endgroup]
+2026-10-31T15:33:31.4030270Z ##[group]Run pnpm check
+2026-10-31T15:33:31.4031090Z pnpm check
+2026-10-31T15:33:31.4137840Z shell: /bin/bash -e {0}
+2026-10-31T15:33:31.4138670Z env:
+2026-10-31T15:33:31.4140700Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:33:31.4142700Z ##[endgroup]
+2026-10-31T15:33:31.4960480Z $ pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries
+2026-10-31T15:33:31.5643260Z $ prettier --check .
+2026-10-31T15:33:31.8677570Z Checking formatting...
+2026-10-31T15:33:38.5089270Z All matched files use Prettier code style!
+2026-10-31T15:33:38.6053920Z $ eslint apps packages internal tests/e2e
+2026-10-31T15:33:44.8690500Z $ pnpm -r --if-present typecheck && tsc --noEmit -p tests/e2e/tsconfig.json
+2026-10-31T15:33:44.9964630Z packages/contracts typecheck$ tsc --noEmit
+2026-10-31T15:33:48.1838220Z packages/contracts typecheck: Done
+2026-10-31T15:33:48.1842250Z apps/ui typecheck$ vue-tsc --noEmit
+2026-10-31T15:33:48.1844790Z apps/worker typecheck$ tsc --noEmit
+2026-10-31T15:33:59.8952510Z apps/worker typecheck: Done
+2026-10-31T15:34:01.9019580Z apps/ui typecheck: Done
+2026-10-31T15:34:01.9023250Z apps/desktop typecheck$ tsc --noEmit
+2026-10-31T15:34:05.6674720Z apps/desktop typecheck: Done
+2026-10-31T15:34:11.0319030Z $ node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs
+2026-10-31T15:34:12.0665760Z Workspace manifests and source boundaries verified.
+2026-10-31T15:34:13.1794800Z ✔ the actual workspace graph allows build tooling and worker runtime resolution (487.190114ms)
+2026-10-31T15:34:13.8021580Z ✔ retired root forge.config.js cannot reintroduce a second toolchain (604.747986ms)
+2026-10-31T15:34:14.3278310Z ✔ retired root vite.config.js cannot reintroduce a second toolchain (542.449301ms)
+2026-10-31T15:34:14.9096880Z ✔ retired root package-lock.json cannot reintroduce a second toolchain (583.665224ms)
+2026-10-31T15:34:15.6408740Z ✔ retired dependency @electron-forge/cli cannot reenter a workspace manifest (643.776521ms)
+2026-10-31T15:34:16.1874640Z ✔ retired dependency element-plus cannot reenter a workspace manifest (632.392369ms)
+2026-10-31T15:34:16.7193250Z ✔ retired dependency sqlite3 cannot reenter a workspace manifest (526.93142ms)
+2026-10-31T15:34:17.4916750Z ✔ public contracts cannot re-export host (770.403783ms)
+2026-10-31T15:34:18.0715350Z ✔ public contracts cannot use bare Node builtins (584.624215ms)
+2026-10-31T15:34:18.6421270Z ✔ UI side-effect imports cannot load Node (567.495129ms)
+2026-10-31T15:34:19.1681930Z ✔ UI dynamic imports cannot load Electron (531.319485ms)
+2026-10-31T15:34:19.6906900Z ✔ Vue script imports are checked (512.891473ms)
+2026-10-31T15:34:20.2452590Z ✔ Vue external scripts are checked (562.205518ms)
+2026-10-31T15:34:21.2987650Z ✔ applications cannot import another application source (1049.074178ms)
+2026-10-31T15:34:22.2303330Z ✔ applications cannot import the worker implementation (856.966091ms)
+2026-10-31T15:34:22.9087840Z ✔ production imports cannot use internal tooling (745.012994ms)
+2026-10-31T15:34:23.4450180Z ✔ desktop cannot load SQLite through require (546.201766ms)
+2026-10-31T15:34:23.9633000Z ✔ desktop cannot load builtin SQLite (520.989046ms)
+2026-10-31T15:34:24.4871270Z ✔ worker cannot load UI frameworks (524.695302ms)
+2026-10-31T15:34:24.9642880Z ✔ source imports require declared dependencies (477.025611ms)
+2026-10-31T15:34:25.4750850Z ✔ workspace imports must use exported subpaths (510.838218ms)
+2026-10-31T15:34:26.0004720Z ✔ import type expressions are checked (524.357074ms)
+2026-10-31T15:34:26.5163640Z ✔ public contracts cannot hide a privileged import in a shared helper (515.176731ms)
+2026-10-31T15:34:27.1905590Z ✔ workspace manifest cycles fail even without source imports (670.635342ms)
+2026-10-31T15:34:27.6866140Z ✔ source cycles fail even without a manifest cycle (500.1325ms)
+2026-10-31T15:34:28.3038880Z ✔ desktop cannot declare SQLite in any dependency field (614.792177ms)
+2026-10-31T15:34:28.8344470Z ✔ app manifests cannot create a worker to UI dependency (531.365705ms)
+2026-10-31T15:34:29.3664070Z ✔ unknown workspace packages fail (530.582224ms)
+2026-10-31T15:34:29.8621930Z ✔ import-like text in comments and strings is not an import (496.77913ms)
+2026-10-31T15:34:30.3849770Z ✔ UI manifests cannot declare Electron (520.66072ms)
+2026-10-31T15:34:31.0534430Z ✔ public contracts cannot import UI frameworks (660.066241ms)
+2026-10-31T15:34:31.5700460Z ✔ computed runtime imports cannot bypass the static graph (527.813036ms)
+2026-10-31T15:34:32.5128120Z ✔ worker runtime resolution must use a compiled export (926.555423ms)
+2026-10-31T15:34:33.1329720Z ✔ TypeScript helpers imported through emitted .js names are checked (636.464301ms)
+2026-10-31T15:34:33.6736900Z ✔ browser conditional exports cannot expose host contracts to UI (537.632089ms)
+2026-10-31T15:34:34.1967740Z ✔ computed imports in package-root helpers reachable from public contracts fail (526.219571ms)
+2026-10-31T15:34:34.2338680Z ℹ tests 36
+2026-10-31T15:34:34.2374580Z ℹ suites 0
+2026-10-31T15:34:34.2380070Z ℹ pass 36
+2026-10-31T15:34:34.2384880Z ℹ fail 0
+2026-10-31T15:34:34.2386380Z ℹ cancelled 0
+2026-10-31T15:34:34.2389410Z ℹ skipped 0
+2026-10-31T15:34:34.2392790Z ℹ todo 0
+2026-10-31T15:34:34.2395130Z ℹ duration_ms 22048.001075
+2026-10-31T15:34:34.2609610Z ##[group]Run pnpm test
+2026-10-31T15:34:34.2610670Z pnpm test
+2026-10-31T15:34:34.2683800Z shell: /bin/bash -e {0}
+2026-10-31T15:34:34.2684660Z env:
+2026-10-31T15:34:34.2686360Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:34:34.2687900Z ##[endgroup]
+2026-10-31T15:34:34.3375150Z $ vitest run
+2026-10-31T15:34:35.3217750Z
+2026-10-31T15:34:35.4220340Z  RUN  v5.0.5 /Users/runner/work/browser-2d/browser-2d
+2026-10-31T15:34:35.5223160Z
+2026-10-31T15:34:39.6426930Z  ✓ apps/ui/tests/Updates.test.ts (3 tests) 300ms
+2026-10-31T15:34:45.1254320Z stderr | apps/ui/tests/Foundation.test.ts > scheduling screen > keeps the development fixture explicitly unavailable
+2026-10-31T15:34:45.1258850Z [Vue Router warn]: No match found for location with path "/devices"
+2026-10-31T15:34:45.1261910Z [Vue Router warn]: No match found for location with path "/materials"
+2026-10-31T15:34:45.1264840Z [Vue Router warn]: No match found for location with path "/history"
+2026-10-31T15:34:45.1267730Z [Vue Router warn]: No match found for location with path "/settings"
+2026-10-31T15:34:45.1270190Z
+2026-10-31T15:34:45.1622450Z stderr | apps/ui/tests/Foundation.test.ts > scheduling screen > keeps the development fixture explicitly unavailable
+2026-10-31T15:34:45.1625270Z [Vue Router warn]: No match found for location with path "/devices"
+2026-10-31T15:34:45.1627980Z [Vue Router warn]: No match found for location with path "/materials"
+2026-10-31T15:34:45.1630460Z [Vue Router warn]: No match found for location with path "/history"
+2026-10-31T15:34:45.1632820Z [Vue Router warn]: No match found for location with path "/settings"
+2026-10-31T15:34:45.1634400Z
+2026-10-31T15:34:45.2072300Z  ✓ apps/ui/tests/Foundation.test.ts (19 tests) 5399ms
+2026-10-31T15:34:45.2075670Z    ✓ scheduling screen (19)
+2026-10-31T15:34:45.2078620Z      ✓ starts with a numeric business device and treats the receipt as acceptance 431ms
+2026-10-31T15:34:45.2107090Z      ✓ keeps one subscription and pending command through repeated route navigation 1553ms
+2026-10-31T15:34:45.2390630Z      ✓ reports bulk cancellation per run without optimistic terminal states 301ms
+2026-10-31T15:34:45.8339020Z stderr | apps/ui/tests/Business.test.ts > business screens > reports an absent desktop API and an explicitly unavailable preview API
+2026-10-31T15:34:45.8345410Z [Vue warn]: injection "Symbol(browser2d)" not found.
+2026-10-31T15:34:45.8349050Z   at <Devices ref="VTU_COMPONENT" >
+2026-10-31T15:34:45.8359590Z   at <VTUROOT>
+2026-10-31T15:34:45.8361260Z
+2026-10-31T15:34:45.9342240Z  ✓ apps/ui/tests/Business.test.ts (8 tests) 6094ms
+2026-10-31T15:34:45.9344090Z    ✓ business screens (8)
+2026-10-31T15:34:45.9346400Z      ✓ preserves zero, null and an existing empty string when editing a device 1004ms
+2026-10-31T15:34:45.9349070Z      ✓ shows actual committed import count and each original line outcome 1248ms
+2026-10-31T15:34:45.9351260Z      ✓ filters status zero, changes pages, and preserves nullable material fields on edit 1561ms
+2026-10-31T15:34:45.9353300Z      ✓ surfaces a processing conflict and keeps the material visible 539ms
+2026-10-31T15:34:45.9355940Z      ✓ saves launch and connect settings with the current revision and no credential controls 958ms
+2026-10-31T15:34:45.9430840Z
+2026-10-31T15:34:45.9436520Z  Test Files  3 passed (3)
+2026-10-31T15:34:45.9438460Z       Tests  30 passed (30)
+2026-10-31T15:34:45.9440100Z    Start at  15:34:35
+2026-10-31T15:34:45.9447710Z    Duration  10.65s (tests 50%, import 26%, environment 17%, transform 8%)
+2026-10-31T15:34:45.9465150Z
+2026-10-31T15:34:46.0208260Z ##[group]Run pnpm test:release
+2026-10-31T15:34:46.0208900Z pnpm test:release
+2026-10-31T15:34:46.0275570Z shell: /bin/bash -e {0}
+2026-10-31T15:34:46.0276160Z env:
+2026-10-31T15:34:46.0277450Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:34:46.0278870Z ##[endgroup]
+2026-10-31T15:34:46.0840750Z $ node --test scripts/release.test.mjs
+2026-10-31T15:34:46.4742080Z ✔ builder receives the installed updater version instead of the pnpm catalog protocol (13.299235ms)
+2026-10-31T15:34:46.6027750Z ✔ staging rejects a descendant whose name only begins with two dots (7.763998ms)
+2026-10-31T15:34:46.7030290Z ✔ preview configuration is independent of feed and signing secrets (1.587327ms)
+2026-10-31T15:34:46.7234190Z ✔ production configuration needs explicit mode, channel, target and trustworthy feed URL (1.100492ms)
+2026-10-31T15:34:46.7425760Z ✔ production signing inputs and clean source fail closed before build (1.237641ms)
+2026-10-31T15:34:46.7608620Z ✔ unknown CLI arguments and missing values fail instead of selecting preview accidentally (0.683575ms)
+2026-10-31T15:34:46.7616860Z ✔ production CLI refuses a missing feed before invoking pnpm (118.191379ms)
+2026-10-31T15:34:46.7626830Z ✔ metadata checks final file size and SHA512 using real file bytes (70.732438ms)
+2026-10-31T15:34:46.7631890Z ✔ same-size payload corruption fails the SHA512 check (24.708727ms)
+2026-10-31T15:34:46.7638130Z ✔ missing final metadata blocks production verification (19.797479ms)
+2026-10-31T15:34:46.7780800Z ✔ metadata rejects traversal, remote URLs, version mismatch and duplicate YAML keys (55.601311ms)
+2026-10-31T15:34:46.7910290Z ✔ preview build never mints a receipt and removes stale receipt (18.455272ms)
+2026-10-31T15:34:46.8186300Z ✔ valid metadata and hashes without real acceptance reports cannot mint a release receipt (27.949094ms)
+2026-10-31T15:34:46.8577680Z ✔ acceptance schema requires observations and hashed logs, never a passed flag (39.603781ms)
+2026-10-31T15:34:46.9258040Z ✔ modified evidence logs and reports for a different artifact fail (37.019514ms)
+2026-10-31T15:34:46.9821210Z ✔ unknown Squirrel distribution is an explicit failed gate (54.61813ms)
+2026-10-31T15:34:47.0540830Z ✔ evidence traversal and symbolic links are rejected (102.956767ms)
+2026-10-31T15:34:47.0832040Z ✔ artifact links cannot smuggle outside bytes into an inventory (30.646582ms)
+2026-10-31T15:34:47.2039550Z ✔ staging rejects fabricated preview receipt and never builds or publishes (21.396133ms)
+2026-10-31T15:34:47.2074550Z ✔ remote release command always refuses publication without destination and authorization (97.575377ms)
+2026-10-31T15:34:47.2366050Z ✔ receipt rejects changed artifact bytes even if a previous check succeeded (27.225067ms)
+2026-10-31T15:34:47.2800270Z ✔ macOS finalization keeps ZIP bytes and removes stale DMG differential metadata after stapling (48.426378ms)
+2026-10-31T15:34:47.2998240Z ℹ tests 22
+2026-10-31T15:34:47.2999420Z ℹ suites 0
+2026-10-31T15:34:47.3000490Z ℹ pass 22
+2026-10-31T15:34:47.3001400Z ℹ fail 0
+2026-10-31T15:34:47.3002640Z ℹ cancelled 0
+2026-10-31T15:34:47.3003740Z ℹ skipped 0
+2026-10-31T15:34:47.3004380Z ℹ todo 0
+2026-10-31T15:34:47.3005340Z ℹ duration_ms 1083.051743
+2026-10-31T15:34:47.3220740Z ##[group]Run pnpm test:storage
+2026-10-31T15:34:47.3221520Z pnpm test:storage
+2026-10-31T15:34:47.3323100Z shell: /bin/bash -e {0}
+2026-10-31T15:34:47.3323520Z env:
+2026-10-31T15:34:47.3324770Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:34:47.3326810Z ##[endgroup]
+2026-10-31T15:34:47.4028120Z $ pnpm --filter @browser-2d/worker-runtime test:storage
+2026-10-31T15:34:47.7416040Z $ vitest run --config vitest.config.ts
+2026-10-31T15:34:48.4733590Z
+2026-10-31T15:34:48.4739320Z  RUN  v5.0.5 /Users/runner/work/browser-2d/browser-2d/apps/worker
+2026-10-31T15:34:48.4740560Z
+2026-10-31T15:35:35.6495940Z  ✓ tests/chrome.test.ts (14 tests) 45981ms
+2026-10-31T15:35:35.6521160Z    ✓ real Chrome execution with local pages (10)
+2026-10-31T15:35:35.6560050Z      ✓ keeps the borrowed default page, cookies, storage and business rows unchanged 5936ms
+2026-10-31T15:35:35.6608430Z      ✓ reserves two devices and four actual pages and freezes a queued run settings 6441ms
+2026-10-31T15:35:35.6662440Z      ✓ isolates a closed work page from the other device and leaves the borrowed browser alive 3184ms
+2026-10-31T15:35:35.6693290Z      ✓ cleans a borrowed context after timeout during local navigation 3950ms
+2026-10-31T15:35:35.6726850Z      ✓ cleans a borrowed context after cancel during local navigation 2308ms
+2026-10-31T15:35:35.6763170Z      ✓ cancels before a newly created page target is published 2123ms
+2026-10-31T15:35:35.6787590Z      ✓ blocks a local page redirect before Chrome can request an external origin 2219ms
+2026-10-31T15:35:35.6829430Z      ✓ cancels a pending endpoint discovery before creating a Chrome context 1805ms
+2026-10-31T15:35:35.6869020Z      ✓ proves the owned Chrome process has exited before releasing its reservation 2294ms
+2026-10-31T15:35:35.6903690Z      ✓ retains capacity when the saved browser identity does not match the live endpoint 3802ms
+2026-10-31T15:35:35.6924440Z    ✓ killing owned Chrome during execution must fail the run 3068ms
+2026-10-31T15:35:35.6947400Z    ✓ refuses to close an unrelated Chrome found through a forged owned discovery file 4021ms
+2026-10-31T15:35:35.6968130Z    ✓ recovers a verified owned browser that exited before its release was journaled (transient EPERM: false) 2005ms
+2026-10-31T15:35:35.7004400Z    ✓ recovers a verified owned browser that exited before its release was journaled (transient EPERM: true) 2820ms
+2026-10-31T15:35:42.0323830Z  ✓ tests/business-storage.test.ts (32 tests) 5738ms
+2026-10-31T15:35:42.0355300Z    ✓ business database ownership and migration (24)
+2026-10-31T15:35:42.0458150Z      ✓ upgrades a populated v2 WAL prefix without resetting settings, references or historical claims 308ms
+2026-10-31T15:35:42.0544450Z      ✓ backs up a WAL-only committed row from its retained source connection and excludes an idle old connection 508ms
+2026-10-31T15:35:42.0588270Z      ✓ refuses ownership while another connection holds an active write transaction 1872ms
+2026-10-31T15:35:42.0641720Z      ✓ rejects a changed migration checksum and preserves the current database 453ms
+2026-10-31T15:35:52.0939930Z  ✓ tests/chrome-family.test.ts (4 tests) 9191ms
+2026-10-31T15:35:52.1023020Z    ✓ holds cold recovery and capacity until the inherited helper exits 3303ms
+2026-10-31T15:35:52.1055480Z    ✓ keeps cleanup authority after a lost spawned checkpoint 1917ms
+2026-10-31T15:35:52.1085130Z    ✓ keeps cleanup authority after a lost spawned publication 1762ms
+2026-10-31T15:35:52.1087770Z    ✓ retains profile and capacity while the final lifetime probe is unknown 2205ms
+2026-10-31T15:35:55.6993360Z  ✓ tests/storage.test.ts (10 tests) 2845ms
+2026-10-31T15:35:55.7073420Z    ✓ durable work commands and resource lifecycle (10)
+2026-10-31T15:35:55.7153890Z      ✓ bounds cleanup retries and aborts each timed-out attempt while retaining unresolved resources 2146ms
+2026-10-31T15:35:56.9668200Z  ✓ tests/chrome-journal.test.ts (18 tests) 632ms
+2026-10-31T15:36:01.1071470Z  ✓ tests/resource-service.test.ts (4 tests) 3355ms
+2026-10-31T15:36:01.1170720Z    ✓ scheduler against a separate resource service (4)
+2026-10-31T15:36:01.1217580Z      ✓ cleans a successful late acquire after durable cancellation without executing it 389ms
+2026-10-31T15:36:01.1259230Z      ✓ retains unknown acquisition capacity until fencing prevents future creation 1328ms
+2026-10-31T15:36:01.1317060Z      ✓ detaches a borrowed resource while keeping its external resource alive 323ms
+2026-10-31T15:36:01.1351810Z      ✓ keeps refused cleanup visible and blocks the device and page capacity until release succeeds 1312ms
+2026-10-31T15:36:04.0863210Z  ✓ tests/chrome-profile-cleanup.test.ts (6 tests) 2233ms
+2026-10-31T15:36:04.0942300Z    ✓ retains attached launch cleanup failures and retries the partially deleted profile after cold recovery 1702ms
+2026-10-31T15:36:04.8572670Z  ✓ tests/chrome-process.test.ts (7 tests) 170ms
+2026-10-31T15:36:08.8514440Z  ✓ tests/chrome-browser-connection.test.ts (2 tests) 3388ms
+2026-10-31T15:36:08.8568170Z    ✓ reads browser identity after the client owning its cached browser target disconnects 1374ms
+2026-10-31T15:36:08.8598900Z    ✓ disposes only the contexts owned by a disconnected root connection 2011ms
+2026-10-31T15:36:09.2349350Z  ✓ tests/controlled-driver.test.ts (1 test) 14ms
+2026-10-31T15:36:09.8245550Z  ✓ tests/chrome-connection.test.ts (2 tests) 10ms
+2026-10-31T15:36:09.8298470Z
+2026-10-31T15:36:09.8301770Z  Test Files  11 passed (11)
+2026-10-31T15:36:09.8324610Z       Tests  100 passed (100)
+2026-10-31T15:36:09.9327880Z    Start at  15:34:48
+2026-10-31T15:36:10.0107900Z    Duration  81.33s (tests 93%, import 6%, transform 1%)
+2026-10-31T15:36:10.0145710Z
+2026-10-31T15:36:10.0335520Z ##[group]Run pnpm test:observer
+2026-10-31T15:36:10.0336440Z pnpm test:observer
+2026-10-31T15:36:10.0443180Z shell: /bin/bash -e {0}
+2026-10-31T15:36:10.0443820Z env:
+2026-10-31T15:36:10.0445750Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:36:10.0448120Z ##[endgroup]
+2026-10-31T15:36:10.1269090Z $ node --test scripts/chrome-observer.test.mjs
+2026-10-31T15:36:13.7875270Z ✔ Chrome observation preserves the actual workload viewport (3106.364599ms)
+2026-10-31T15:36:13.8002980Z ℹ tests 1
+2026-10-31T15:36:13.8067060Z ℹ suites 0
+2026-10-31T15:36:13.8139540Z ℹ pass 1
+2026-10-31T15:36:13.8224880Z ℹ fail 0
+2026-10-31T15:36:13.8262750Z ℹ cancelled 0
+2026-10-31T15:36:13.8292670Z ℹ skipped 0
+2026-10-31T15:36:13.8324220Z ℹ todo 0
+2026-10-31T15:36:13.8332460Z ℹ duration_ms 3535.535177
+2026-10-31T15:36:13.8454520Z ##[group]Run pnpm test:credentials
+2026-10-31T15:36:13.8455500Z pnpm test:credentials
+2026-10-31T15:36:13.8549240Z shell: /bin/bash -e {0}
+2026-10-31T15:36:13.8549750Z env:
+2026-10-31T15:36:13.8550970Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:36:13.8552390Z ##[endgroup]
+2026-10-31T15:36:13.9349130Z $ pnpm --filter @browser-2d/desktop test:credentials
+2026-10-31T15:36:14.0291100Z $ vitest run --config vitest.credentials.config.ts
+2026-10-31T15:36:14.6232460Z (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+2026-10-31T15:36:14.6276710Z   - ESM syntax in a file loaded as CommonJS (vitest.credentials.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+2026-10-31T15:36:14.6318940Z Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+2026-10-31T15:36:14.6954750Z
+2026-10-31T15:36:14.6990140Z  RUN  v5.0.5 /Users/runner/work/browser-2d/browser-2d/apps/desktop
+2026-10-31T15:36:14.7037860Z
+2026-10-31T15:36:15.7277610Z [warn] `inlineDynamicImports` option is deprecated, please use `codeSplitting: false` instead.
+2026-10-31T15:36:15.7996760Z  ✓ tests/credentials.test.ts (25 tests) 383ms
+2026-10-31T15:36:17.3195370Z  ✓ tests/worker-ownership.test.ts (6 tests) 1681ms
+2026-10-31T15:36:17.3198180Z    ✓ worker ownership authorization (6)
+2026-10-31T15:36:17.3202040Z      ✓ never authorizes both concurrent host processes even when they observe the same stale owner 1047ms
+2026-10-31T15:36:17.3323450Z
+2026-10-31T15:36:17.3325910Z  Test Files  2 passed (2)
+2026-10-31T15:36:17.3328440Z       Tests  31 passed (31)
+2026-10-31T15:36:17.3330310Z    Start at  15:36:14
+2026-10-31T15:36:17.3332680Z    Duration  2.63s (tests 64%, import 24%, transform 12%)
+2026-10-31T15:36:17.3334280Z
+2026-10-31T15:36:17.3808690Z ##[group]Run if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
+2026-10-31T15:36:17.3810070Z if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
+2026-10-31T15:36:17.3899450Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T15:36:17.3900080Z env:
+2026-10-31T15:36:17.3901250Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:36:17.3902560Z ##[endgroup]
+2026-10-31T15:36:17.4498310Z $ pnpm --filter @browser-2d/desktop test:updates
+2026-10-31T15:36:17.5094460Z $ vitest run --config vitest.updates.config.ts
+2026-10-31T15:36:18.0263140Z (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+2026-10-31T15:36:18.0682930Z   - ESM syntax in a file loaded as CommonJS (vitest.updates.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+2026-10-31T15:36:18.0685140Z Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+2026-10-31T15:36:18.1547250Z
+2026-10-31T15:36:18.1768790Z  RUN  v5.0.5 /Users/runner/work/browser-2d/browser-2d/apps/desktop
+2026-10-31T15:36:18.1833460Z
+2026-10-31T15:36:18.7321770Z  ✓ tests/update-driver.test.ts (2 tests) 8ms
+2026-10-31T15:36:18.7417880Z  ✓ tests/lifecycle.test.ts (6 tests) 20ms
+2026-10-31T15:36:19.2204990Z  ✓ tests/updates.test.ts (17 tests) 68ms
+2026-10-31T15:36:19.3806860Z  ✓ tests/update-subscription.test.ts (1 test) 15ms
+2026-10-31T15:36:27.3363560Z stdout | tests/update-feed.test.ts > checks and downloads through the pinned updater against a controlled loopback feed
+2026-10-31T15:36:27.3440040Z Downloading Electron binary...
+2026-10-31T15:36:27.3476330Z
+2026-10-31T15:36:29.1379580Z  ✓ tests/update-feed.test.ts (1 test) 9934ms
+2026-10-31T15:36:29.1440390Z    ✓ checks and downloads through the pinned updater against a controlled loopback feed 9932ms
+2026-10-31T15:36:29.1580340Z
+2026-10-31T15:36:29.1651850Z  Test Files  5 passed (5)
+2026-10-31T15:36:29.1714020Z       Tests  27 passed (27)
+2026-10-31T15:36:29.1770800Z    Start at  15:36:18
+2026-10-31T15:36:29.1811660Z    Duration  10.87s (tests 89%, transform 6%, import 5%, worker 1%)
+2026-10-31T15:36:29.1853020Z
+2026-10-31T15:36:29.2018650Z ##[group]Run if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
+2026-10-31T15:36:29.2021800Z if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
+2026-10-31T15:36:29.2146270Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T15:36:29.2147180Z env:
+2026-10-31T15:36:29.2148970Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:36:29.2151920Z ##[endgroup]
+2026-10-31T15:36:29.3139980Z $ node scripts/electron-test.mjs
+2026-10-31T15:36:29.5431140Z $ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+2026-10-31T15:36:29.6444800Z $ vite build
+2026-10-31T15:36:30.2155940Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:36:30.2602450Z [warn] `inlineDynamicImports` option is deprecated, please use `codeSplitting: false` instead.
+2026-10-31T15:36:30.2717950Z transforming...
+2026-10-31T15:36:30.3060290Z ✓ 115 modules transformed.
+2026-10-31T15:36:30.3736240Z rendering chunks...
+2026-10-31T15:36:30.4254260Z computing gzip size...
+2026-10-31T15:36:30.4328620Z dist/entry.cjs  279.47 kB │ gzip: 62.88 kB
+2026-10-31T15:36:30.4342540Z
+2026-10-31T15:36:30.4373990Z ✓ built in 221ms
+2026-10-31T15:36:30.6143700Z $ electron-vite build
+2026-10-31T15:36:31.1948080Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:36:31.3300160Z transforming...
+2026-10-31T15:36:31.4068150Z ✓ 112 modules transformed.
+2026-10-31T15:36:31.4466490Z rendering chunks...
+2026-10-31T15:36:31.5864890Z dist/main/index.cjs  244.33 kB
+2026-10-31T15:36:31.6557210Z
+2026-10-31T15:36:31.6567630Z ✓ built in 390ms
+2026-10-31T15:36:31.6580700Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:36:31.6588340Z transforming...
+2026-10-31T15:36:31.6635270Z ✓ 106 modules transformed.
+2026-10-31T15:36:31.6821180Z rendering chunks...
+2026-10-31T15:36:31.6992380Z dist/preload/index.cjs  209.04 kB
+2026-10-31T15:36:31.7005550Z
+2026-10-31T15:36:31.7098910Z ✓ built in 106ms
+2026-10-31T15:36:31.8153800Z vite v8.3.5 building client environment for production...
+2026-10-31T15:36:31.9157000Z transforming...
+2026-10-31T15:36:32.9404410Z ✓ 2802 modules transformed.
+2026-10-31T15:36:33.1159240Z rendering chunks...
+2026-10-31T15:36:33.2722190Z dist/renderer/index.html                     0.46 kB
+2026-10-31T15:36:33.2754770Z dist/renderer/assets/index-UbkR51Wm.css      9.18 kB
+2026-10-31T15:36:33.2800870Z dist/renderer/assets/index-D6S3rCDw.js   1,260.35 kB
+2026-10-31T15:36:33.2826830Z
+2026-10-31T15:36:33.2866790Z ✓ built in 1.45s
+2026-10-31T15:36:33.4734760Z All runtime entries, bundled contracts and migration assets are present.
+2026-10-31T15:36:35.9431700Z
+2026-10-31T15:36:35.9432750Z Running 33 tests using 1 worker
+2026-10-31T15:36:35.9434600Z
+2026-10-31T15:36:40.3939300Z   ✓   1 tests/e2e/bootstrap.spec.ts:12:1 › initialization rejects stale receipts and cooperatively shuts down while awaiting consent (3.7s)
+2026-10-31T15:36:48.9585380Z   ✓   2 tests/e2e/browser.spec.ts:97:3 › owned Chrome running cleanup confirms actual process exit (8.4s)
+2026-10-31T15:36:53.9997440Z   ✓   3 tests/e2e/browser.spec.ts:97:3 › owned Chrome spawned cleanup confirms actual process exit (5.0s)
+2026-10-31T15:36:59.4490400Z   ✓   4 tests/e2e/browser.spec.ts:97:3 › owned Chrome cancel-spawned cleanup confirms actual process exit (5.4s)
+2026-10-31T15:37:06.7962760Z   ✓   5 tests/e2e/browser.spec.ts:181:3 › borrowed Chrome running crash preserves original tab and honest cleanup state (7.4s)
+2026-10-31T15:37:12.8301100Z   ✓   6 tests/e2e/browser.spec.ts:181:3 › borrowed Chrome context-created crash preserves original tab and honest cleanup state (6.0s)
+2026-10-31T15:37:26.2074190Z   ✓   7 tests/e2e/browser.spec.ts:181:3 › borrowed Chrome cleanup crash preserves original tab and honest cleanup state (13.3s)
+2026-10-31T15:37:35.0945960Z   ✓   8 tests/e2e/browser.spec.ts:270:1 › page checkpoint releases only its operation and shutdown cancels the next held run (8.9s)
+2026-10-31T15:37:40.8238010Z   ✓   9 tests/e2e/business.spec.ts:11:1 › business screens save through the real bridge and display refreshed records (5.7s)
+2026-10-31T15:37:47.8494700Z   ✓  10 tests/e2e/business.spec.ts:67:1 › legacy CRUD crosses the public bridge, commits, refreshes and survives restart (7.0s)
+2026-10-31T15:37:51.8606730Z   ✓  11 tests/e2e/business.spec.ts:261:1 › legacy plaintext migrates only after OS-encrypted persistence and remains in the recovery backup (4.0s)
+2026-10-31T15:37:58.6666830Z   ✓  12 tests/e2e/business.spec.ts:331:1 › Chrome settings persist across modes, stale saves conflict and no credentials are required (6.8s)
+2026-10-31T15:38:08.8708330Z   ✓  13 tests/e2e/development-entrypoints.spec.ts:81:1 › dev:ui serves fixture-only routes in Chrome and shuts down its server (10.0s)
+2026-10-31T15:38:21.4280630Z   ✓  14 tests/e2e/development-entrypoints.spec.ts:166:1 › dev:worker starts without a window, drains on stdin stop and cold restarts the same database (12.5s)
+2026-10-31T15:38:40.6165320Z   ✓  15 tests/e2e/development-restart.spec.ts:108:1 › real source rebuild preserves the old worker on build failure and replaces only after clean exit (19.2s)
+2026-10-31T15:39:04.9160460Z   ✓  16 tests/e2e/development-restart.spec.ts:142:1 › development restart refuses to replace an unresponsive predecessor after forced shutdown (24.3s)
+2026-10-31T15:39:21.3066200Z   ✓  17 tests/e2e/development-restart.spec.ts:173:1 › shared TypeScript preset changes restart only after the previous worker exits (16.4s)
+2026-10-31T15:39:38.6314340Z   ✓  18 tests/e2e/development-restart.spec.ts:195:1 › renderer preset changes reach the live page after coordinated restart (17.3s)
+2026-10-31T15:39:40.0144250Z 3:39:39 PM [vite] (client) [optimizer] bundling dependencies...
+2026-10-31T15:39:43.8335520Z 3:39:43 PM [vite] (client) hmr update /src/style.css
+2026-10-31T15:39:43.9352920Z 3:39:43 PM [vite] (client) hmr update /src/App.vue
+2026-10-31T15:39:47.9042480Z 3:39:47 PM [vite] (client) hmr update /src/style.css
+2026-10-31T15:39:47.9087520Z 3:39:47 PM [vite] (client) hmr update /src/App.vue
+2026-10-31T15:39:48.4328480Z   ✓  19 tests/e2e/development.spec.ts:9:1 › Vite development origin uses the real preload and updates CSS without restarting work (9.7s)
+2026-10-31T15:39:53.5931730Z   ✓  20 tests/e2e/foundation.spec.ts:19:1 › UI, isolated preload, real worker, SQLite persistence and graceful shutdown (5.1s)
+2026-10-31T15:39:58.0215420Z   ✓  21 tests/e2e/foundation.spec.ts:99:1 › worker crash fails shutdown and recovery never resumes the interrupted task (4.4s)
+2026-10-31T15:40:12.1270730Z   ✓  22 tests/e2e/foundation.spec.ts:140:1 › unresponsive worker cannot be reported as a clean shutdown (14.1s)
+2026-10-31T15:40:15.3315260Z   ✓  23 tests/e2e/scheduler.spec.ts:105:3 › worker crash during acquire-result-lost reconciles owned resources without execution replay (3.2s)
+2026-10-31T15:40:22.6072110Z   ✓  24 tests/e2e/scheduler.spec.ts:105:3 › worker crash during hold-release reconciles owned resources without execution replay (7.3s)
+2026-10-31T15:40:31.9138540Z   ✓  25 tests/e2e/scheduler.spec.ts:147:1 › borrowed fixture survives cancellation and heartbeat loss stops a live executor (9.3s)
+2026-10-31T15:40:39.2405280Z   ✓  26 tests/e2e/scheduler.spec.ts:189:1 › cleanup refusal retains device and page reservations, and restart only reconciles (7.3s)
+2026-10-31T15:40:52.1531630Z   ✓  27 tests/e2e/scheduler.spec.ts:251:3 › portable uncooperative acquire cannot produce a clean shutdown acknowledgment (12.9s)
+2026-10-31T15:41:05.1295890Z   ✓  28 tests/e2e/scheduler.spec.ts:251:3 › portable uncooperative execute cannot produce a clean shutdown acknowledgment (13.0s)
+2026-10-31T15:41:21.6259320Z   ✓  29 tests/e2e/scheduler.spec.ts:251:3 › portable uncooperative release cannot produce a clean shutdown acknowledgment (16.5s)
+2026-10-31T15:41:26.1553800Z   ✓  30 tests/e2e/scheduler.spec.ts:287:1 › host death leaves interrupted work that a new application cleans without replay (4.5s)
+2026-10-31T15:41:34.7321810Z   ✓  31 tests/e2e/scheduler.spec.ts:324:1 › an uninitialized child expires and a live stale owner blocks startup without being signaled (8.6s)
+2026-10-31T15:41:46.2365040Z   ✓  32 tests/e2e/ui.spec.ts:24:1 › complete local workspace journey preserves data and work state across routes (11.5s)
+2026-10-31T15:41:48.4606050Z   ✓  33 tests/e2e/updates.spec.ts:8:1 › update API stays manual and disabled in development and rejects untrusted frames (2.2s)
+2026-10-31T15:41:48.5430330Z
+2026-10-31T15:41:48.5438330Z   33 passed (5.2m)
+2026-10-31T15:41:48.7409110Z ##[group]Run pnpm dist -- --target=mac-x64
+2026-10-31T15:41:48.7411400Z pnpm dist -- --target=mac-x64
+2026-10-31T15:41:48.7553340Z shell: /bin/bash -e {0}
+2026-10-31T15:41:48.7554780Z env:
+2026-10-31T15:41:48.7555970Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:41:48.7557700Z ##[endgroup]
+2026-10-31T15:41:48.8245990Z $ node scripts/package.mjs --dist -- --target=mac-x64
+2026-10-31T15:41:49.5136190Z Scope: all 9 workspace projects
+2026-10-31T15:41:49.5945810Z ✓ Lockfile passes supply-chain policies (verified 8m ago)
+2026-10-31T15:41:49.5948100Z Lockfile is up to date, resolution step is skipped
+2026-10-31T15:41:49.6709020Z Packages are copied from the content-addressable store to the virtual store.
+2026-10-31T15:41:49.6714590Z   Content-addressable store is at: /Users/runner/Library/pnpm/store/v11
+2026-10-31T15:41:49.6780480Z   Virtual store is at:             node_modules/.pnpm
+2026-10-31T15:41:50.6827010Z Progress: resolved 102, reused 102, downloaded 0, added 99
+2026-10-31T15:41:51.6934430Z Progress: resolved 161, reused 161, downloaded 0, added 158
+2026-10-31T15:41:52.6960300Z Progress: resolved 221, reused 221, downloaded 0, added 218
+2026-10-31T15:41:53.7449330Z Progress: resolved 288, reused 288, downloaded 0, added 285
+2026-10-31T15:41:54.8274450Z Progress: resolved 318, reused 318, downloaded 0, added 315
+2026-10-31T15:41:55.8376010Z Progress: resolved 358, reused 358, downloaded 0, added 355
+2026-10-31T15:41:56.8419030Z Progress: resolved 407, reused 407, downloaded 0, added 404
+2026-10-31T15:41:57.8670860Z Progress: resolved 443, reused 442, downloaded 0, added 439
+2026-10-31T15:41:58.8739030Z Progress: resolved 527, reused 527, downloaded 0, added 523
+2026-10-31T15:42:00.3023090Z Progress: resolved 555, reused 555, downloaded 0, added 553
+2026-10-31T15:42:00.4606150Z Packages: +560
+2026-10-31T15:42:00.4607360Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-10-31T15:42:00.6456500Z Progress: resolved 560, reused 560, downloaded 0, added 560, done
+2026-10-31T15:42:00.6974020Z
+2026-10-31T15:42:00.6975110Z devDependencies:
+2026-10-31T15:42:00.6976140Z + @browser-2d/lint-config <- internal/lint-config
+2026-10-31T15:42:00.6977510Z + @browser-2d/test-utils <- internal/test-utils
+2026-10-31T15:42:00.6979050Z + @electron/asar 3.4.1
+2026-10-31T15:42:00.6980010Z + @eslint/js 9.39.1
+2026-10-31T15:42:00.6980970Z + @playwright/test 1.64.1
+2026-10-31T15:42:00.6981810Z + @types/node 24.5.2
+2026-10-31T15:42:00.6982670Z + @vitejs/plugin-vue 6.0.10
+2026-10-31T15:42:00.6983510Z + @vue/test-utils 2.5.1
+2026-10-31T15:42:00.6984140Z + eslint 9.39.1
+2026-10-31T15:42:00.6984810Z + eslint-plugin-vue 10.5.1
+2026-10-31T15:42:00.6985820Z + jsdom 26.1.0
+2026-10-31T15:42:00.6986620Z + prettier 3.9.10
+2026-10-31T15:42:00.6987740Z + typescript 5.9.3
+2026-10-31T15:42:00.6988830Z + typescript-eslint 8.72.1
+2026-10-31T15:42:00.6989520Z + vite 8.3.5
+2026-10-31T15:42:00.6990090Z + vitest 5.0.5
+2026-10-31T15:42:00.6991020Z + yaml 2.9.1
+2026-10-31T15:42:00.6991400Z
+2026-10-31T15:42:00.6991850Z Done in 11.3s using pnpm v12.16.1
+2026-10-31T15:42:00.7400060Z $ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+2026-10-31T15:42:00.8007200Z $ vite build
+2026-10-31T15:42:01.1877330Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:42:01.2162060Z [warn] `inlineDynamicImports` option is deprecated, please use `codeSplitting: false` instead.
+2026-10-31T15:42:01.2232880Z transforming...
+2026-10-31T15:42:01.2513380Z ✓ 115 modules transformed.
+2026-10-31T15:42:01.2651030Z rendering chunks...
+2026-10-31T15:42:01.2853910Z computing gzip size...
+2026-10-31T15:42:01.2900120Z dist/entry.cjs  279.47 kB │ gzip: 62.88 kB
+2026-10-31T15:42:01.2901000Z
+2026-10-31T15:42:01.2905300Z ✓ built in 101ms
+2026-10-31T15:42:01.3865960Z $ electron-vite build
+2026-10-31T15:42:01.8185970Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:42:01.8339680Z transforming...
+2026-10-31T15:42:01.8845730Z ✓ 112 modules transformed.
+2026-10-31T15:42:01.9028040Z rendering chunks...
+2026-10-31T15:42:01.9223480Z dist/main/index.cjs  244.33 kB
+2026-10-31T15:42:01.9224190Z
+2026-10-31T15:42:01.9229880Z ✓ built in 102ms
+2026-10-31T15:42:01.9286340Z vite v8.3.5 building ssr environment for production...
+2026-10-31T15:42:01.9396630Z transforming...
+2026-10-31T15:42:01.9687720Z ✓ 106 modules transformed.
+2026-10-31T15:42:01.9816080Z rendering chunks...
+2026-10-31T15:42:02.0006160Z dist/preload/index.cjs  209.04 kB
+2026-10-31T15:42:02.0006920Z
+2026-10-31T15:42:02.0010450Z ✓ built in 72ms
+2026-10-31T15:42:02.0568740Z vite v8.3.5 building client environment for production...
+2026-10-31T15:42:02.0653340Z transforming...
+2026-10-31T15:42:02.5502860Z ✓ 2802 modules transformed.
+2026-10-31T15:42:02.6190290Z rendering chunks...
+2026-10-31T15:42:02.6936120Z dist/renderer/index.html                     0.46 kB
+2026-10-31T15:42:02.6937540Z dist/renderer/assets/index-UbkR51Wm.css      9.18 kB
+2026-10-31T15:42:02.6938780Z dist/renderer/assets/index-D6S3rCDw.js   1,260.35 kB
+2026-10-31T15:42:02.6939440Z
+2026-10-31T15:42:02.6942750Z ✓ built in 637ms
+2026-10-31T15:42:02.8524560Z All runtime entries, bundled contracts and migration assets are present.
+2026-10-31T15:42:03.6793670Z   • electron-builder  version=26.18.0 os=24.6.0
+2026-10-31T15:42:03.7072340Z   • loaded configuration  file=/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-build-9wV4pw/apps/desktop/electron-builder.config.mjs
+2026-10-31T15:42:04.4969100Z   • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=pnpm detected=/Users/runner/work/browser-2d/browser-2d
+2026-10-31T15:42:04.4990160Z   • detected workspace root for project using packageManager field  pm=pnpm config=pnpm@12.16.1 resolved=/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-build-9wV4pw projectDir=/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-build-9wV4pw/apps/desktop
+2026-10-31T15:42:04.5097760Z   • skipped dependencies rebuild  reason=npmRebuild is set to false
+2026-10-31T15:42:04.5100290Z   • packaging       platform=darwin arch=x64 electron=45.2.0 appOutDir=/Users/runner/work/browser-2d/browser-2d/release/mac-x64/mac
+2026-10-31T15:42:04.7156700Z   • downloaded      label=electron progress=100%
+2026-10-31T15:42:10.2217710Z   • downloaded electron zip extracted successfully  output=/Users/runner/work/browser-2d/browser-2d/release/mac-x64/mac
+2026-10-31T15:42:10.2394300Z   • searching for node modules  pm=pnpm searchDir=/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-build-9wV4pw/apps/desktop
+2026-10-31T15:42:10.4698480Z   • duplicate dependency references  dependencies=["strip-ansi@7.2.0"]
+2026-10-31T15:42:22.7417820Z   • default Electron icon is used  reason=application icon is not set
+2026-10-31T15:42:22.9271070Z   • skipped macOS code signing  reason=identity explicitly is set to null
+2026-10-31T15:42:22.9283260Z   • building        target=macOS zip arch=x64 file=/Users/runner/work/browser-2d/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.zip
+2026-10-31T15:42:22.9291840Z   • building        target=DMG arch=x64 file=/Users/runner/work/browser-2d/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg
+2026-10-31T15:42:23.1317080Z   • downloaded      label=7zip-darwin-x86_64.tar.gz progress=100%
+2026-10-31T15:42:23.1566070Z   • downloaded      label=dmgbuild-bundle-x86_64-75c8a6c.tar.gz progress=100%
+2026-10-31T15:43:26.8470110Z   • building block map  blockMapFile=/Users/runner/work/browser-2d/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.zip.blockmap
+2026-10-31T15:43:34.9833790Z   ⨯ /Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/dmgbuild process failed 1
+2026-10-31T15:43:34.9835780Z Exit code:
+2026-10-31T15:43:34.9836340Z 1
+2026-10-31T15:43:34.9836880Z Output:
+2026-10-31T15:43:34.9840920Z Exit code: 1. Command failed: /Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/dmgbuild -s /private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/t-p0JHEG/2.json browser-2d-foundation 0.1.0 /Users/runner/work/browser-2d/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg
+2026-10-31T15:43:34.9843740Z Traceback (most recent call last):
+2026-10-31T15:43:34.9844560Z   File "<frozen runpy>", line 198, in _run_module_as_main
+2026-10-31T15:43:34.9845280Z   File "<frozen runpy>", line 88, in _run_code
+2026-10-31T15:43:34.9847120Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 70, in <module>
+2026-10-31T15:43:34.9848670Z     main()
+2026-10-31T15:43:34.9849200Z     ~~~~^^
+2026-10-31T15:43:34.9850820Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 59, in main
+2026-10-31T15:43:34.9852340Z     build_dmg(
+2026-10-31T15:43:34.9852730Z     ~~~~~~~~~^
+2026-10-31T15:43:34.9853110Z         args.filename,
+2026-10-31T15:43:34.9853540Z         ^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9853940Z     ...<4 lines>...
+2026-10-31T15:43:34.9854440Z         detach_retries=args.detachRetries,
+2026-10-31T15:43:34.9855180Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9855670Z     )
+2026-10-31T15:43:34.9856020Z     ^
+2026-10-31T15:43:34.9857610Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/core.py", line 853, in build_dmg
+2026-10-31T15:43:34.9860810Z     raise DMGError(callback, f"Unable to detach device cleanly: {output}")
+2026-10-31T15:43:34.9862380Z dmgbuild.core.DMGError: Unable to detach device cleanly: hdiutil: couldn't eject "disk2" - Resource busy
+2026-10-31T15:43:34.9863180Z
+2026-10-31T15:43:34.9863190Z
+2026-10-31T15:43:34.9863480Z Traceback (most recent call last):
+2026-10-31T15:43:34.9864160Z   File "<frozen runpy>", line 198, in _run_module_as_main
+2026-10-31T15:43:34.9864890Z   File "<frozen runpy>", line 88, in _run_code
+2026-10-31T15:43:34.9866720Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 70, in <module>
+2026-10-31T15:43:34.9868300Z     main()
+2026-10-31T15:43:34.9868650Z     ~~~~^^
+2026-10-31T15:43:34.9870430Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 59, in main
+2026-10-31T15:43:34.9871970Z     build_dmg(
+2026-10-31T15:43:34.9872370Z     ~~~~~~~~~^
+2026-10-31T15:43:34.9873170Z         args.filename,
+2026-10-31T15:43:34.9874190Z         ^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9874860Z     ...<4 lines>...
+2026-10-31T15:43:34.9875440Z         detach_retries=args.detachRetries,
+2026-10-31T15:43:34.9876040Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9876580Z     )
+2026-10-31T15:43:34.9876920Z     ^
+2026-10-31T15:43:34.9878590Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/core.py", line 853, in build_dmg
+2026-10-31T15:43:34.9880480Z     raise DMGError(callback, f"Unable to detach device cleanly: {output}")
+2026-10-31T15:43:34.9882000Z dmgbuild.core.DMGError: Unable to detach device cleanly: hdiutil: couldn't eject "disk2" - Resource busy
+2026-10-31T15:43:34.9883640Z
+2026-10-31T15:43:34.9885000Z   failedTask=build stackTrace=Error: /Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/dmgbuild process failed 1
+2026-10-31T15:43:34.9887380Z Exit code:
+2026-10-31T15:43:34.9888000Z 1
+2026-10-31T15:43:34.9888350Z Output:
+2026-10-31T15:43:34.9891840Z Exit code: 1. Command failed: /Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/dmgbuild -s /private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/t-p0JHEG/2.json browser-2d-foundation 0.1.0 /Users/runner/work/browser-2d/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg
+2026-10-31T15:43:34.9894720Z Traceback (most recent call last):
+2026-10-31T15:43:34.9895440Z   File "<frozen runpy>", line 198, in _run_module_as_main
+2026-10-31T15:43:34.9896200Z   File "<frozen runpy>", line 88, in _run_code
+2026-10-31T15:43:34.9898080Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 70, in <module>
+2026-10-31T15:43:34.9899640Z     main()
+2026-10-31T15:43:34.9899990Z     ~~~~^^
+2026-10-31T15:43:34.9901600Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 59, in main
+2026-10-31T15:43:34.9903100Z     build_dmg(
+2026-10-31T15:43:34.9903420Z     ~~~~~~~~~^
+2026-10-31T15:43:34.9903930Z         args.filename,
+2026-10-31T15:43:34.9904350Z         ^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9904790Z     ...<4 lines>...
+2026-10-31T15:43:34.9905300Z         detach_retries=args.detachRetries,
+2026-10-31T15:43:34.9905900Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9906390Z     )
+2026-10-31T15:43:34.9906990Z     ^
+2026-10-31T15:43:34.9909030Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/core.py", line 853, in build_dmg
+2026-10-31T15:43:34.9910960Z     raise DMGError(callback, f"Unable to detach device cleanly: {output}")
+2026-10-31T15:43:34.9912550Z dmgbuild.core.DMGError: Unable to detach device cleanly: hdiutil: couldn't eject "disk2" - Resource busy
+2026-10-31T15:43:34.9927590Z                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       Traceback (most recent call last):
+2026-10-31T15:43:34.9936760Z   File "<frozen runpy>", line 198, in _run_module_as_main
+2026-10-31T15:43:34.9937720Z   File "<frozen runpy>", line 88, in _run_code
+2026-10-31T15:43:34.9940470Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 70, in <module>
+2026-10-31T15:43:34.9942600Z     main()
+2026-10-31T15:43:34.9943040Z     ~~~~^^
+2026-10-31T15:43:34.9945270Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/__main__.py", line 59, in main
+2026-10-31T15:43:34.9947370Z     build_dmg(
+2026-10-31T15:43:34.9947850Z     ~~~~~~~~~^
+2026-10-31T15:43:34.9948340Z         args.filename,
+2026-10-31T15:43:34.9949020Z         ^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9949730Z     ...<4 lines>...
+2026-10-31T15:43:34.9950380Z         detach_retries=args.detachRetries,
+2026-10-31T15:43:34.9951180Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T15:43:34.9951800Z     )
+2026-10-31T15:43:34.9952220Z     ^
+2026-10-31T15:43:34.9954440Z   File "/Users/runner/Library/Caches/electron-builder/dmg-builder@1.2.5/dmgbuild-bundle-x86_64-75c8a6c-c07gq/python/lib/python3.14/site-packages/dmgbuild/core.py", line 853, in build_dmg
+2026-10-31T15:43:34.9956960Z     raise DMGError(callback, f"Unable to detach device cleanly: {output}")
+2026-10-31T15:43:34.9958930Z dmgbuild.core.DMGError: Unable to detach device cleanly: hdiutil: couldn't eject "disk2" - Resource busy
+2026-10-31T15:43:34.9978480Z                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           at /private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-build-9wV4pw/node_modules/.pnpm/builder-util@26.16.0_supports-color@7.2.0/node_modules/builder-util/src/util.ts:192:18
+2026-10-31T15:43:34.9992060Z     at ChildProcess.exithandler (node:child_process:424:5)
+2026-10-31T15:43:34.9993080Z     at ChildProcess.emit (node:events:514:28)
+2026-10-31T15:43:34.9994050Z     at maybeClose (node:internal/child_process:1172:16)
+2026-10-31T15:43:34.9995370Z     at Process.ChildProcess._handle.onexit (node:internal/child_process:335:5)
+2026-10-31T15:43:35.0034090Z Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+2026-10-31T15:43:35.0034680Z
+2026-10-31T15:43:35.0035500Z   × "pnpm recursive exec" failed in /private/var/folders/20/
+2026-10-31T15:43:35.0036700Z   │ jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-build-9wV4pw/apps/desktop
+2026-10-31T15:43:35.0037280Z
+2026-10-31T15:43:41.0422740Z file:///Users/runner/work/browser-2d/browser-2d/scripts/process.mjs:11
+2026-10-31T15:43:41.0424750Z       code === 0 ? resolve() : reject(new Error(`${command} exited ${code ?? signal}`)),
+2026-10-31T15:43:41.0426620Z                                       ^
+2026-10-31T15:43:41.0427160Z
+2026-10-31T15:43:41.0428250Z Error: /Users/runner/hostedtoolcache/node/24.22.1/x64/bin/pnpm exited 1
+2026-10-31T15:43:41.0430650Z     at ChildProcess.<anonymous> (file:///Users/runner/work/browser-2d/browser-2d/scripts/process.mjs:11:39)
+2026-10-31T15:43:41.0446530Z     at ChildProcess.emit (node:events:514:28)
+2026-10-31T15:43:41.0447880Z     at ChildProcess._handle.onexit (node:internal/child_process:324:12)
+2026-10-31T15:43:41.0448800Z
+2026-10-31T15:43:41.0449120Z Node.js v24.22.1
+2026-10-31T15:43:41.0535620Z [ELIFECYCLE] Command failed with exit code 1.
+2026-10-31T15:43:41.0578760Z ##[error]Process completed with exit code 1.
+2026-10-31T15:43:41.0845970Z ##[group]Run actions/upload-artifact@v4
+2026-10-31T15:43:41.0846520Z with:
+2026-10-31T15:43:41.0846820Z   name: p6-mac-x64
+2026-10-31T15:43:41.0848310Z   path: artifacts/
+release/*/*.dmg
+release/*/*.zip
+release/*/*.exe
+release/*/*.AppImage
+release/*/*.deb
+release/*/*.rpm
+release/*/*.blockmap
+release/*/*.yml
+release/*/build-context.json
+release/*/artifact-inventory.json
+
+2026-10-31T15:43:41.0849950Z   retention-days: 7
+2026-10-31T15:43:41.0850330Z   if-no-files-found: warn
+2026-10-31T15:43:41.0850730Z   compression-level: 6
+2026-10-31T15:43:41.0851120Z   overwrite: false
+2026-10-31T15:43:41.0851480Z   include-hidden-files: false
+2026-10-31T15:43:41.0851910Z env:
+2026-10-31T15:43:41.0853020Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/work/_temp/browser-2d-chrome-5yMnPK/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+2026-10-31T15:43:41.0854330Z ##[endgroup]
+2026-10-31T15:43:41.4445370Z (node:14848) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T15:43:41.4448760Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T15:43:41.4765520Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-31T15:43:41.4769330Z The least common ancestor is /Users/runner/work/browser-2d/browser-2d. This will be the root directory of the artifact
+2026-10-31T15:43:41.4771120Z With the provided path, there will be 16 files uploaded
+2026-10-31T15:43:41.4775540Z Artifact name is valid!
+2026-10-31T15:43:41.4776530Z Root directory input is valid!
+2026-10-31T15:43:41.9051500Z Beginning upload of artifact content to blob storage
+2026-10-31T15:43:42.4681860Z (node:14848) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T15:43:43.4297510Z Uploaded bytes 8388608
+2026-10-31T15:43:43.8647760Z Uploaded bytes 16777216
+2026-10-31T15:43:44.0687040Z Uploaded bytes 25165824
+2026-10-31T15:43:44.3850930Z Uploaded bytes 33554432
+2026-10-31T15:43:44.5574090Z Uploaded bytes 41943040
+2026-10-31T15:43:45.0100160Z Uploaded bytes 50331648
+2026-10-31T15:43:45.4728260Z Uploaded bytes 58720256
+2026-10-31T15:43:45.9027680Z Uploaded bytes 67108864
+2026-10-31T15:43:46.3083720Z Uploaded bytes 75497472
+2026-10-31T15:43:46.7329470Z Uploaded bytes 83886080
+2026-10-31T15:43:47.1753500Z Uploaded bytes 92274688
+2026-10-31T15:43:47.6113440Z Uploaded bytes 100663296
+2026-10-31T15:43:48.0621420Z Uploaded bytes 109051904
+2026-10-31T15:43:48.4936410Z Uploaded bytes 117440512
+2026-10-31T15:43:48.9254370Z Uploaded bytes 125829120
+2026-10-31T15:43:49.3966330Z Uploaded bytes 134217728
+2026-10-31T15:43:49.5193370Z Uploaded bytes 138913316
+2026-10-31T15:43:49.5998930Z Finished uploading artifact content to blob storage!
+2026-10-31T15:43:49.6004950Z SHA256 digest of uploaded artifact zip is 43be40e8ce20c3b2da4ed19f8a4009564284e460edd76211101bd5eb83fb8204
+2026-10-31T15:43:49.6007050Z Finalizing artifact upload
+2026-10-31T15:43:50.2236350Z Artifact p6-mac-x64.zip successfully finalized. Artifact ID 13048825536
+2026-10-31T15:43:50.2238380Z Artifact p6-mac-x64 has been successfully uploaded! Final size is 138913316 bytes. Artifact ID is 13048825536
+2026-10-31T15:43:50.2254180Z Artifact download URL: https://github.com/0gnilc/browser-2d/actions/runs/41215312103/artifacts/13048825536
+2026-10-31T15:43:50.2633550Z Post job cleanup.
+2026-10-31T15:43:50.4590750Z [command]/usr/local/bin/git version
+2026-10-31T15:43:50.4705470Z git version 2.55.0
+2026-10-31T15:43:50.4753790Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/a788868b-6774-4f74-be1e-3dc15f7f39de/.gitconfig'
+2026-10-31T15:43:50.4773880Z Temporarily overriding HOME='/Users/runner/work/_temp/a788868b-6774-4f74-be1e-3dc15f7f39de' before making global git config changes
+2026-10-31T15:43:50.4776040Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T15:43:50.4782520Z [command]/usr/local/bin/git config --global --add safe.directory /Users/runner/work/browser-2d/browser-2d
+2026-10-31T15:43:50.4900070Z [command]/usr/local/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T15:43:50.5014240Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T15:43:50.6877630Z [command]/usr/local/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T15:43:50.6982320Z http.https://github.com/.extraheader
+2026-10-31T15:43:50.7000980Z [command]/usr/local/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-31T15:43:50.7129500Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T15:43:50.8852470Z [command]/usr/local/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T15:43:50.8962900Z [command]/usr/local/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-31T15:43:51.0663440Z Cleaning up orphan processes
+2026-10-31T15:43:51.5743950Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

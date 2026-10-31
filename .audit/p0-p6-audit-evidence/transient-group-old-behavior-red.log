@@ -1,0 +1,75 @@
+
+ RUN  v5.0.5 /private/tmp/browser-2d-audit-transient-group/apps/worker
+
+ ❯ tests/chrome-family.test.ts (4 tests | 1 failed) 6277ms
+   × retains profile and capacity while the final lifetime probe is unknown 1280ms
+ ❯ tests/chrome-process.test.ts (7 tests | 2 failed) 100ms
+   × keeps unknown lifetime observations pending until empty 33ms
+   × keeps unknown lifetime observations pending until aborted 28ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/chrome-family.test.ts > retains profile and capacity while the final lifetime probe is unknown
+AssertionError: expected 'settled' to be 'waiting' // Object.is equality
+
+Expected: "waiting"
+Received: "settled"
+
+ ❯ tests/chrome-family.test.ts:420:23
+    418|       expect(storage.work.chrome.get(intent.operationId)?.phase).toBe(…
+    419|       await access(profile);
+    420|       expect(outcome).toBe('waiting');
+       |                       ^
+    421|       abort.abort();
+    422|       expect(await cleanup).toEqual({ kind: 'blocked', reason: 'CLEANU…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/chrome-process.test.ts > keeps unknown lifetime observations pending until empty
+AssertionError: expected undefined to deeply equal { kind: 'posix-group-empty', …(1) }
+
+- Expected:
+{
+  "kind": "posix-group-empty",
+  "pgid": 1465,
+}
+
++ Received:
+undefined
+
+ ❯ tests/chrome-process.test.ts:111:30
+    109|       const waiting = awaitOwnedLifetime(lifetime, abort.signal);
+    110|       if (outcome === 'empty') {
+    111|         await expect(waiting).resolves.toEqual(
+       |                              ^
+    112|           lifetime.kind === 'posix-group'
+    113|             ? { kind: 'posix-group-empty', pgid: lifetime.pgid }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/chrome-process.test.ts > keeps unknown lifetime observations pending until aborted
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ tests/chrome-process.test.ts:117:30
+    115|         );
+    116|       } else {
+    117|         await expect(waiting).rejects.toMatchObject({ name: 'AbortErro…
+       |                              ^
+    118|       }
+    119|       expect(kill).toHaveBeenCalledTimes(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 8 passed (11)
+   Start at  16:24:47
+   Duration  7.20s (tests 94%, import 6%)
