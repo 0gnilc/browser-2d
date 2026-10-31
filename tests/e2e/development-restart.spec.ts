@@ -191,3 +191,40 @@ test('shared TypeScript preset changes restart only after the previous worker ex
     if (!closed) await dev.close();
   }
 });
+
+test('renderer preset changes reach the live page after coordinated restart', async ({
+  browserName: _browserName,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const dev = await developer(testInfo, 'internal/build-config/index.mjs');
+  let closed = false;
+  try {
+    const first = await dev.page();
+    const previousPid = Number(await first.page.getByTestId('worker-pid').textContent());
+    await expect(first.page.locator('meta[name="development-config-proof"]')).toHaveCount(0);
+    expect(dev.original).toContain('plugins: [vue()]');
+    await writeFile(
+      dev.source,
+      dev.original.replace(
+        'plugins: [vue()]',
+        `plugins: [vue(), {
+      name: 'development-config-proof',
+      transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'development-config-proof', content: 'changed' }, injectTo: 'head' }],
+    }]`,
+      ),
+    );
+    const replacement = await dev.page(first.port);
+    await expect(replacement.page.locator('meta[name="development-config-proof"]')).toHaveAttribute(
+      'content',
+      'changed',
+    );
+    expect(absent(previousPid)).toBe(true);
+    expect(Number(await replacement.page.getByTestId('worker-pid').textContent())).not.toBe(
+      previousPid,
+    );
+    expect(await dev.close()).toBe(0);
+    closed = true;
+  } finally {
+    if (!closed) await dev.close();
+  }
+});

@@ -4,8 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { createServer } from 'vite';
-import { rendererConfig } from '../internal/build-config/index.mjs';
+import { createServer, runnerImport } from 'vite';
 import { desktopRequire, resolveNativeBinding } from './native.mjs';
 import { pnpm, root } from './process.mjs';
 
@@ -15,14 +14,7 @@ await mkdir(dataDir, { recursive: true });
 const nativeBinding = await resolveNativeBinding();
 const workerOnly = process.argv.includes('--worker-only');
 const inspectUi = process.argv.includes('--inspect-ui');
-const server = workerOnly
-  ? undefined
-  : await createServer({
-      ...rendererConfig(join(root, 'apps/ui')),
-      server: { host: '127.0.0.1' },
-    });
-await server?.listen();
-server?.printUrls();
+let server;
 let child;
 let exit;
 let closing = false;
@@ -66,9 +58,27 @@ async function restart() {
     while (dirty && !closing) {
       dirty = false;
       await pnpm(['build'], { stdio: ['ignore', 'inherit', 'inherit'] });
+      const preset = workerOnly
+        ? undefined
+        : await runnerImport(join(root, 'internal/build-config/index.mjs'), { configFile: false });
+      const renderer = preset?.module.rendererConfig(join(root, 'apps/ui'));
       await stop();
+      await server?.close();
       await rm(join(control, 'stop'), { force: true });
       if (closing) return;
+      if (renderer) {
+        server = await createServer({
+          ...renderer,
+          configFile: false,
+          server: { host: '127.0.0.1' },
+        });
+        await server.listen();
+        server.printUrls();
+      }
+      if (closing) {
+        await server?.close();
+        return;
+      }
       child = spawn(
         desktopRequire('electron'),
         [
