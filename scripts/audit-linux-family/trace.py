@@ -40,7 +40,7 @@ if sys.argv[1] == 'prepare':
     for name, path, arg in calls:
         argument = '0' if arg == '0' else 'args->' + arg
         blocks.append(f'''tracepoint:syscalls:sys_enter_{name}
-/strncmp(str(args->{path}), "/tmp/b2d-family-", 16) == 0 || strncmp(str(args->{path}), "/tmp/closed-recovery-", 21) == 0 || @observer[pid]/
+/strncmp(str(args->{path}), "/tmp/b2d-family-", 16) == 0 || strncmp(str(args->{path}), "/tmp/closed-recovery-", 21) == 0 || @observer[pid] || @watched_group[{group}]/
 {{
  @start[tid] = nsecs; @pathname[tid] = (uint64)args->{path};
  printf("NS_ENTRY\\t%llu\\t%d\\t%d\\t%d\\t%d\\t%s\\t{name}\\t%lld\\t%s\\n", @start[tid], pid, tid, curtask->real_parent->tgid, {group}, comm, {argument}, str(args->{path}, 128));
@@ -48,11 +48,11 @@ if sys.argv[1] == 'prepare':
 tracepoint:syscalls:sys_exit_{name}
 /@start[tid]/
 {{
- printf("NS_RETURN\\t%llu\\t%llu\\t%d\\t%d\\t%lld\\t%s\\n", @start[tid], nsecs, pid, tid, args->ret, str(@pathname[tid], 128));
+ printf("NS_RETURN\\t%llu\\t%llu\\t%d\\t%d\\t%lld\\t%s\\n", @start[tid], nsecs, pid, tid, args->ret, str(uptr(@pathname[tid]), 128));
  delete(@start[tid]); delete(@pathname[tid]);
 }}''')
     blocks.append(f'''tracepoint:syscalls:sys_enter_kill {{
- if ((int32)args->pid < 0) {{ @observer[pid] = 1; }}
+ if ((int32)args->pid < 0) {{ @observer[pid] = 1; @watched_group[-(int64)(int32)args->pid] = 1; }}
  @killstart[tid] = nsecs; @target[tid] = (int64)(int32)args->pid; @signal[tid] = args->sig;
  @killgroup[tid] = {group};
 }}
