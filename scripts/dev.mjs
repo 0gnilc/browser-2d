@@ -65,7 +65,7 @@ async function restart() {
   try {
     while (dirty && !closing) {
       dirty = false;
-      await pnpm(['build']);
+      await pnpm(['build'], { stdio: ['ignore', 'inherit', 'inherit'] });
       await stop();
       await rm(join(control, 'stop'), { force: true });
       if (closing) return;

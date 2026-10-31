@@ -76,6 +76,7 @@ async function setup() {
     env: { ...process.env, BROWSER2D_DATA_DIR: join(directory, 'host') },
   });
   const page = await application.firstWindow();
+  const hostPid = await application.evaluate(() => process.pid);
   await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
   const hostSnapshot = await page.evaluate(async () => window.browser2d?.work.getSnapshot());
   if (!hostSnapshot?.ok) throw new Error('Host worker snapshot missing');
@@ -84,7 +85,7 @@ async function setup() {
     directory,
     application,
     async close() {
-      await application.close().catch(() => undefined);
+      if (!absent(hostPid)) await application.close().catch(() => undefined);
       await expect.poll(() => absent(hostWorkerPid), { timeout: 17_000 }).toBe(true);
       await rm(directory, { recursive: true, force: true });
     },
@@ -292,10 +293,9 @@ test('host death leaves interrupted work that a new application cleans without r
     const accepted = await start(worker, (await createDevice(worker)).id);
     await expect.poll(() => files(fixture, '.execute')).toHaveLength(1);
     const pid = (await snapshot(worker)).workerPid;
-    const hostProcess = context.application.process();
-    const exited = context.application.waitForEvent('close');
-    hostProcess.kill('SIGKILL');
-    await exited;
+    const hostPid = await context.application.evaluate(() => process.pid);
+    process.kill(hostPid, 'SIGKILL');
+    await expect.poll(() => absent(hostPid), { timeout: 5000 }).toBe(true);
     await expect.poll(() => absent(pid), { timeout: 17_000 }).toBe(true);
     expect(await files(join(dataDir, 'controlled-resources'))).toHaveLength(1);
     recovery = await electron.launch({
