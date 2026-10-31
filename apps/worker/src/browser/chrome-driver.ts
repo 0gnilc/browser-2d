@@ -17,12 +17,16 @@ import {
 } from './connection';
 import {
   awaitChildExit,
+  awaitOwnedLifetime,
+  launchContract,
+  observeOwnedLifetime,
   executablePath,
   processAbsent,
   processIdentity,
   spawnOwned,
   stopOwnedChild,
   type OwnedChild,
+  type StoppedProof,
 } from './process';
 
 type Attached = {
@@ -82,6 +86,11 @@ export function createChromeDriver({
     const identity = await processIdentity(info.id);
     const live = children.get(intent.operationId);
     if (live && live.child.pid !== info.id) throw new Error('Browser process mismatch');
+    if ('lifetime' in state) {
+      const mainPid =
+        state.lifetime.kind === 'posix-group' ? state.lifetime.pgid : state.lifetime.pid;
+      if (mainPid !== info.id) throw new Error('Browser lifetime mismatch');
+    }
     if (
       state.phase === 'attached' &&
       (state.pid !== info.id ||
@@ -102,9 +111,22 @@ export function createChromeDriver({
     signal.throwIfAborted();
     const args = defaults.filter((arg) => !arg.startsWith('--remote-debugging-'));
     args.push('--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', marker(intent));
-    journal.save(intent.operationId, { mode: 'launch', phase: 'attempted' });
+    journal.save(intent.operationId, {
+      version: 2,
+      mode: 'launch',
+      phase: 'attempted',
+      contract: launchContract(),
+    });
     const owned = spawnOwned(executable, args);
     children.set(intent.operationId, owned);
+    const lifetime = await abortable(owned.started, signal);
+    const spawned = {
+      version: 2,
+      mode: 'launch',
+      phase: 'spawned',
+      lifetime,
+    } satisfies ChromeState;
+    journal.save(intent.operationId, spawned);
     await checkpoint?.('spawned', intent.operationId, signal);
     const startup = AbortSignal.any([signal, AbortSignal.timeout(10_000)]);
     let browser: Browser | undefined;
@@ -119,13 +141,12 @@ export function createChromeDriver({
     }
     const removeAbort = disconnectOnAbort(browser, startup);
     try {
-      const identity = await abortable(
-        verifyOwned(browser, intent, { mode: 'launch', phase: 'attempted' }),
-        startup,
-      );
+      const identity = await abortable(verifyOwned(browser, intent, spawned), startup);
       journal.save(intent.operationId, {
+        version: 2,
         mode: 'launch',
         phase: 'attached',
+        lifetime,
         browserHash: identity.hash,
         pid: identity.pid,
         processIdentity: identity.identity,
@@ -176,24 +197,29 @@ export function createChromeDriver({
       removeAbort();
     }
   }
-  async function released(
+  async function releasedBorrowed(intent: Obligation): Promise<CleanupResult> {
+    await disconnect(intent.operationId);
+    journal.save(intent.operationId, { mode: 'connect', phase: 'released' });
+    return { kind: 'resolved' };
+  }
+  async function releasedOwned(
     intent: Obligation,
-    mode: 'launch' | 'connect',
+    proof: StoppedProof,
     signal: AbortSignal,
   ): Promise<CleanupResult> {
     await disconnect(intent.operationId);
-    if (mode === 'launch') {
-      if (journal.get(intent.operationId)?.phase !== 'stopped')
-        journal.save(intent.operationId, { mode, phase: 'stopped' });
-      try {
-        signal.throwIfAborted();
-        await abortable(rm(directory(intent), { recursive: true, force: true }), signal);
-        signal.throwIfAborted();
-      } catch {
-        return { kind: 'blocked', reason: 'CLEANUP_FAILED' };
-      }
+    signal.throwIfAborted();
+    const state = journal.get(intent.operationId);
+    if (!state || !('version' in state) || state.phase !== 'stopped')
+      journal.save(intent.operationId, { version: 2, mode: 'launch', phase: 'stopped', proof });
+    try {
+      signal.throwIfAborted();
+      await abortable(rm(directory(intent), { recursive: true, force: true }), signal);
+      signal.throwIfAborted();
+    } catch {
+      return { kind: 'blocked', reason: 'CLEANUP_FAILED' };
     }
-    journal.save(intent.operationId, { mode, phase: 'released' });
+    journal.save(intent.operationId, { version: 2, mode: 'launch', phase: 'released', proof });
     children.delete(intent.operationId);
     return { kind: 'resolved' };
   }
@@ -203,48 +229,53 @@ export function createChromeDriver({
     signal: AbortSignal,
   ): Promise<CleanupResult> {
     if (state.mode !== 'launch') return uncertain();
+    if (state.phase === 'prepared') return releasedOwned(intent, { kind: 'never-spawned' }, signal);
+    if (!('version' in state)) return uncertain();
+    if (state.phase === 'stopped') return releasedOwned(intent, state.proof, signal);
     const live = children.get(intent.operationId);
-    if (state.phase === 'stopped' || live?.exited || live?.failedToSpawn)
-      return released(intent, 'launch', signal);
-    if (!live && state.phase === 'attached' && processAbsent(state.pid))
-      return released(intent, 'launch', signal);
-    let browser: Browser;
-    try {
-      browser = await connect(await ownedEndpoint(directory(intent)), signal);
-    } catch {
+    if (live?.failedToSpawn) return releasedOwned(intent, { kind: 'never-spawned' }, signal);
+    let lifetime = 'lifetime' in state ? state.lifetime : live?.lifetime;
+    if (!lifetime) {
       if (!live) return uncertain();
       await stopOwnedChild(live, signal);
-      return released(intent, 'launch', signal);
+      if (live.failedToSpawn) return releasedOwned(intent, { kind: 'never-spawned' }, signal);
+      lifetime = live.lifetime;
+      if (!lifetime) return uncertain();
     }
-    const removeAbort = disconnectOnAbort(browser, signal);
-    try {
-      const identity = await abortable(verifyOwned(browser, intent, state), signal);
-      if (!live && !identity.identity) return uncertain();
-      if (state.phase === 'attempted')
-        journal.save(intent.operationId, {
-          mode: 'launch',
-          phase: 'attached',
-          browserHash: identity.hash,
-          pid: identity.pid,
-          processIdentity: identity.identity,
-        });
-      const connection = browserConnection(browser);
-      await connection.send('Browser.close').catch(() => {});
-      if (live) await awaitChildExit(live, signal);
-      else {
-        while (!processAbsent(identity.pid)) {
-          const currentIdentity = await processIdentity(identity.pid);
-          if (processAbsent(identity.pid)) break;
-          if (currentIdentity !== identity.identity) return uncertain();
-          await delay(25, undefined, { signal });
+    const observation = observeOwnedLifetime(lifetime);
+    if (observation === 'unknown') return uncertain();
+    const mainPid = lifetime.kind === 'posix-group' ? lifetime.pgid : lifetime.pid;
+    if (observation !== 'empty' && !live?.exited && !processAbsent(mainPid)) {
+      let browser: Browser | undefined;
+      try {
+        browser = await connect(await ownedEndpoint(directory(intent)), signal);
+      } catch {
+        if (live) await stopOwnedChild(live, signal);
+      }
+      if (browser) {
+        const removeAbort = disconnectOnAbort(browser, signal);
+        try {
+          const identity = await abortable(verifyOwned(browser, intent, state), signal);
+          if (!live && !identity.identity) return uncertain();
+          const connection = browserConnection(browser);
+          await connection.send('Browser.close').catch(() => {});
+          if (live) await awaitChildExit(live, signal);
+          else {
+            while (!processAbsent(identity.pid)) {
+              const currentIdentity = await processIdentity(identity.pid);
+              if (processAbsent(identity.pid)) break;
+              if (currentIdentity !== identity.identity) return uncertain();
+              await delay(25, undefined, { signal });
+            }
+          }
+        } finally {
+          removeAbort();
+          await browser.disconnect().catch(() => {});
         }
       }
-      signal.throwIfAborted();
-      return released(intent, 'launch', signal);
-    } finally {
-      removeAbort();
-      await browser.disconnect().catch(() => {});
     }
+    const proof = await awaitOwnedLifetime(lifetime, signal);
+    return proof ? releasedOwned(intent, proof, signal) : uncertain();
   }
   async function cleanupBorrowed(
     intent: Obligation,
@@ -271,7 +302,7 @@ export function createChromeDriver({
       signal.throwIfAborted();
       return after.browserContextIds.includes(state.contextId)
         ? uncertain()
-        : released(intent, 'connect', signal);
+        : releasedBorrowed(intent);
     } finally {
       removeAbort();
       await browser.disconnect().catch(() => {});
@@ -360,7 +391,7 @@ export function createChromeDriver({
         if (!state) return { kind: 'resolved' };
         if (state.mode !== config.mode) return uncertain();
         if (state.phase === 'released') return { kind: 'resolved' };
-        if (state.phase === 'prepared') return released(intent, state.mode, bounded);
+        if (state.mode === 'connect' && state.phase === 'prepared') return releasedBorrowed(intent);
         await checkpoint?.('cleanup', intent.operationId, bounded);
         const result = await (state.mode === 'launch'
           ? cleanupOwned(intent, state, bounded)
