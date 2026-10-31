@@ -22,7 +22,6 @@ it('observes only signal zero and treats ESRCH as the sole absence proof', async
     throw Object.assign(new Error('No permission'), { code: 'EPERM' });
   });
   expect(observeOwnedLifetime(lifetime)).toBe('unknown');
-  expect(await awaitOwnedLifetime(lifetime, AbortSignal.timeout(1000))).toBeUndefined();
   kill.mockImplementation(() => {
     throw Object.assign(new Error('Not found'), { code: 'ESRCH' });
   });
@@ -87,3 +86,40 @@ it('does not mint a lifetime when the operating system rejects spawn', async () 
   expect(owned.failedToSpawn).toBe(true);
   expect(owned.lifetime).toBeUndefined();
 });
+
+it.each(['empty', 'aborted'] as const)(
+  'keeps unknown lifetime observations pending until %s',
+  async (outcome) => {
+    const owned = spawnOwned(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
+    const abort = new AbortController();
+    try {
+      const lifetime = await owned.started;
+      await stopOwnedChild(owned, AbortSignal.timeout(5000));
+      const id = lifetime.kind === 'posix-group' ? -lifetime.pgid : lifetime.pid;
+      let probes = 0;
+      const kill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        expect(pid).toBe(id);
+        expect(signal).toBe(0);
+        probes++;
+        if (probes === 2 && outcome === 'aborted') abort.abort();
+        throw Object.assign(new Error('Lifetime observation'), {
+          code: probes === 2 && outcome === 'empty' ? 'ESRCH' : 'EPERM',
+        });
+      });
+      const waiting = awaitOwnedLifetime(lifetime, abort.signal);
+      if (outcome === 'empty') {
+        await expect(waiting).resolves.toEqual(
+          lifetime.kind === 'posix-group'
+            ? { kind: 'posix-group-empty', pgid: lifetime.pgid }
+            : { kind: 'windows-main-exited', pid: lifetime.pid },
+        );
+      } else {
+        await expect(waiting).rejects.toMatchObject({ name: 'AbortError' });
+      }
+      expect(kill).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.restoreAllMocks();
+      await stopOwnedChild(owned, AbortSignal.timeout(5000));
+    }
+  },
+);

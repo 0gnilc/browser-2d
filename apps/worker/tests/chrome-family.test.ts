@@ -337,3 +337,138 @@ it.skipIf(process.platform === 'win32').each(['checkpoint', 'publication'] as co
   },
   30_000,
 );
+
+it.skipIf(process.platform === 'win32')(
+  'retains profile and capacity while the final lifetime probe is unknown',
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'b2d-unknown-'));
+    const root = join(directory, 'chrome-sessions');
+    const socket = join(directory, 'helper.sock');
+    const wrapper = join(directory, 'chrome');
+    const helper = fileURLToPath(new URL('./fixtures/owned-helper.mjs', import.meta.url));
+    await writeFile(
+      wrapper,
+      `#!/bin/sh\n${shell(process.execPath)} ${shell(helper)} ${shell(socket)} "$@" &\nexec ${shell(executable)} "$@"\n`,
+    );
+    await chmod(wrapper, 0o700);
+    const storage = await openBusinessStore({
+      path: join(directory, 'data.db'),
+      execution: 'chrome',
+      confirmLegacy: async () => true,
+      prepareLegacy: async () => {
+        throw new Error('No legacy key expected');
+      },
+    });
+    let service: ReturnType<typeof createWorkService> | undefined;
+    let helperPid: number | undefined;
+    const abort = new AbortController();
+    try {
+      const settings = value(storage.store.settings.get());
+      value(
+        storage.store.settings.commit({
+          expectedRevision: settings.revision,
+          values: {
+            ...settings,
+            pageCount: 4,
+            browser: { mode: 'launch', executablePath: wrapper, headless: true },
+          },
+        }),
+      );
+      const deviceId = value(storage.store.devices.create({ symbol: randomUUID() })).id;
+      value(storage.work.start({ commandId: randomUUID(), deviceId }));
+      const admitted = storage.work.admit();
+      if (!admitted) throw new Error('Missing admission');
+      const { intent } = admitted;
+      const profile = join(root, intent.operationId);
+      const driver = createChromeDriver({ root, journal: storage.work.chrome });
+      storage.work.acquired(intent, await driver.acquire(intent, AbortSignal.timeout(15_000)));
+      await expect.poll(() => command(socket, 'ready').catch(() => ''), poll).toMatch(/^\d+$/);
+      helperPid = Number(await command(socket, 'ready'));
+      const state = storage.work.chrome.get(intent.operationId);
+      if (!state || !('lifetime' in state) || state.lifetime.kind !== 'posix-group')
+        throw new Error('Missing spawned process group');
+      const { lifetime } = state;
+      expect(group(helperPid)).toBe(lifetime.pgid);
+      expect(group(process.pid)).not.toBe(lifetime.pgid);
+      const kill = process.kill.bind(process);
+      let groupProbes = 0;
+      let allowObservation = false;
+      let observedUnknown = () => {};
+      let unknownObserved = new Promise<void>((resolve) => {
+        observedUnknown = resolve;
+      });
+      const probes = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (pid === -lifetime.pgid) {
+          expect(signal).toBe(0);
+          groupProbes++;
+          if (groupProbes > 1 && !allowObservation) {
+            if (groupProbes === 3) observedUnknown();
+            throw Object.assign(new Error('Final observation denied'), { code: 'EPERM' });
+          }
+        }
+        return kill(pid, signal);
+      });
+      const cleanup = driver.cleanup(intent, abort.signal);
+      const outcome = await Promise.race([
+        unknownObserved.then(() => 'waiting'),
+        cleanup.then(() => 'settled'),
+      ]);
+      expect(processAbsent(lifetime.pgid)).toBe(true);
+      expect(processAbsent(helperPid)).toBe(false);
+      expect(storage.work.chrome.get(intent.operationId)?.phase).toBe('attached');
+      await access(profile);
+      expect(outcome).toBe('waiting');
+      abort.abort();
+      expect(await cleanup).toEqual({ kind: 'blocked', reason: 'CLEANUP_FAILED' });
+      expect(storage.work.chrome.get(intent.operationId)?.phase).toBe('attached');
+      await access(profile);
+      groupProbes = 0;
+      unknownObserved = new Promise<void>((resolve) => {
+        observedUnknown = resolve;
+      });
+      const serviceCleanup = vi.spyOn(driver, 'cleanup');
+      service = createWorkService({ repository: storage.work, driver, publish: () => {} });
+      await unknownObserved;
+      expect(service.snapshot().resources).toMatchObject([
+        { operationId: intent.operationId, pages: 4, state: 'release-pending' },
+      ]);
+      const waitingDevice = value(storage.store.devices.create({ symbol: 'waiting' })).id;
+      const waiting = value(service.start({ commandId: randomUUID(), deviceId: waitingDevice }));
+      expect(await command(socket, 'write')).toBe('written');
+      expect(await readFile(join(profile, 'late-helper-write'), 'utf8')).toBe('acknowledged');
+      expect(service.snapshot().runs.find((run) => run.id === waiting.runId)?.state).toBe('queued');
+      expect(storage.work.chrome.get(intent.operationId)?.phase).toBe('attached');
+      value(service.cancel({ commandId: randomUUID(), runId: waiting.runId }));
+      expect(await command(socket, 'exit')).toBe('exiting');
+      allowObservation = true;
+      await service.stop();
+      expect(serviceCleanup).toHaveBeenCalledTimes(1);
+      expect(processAbsent(helperPid)).toBe(true);
+      expect(observeOwnedLifetime(lifetime)).toBe('empty');
+      expect(storage.work.chrome.get(intent.operationId)).toMatchObject({
+        phase: 'released',
+        proof: { kind: 'posix-group-empty', pgid: lifetime.pgid },
+      });
+      expect(service.snapshot().resources).toEqual([]);
+      expect(await readdir(root)).toEqual([]);
+      await expect(access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(
+        probes.mock.calls
+          .filter(([pid]) => pid === -lifetime.pgid)
+          .every(([, signal]) => signal === 0),
+      ).toBe(true);
+    } finally {
+      abort.abort();
+      vi.restoreAllMocks();
+      await command(socket, 'exit').catch(() => {});
+      if (helperPid) {
+        const pid = helperPid;
+        await expect.poll(() => processAbsent(pid), poll).toBe(true);
+      }
+      await service?.stop().catch(() => {});
+      storage.store.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);
