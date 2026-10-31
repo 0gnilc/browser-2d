@@ -149,6 +149,11 @@ for (let pass = 1; pass <= 2; pass++) {
     });
   }).finally(() => observationAbort.abort());
   const chrome = await observation;
+  await writeFile(
+    join(root, 'artifacts', target, `chrome-pass-${pass}.json`),
+    JSON.stringify(chrome, null, 2),
+  );
+  await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`));
   assert.equal(code, 0, 'Packaged process failed');
   const report = JSON.parse(await readFile(reportPath, 'utf8'));
   assert.equal(report.arch, target.endsWith('-arm64') ? 'arm64' : 'x64');
@@ -194,11 +199,6 @@ for (let pass = 1; pass <= 2; pass++) {
   assert(Number.isSafeInteger(report.result.workerPid) && report.result.workerPid > 0);
   assert.throws(() => process.kill(report.result.workerPid, 0), { code: 'ESRCH' });
   reports.push(report);
-  await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`));
-  await writeFile(
-    join(root, 'artifacts', target, `chrome-pass-${pass}.json`),
-    JSON.stringify(chrome, null, 2),
-  );
 }
 console.log(
   JSON.stringify(

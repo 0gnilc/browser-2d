@@ -190,17 +190,17 @@ async function verifyPackagedWindow() {
     assert(repeated.ok && JSON.stringify(repeated.value) === JSON.stringify(starts[0]), 'Command replay changed acceptance');
     const conflict = await api.work.start({ ...inputs[0], commandId: crypto.randomUUID() });
     assert(!conflict.ok && conflict.error.code === 'CONFLICT', 'Device exclusion failed');
-    async function waitFor(predicate) {
+    async function waitFor(predicate, description = 'work state') {
       for (let attempt = 0; attempt < 400; attempt++) {
         const result = await api.work.getSnapshot(); assert(result.ok, 'Snapshot failed');
         if (predicate(result.value)) return result.value;
         await new Promise(resolve => setTimeout(resolve, 25));
       }
-      throw new Error('Controlled work condition timed out');
+      throw new Error('Timed out waiting for ' + description);
     }
     const full = await waitFor(snapshot => starts.slice(0, 2).every(item => snapshot.runs.some(run => run.id === item.runId && run.state === 'running')) && snapshot.runs.some(run => run.id === starts[2].runId && run.state === 'queued'));
     assert(full.resources.reduce((sum, resource) => sum + resource.pages, 0) === 4, 'Page capacity reservation failed');
-    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromePagesVerified === 'true');
+    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromePagesVerified === 'true', 'four observed Chrome pages');
     const queuedCancel = await api.work.cancel({ commandId: crypto.randomUUID(), runId: starts[2].runId });
     assert(queuedCancel.ok, 'Queued cancellation failed');
     const cancelInput = { commandId: crypto.randomUUID(), runId: starts[0].runId };
@@ -211,7 +211,7 @@ async function verifyPackagedWindow() {
     await waitFor(snapshot => snapshot.runs.some(run => run.id === starts[1].runId && run.state === 'completed') && snapshot.resources.length === 0);
     assert(observed > 0, 'Subscription received no events'); dispose();
     const active = await api.work.start({ commandId: crypto.randomUUID(), deviceId: devices[0].id }); assert(active.ok, 'Shutdown start failed');
-    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromeShutdownVerified === 'true');
+    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromeShutdownVerified === 'true', 'two observed shutdown pages');
     return { initialCount: initial.value.runs.length, completedId: starts[1].runId, cancelledId: starts[0].runId, queuedCancelledId: starts[2].runId, shutdownId: active.value.runId, workerPid: initial.value.workerPid, observed, nodeIsolation: true, capacity: { devices: 2, pages: 4, queuedObserved: true }, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
   })()`,
     )
@@ -389,7 +389,7 @@ void app
         'Business storage is unavailable',
         `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,
       );
-    if (reportPath) await writeFile(reportPath, JSON.stringify({ error: code }));
+    if (reportPath) await writeFile(reportPath, JSON.stringify({ error: code, detail: error instanceof Error ? error.message : 'Unknown verification failure', finalSnapshot: latestSnapshot }));
     await worker?.close().catch(() => undefined);
     app.exit(1);
   });
