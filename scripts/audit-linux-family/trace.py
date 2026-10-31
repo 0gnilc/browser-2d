@@ -42,14 +42,14 @@ if sys.argv[1] == 'prepare':
         blocks.append(f'''tracepoint:syscalls:sys_enter_{name}
 /strncmp(str(args->{path}), "/tmp/b2d-family-", 16) == 0 || strncmp(str(args->{path}), "/tmp/closed-recovery-", 21) == 0/
 {{
- @start[tid] = nsecs; @path[tid] = str(args->{path}, 128); @arg[tid] = {argument};
- @parent[tid] = curtask->real_parent->tgid; @group[tid] = {group};
+ @start[tid] = nsecs;
+ printf("NS_ENTRY\\t%llu\\t%d\\t%d\\t%d\\t%d\\t%s\\t{name}\\t%lld\\t%s\\n", @start[tid], pid, tid, curtask->real_parent->tgid, {group}, comm, {argument}, str(args->{path}, 128));
 }}
 tracepoint:syscalls:sys_exit_{name}
 /@start[tid]/
 {{
- printf("NS\\t%llu\\t%llu\\t%d\\t%d\\t%d\\t%d\\t%s\\t{name}\\t%lld\\t%lld\\t%s\\n", @start[tid], nsecs, pid, tid, @parent[tid], @group[tid], comm, @arg[tid], args->ret, @path[tid]);
- delete(@start[tid]); delete(@path[tid]); delete(@arg[tid]); delete(@parent[tid]); delete(@group[tid]);
+ printf("NS_RETURN\\t%llu\\t%llu\\t%d\\t%d\\t%lld\\n", @start[tid], nsecs, pid, tid, args->ret);
+ delete(@start[tid]);
 }}''')
     blocks.append(f'''tracepoint:syscalls:sys_enter_kill /args->pid < 0/ {{
  @killstart[tid] = nsecs; @target[tid] = args->pid; @signal[tid] = args->sig;
@@ -72,13 +72,20 @@ else:
     context = json.loads((out / 'context.json').read_text())
     events = []
     groups = []
+    pending = {}
     for line in (out / 'trace.tsv').read_text().splitlines():
         cols = line.split('\t')
-        if cols[0] == 'NS':
-            keys = ['kind', 'start', 'end', 'pid', 'tid', 'ppid', 'pgid', 'name', 'syscall', 'argument', 'result', 'path']
+        if cols[0] == 'NS_ENTRY':
+            keys = ['kind', 'start', 'pid', 'tid', 'ppid', 'pgid', 'name', 'syscall', 'argument', 'path']
             event = dict(zip(keys, cols))
-            for key in ['start', 'end', 'pid', 'tid', 'ppid', 'pgid', 'argument', 'result']:
+            for key in ['start', 'pid', 'tid', 'ppid', 'pgid', 'argument']:
                 event[key] = int(event[key])
+            pending[(event['tid'], event['start'])] = event
+        elif cols[0] == 'NS_RETURN':
+            start, end, pid, tid, result = map(int, cols[1:])
+            event = pending.pop((tid, start))
+            assert event['pid'] == pid
+            event.update(end=end, result=result)
             events.append(event)
         elif cols[0] == 'GROUP':
             keys = ['kind', 'start', 'end', 'pid', 'tid', 'pgid', 'target', 'signal', 'result']
@@ -99,7 +106,7 @@ else:
     removals = [e for e in events if e['path'] == profile and e['syscall'] == 'rmdir' and e['result'] == 0]
     deletion_attempts = [e for e in events if (e['path'] == profile or e['path'].startswith(profile + '/')) and e['syscall'] in {'rmdir', 'unlink', 'unlinkat'}]
     ordered = bool(esrch and removals and deletion_attempts and min(e['end'] for e in esrch) < min(e['start'] for e in deletion_attempts))
-    report = {'family': family, 'context': context, 'nativeWriterCount': len(native_writes), 'nativeWriters': native_writes[:20], 'nativeHelperWriters': native_helpers[:20], 'nativeWriterGroups': sorted({e['pgid'] for e in native_writes}), 'escapedNativeWriters': escaped, 'helperPositiveWrites': controls, 'groupESRCH': esrch, 'profileRmdir': removals, 'firstProfileDeletionAttempt': min(deletion_attempts, key=lambda e: e['start']) if deletion_attempts else None, 'groupAbsentBeforeProfileRemoval': ordered, 'namespaceEventCount': len(events), 'groupEventCount': len(groups), 'traceStderr': (out / 'trace.stderr').read_text()}
+    report = {'family': family, 'context': context, 'nativeWriterCount': len(native_writes), 'nativeWriters': native_writes[:20], 'nativeHelperWriters': native_helpers[:20], 'nativeWriterGroups': sorted({e['pgid'] for e in native_writes}), 'escapedNativeWriters': escaped, 'helperPositiveWrites': controls, 'groupESRCH': esrch, 'profileRmdir': removals, 'firstProfileDeletionAttempt': min(deletion_attempts, key=lambda e: e['start']) if deletion_attempts else None, 'groupAbsentBeforeProfileRemoval': ordered, 'namespaceEventCount': len(events), 'groupEventCount': len(groups), 'unmatchedNamespaceEntries': list(pending.values()), 'traceStderr': (out / 'trace.stderr').read_text()}
     (out / 'analysis.json').write_text(json.dumps(report, indent=2))
     assert family['source'] == context['source']
     assert family['namespaceAbsentBeforeTeardown'] and family['preTeardownRootEntries'] == []
