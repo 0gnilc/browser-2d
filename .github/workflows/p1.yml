@@ -26,8 +26,6 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: node scripts/prepare-test-chrome.mjs
-      - name: Restore original target without JavaScript tracing
-        run: git show b1b592fbacd33f20fc2bf42a7583280b2b6f184d:apps/worker/tests/chrome.test.ts > apps/worker/tests/chrome.test.ts
       - name: Record the exact diagnostic environment
         run: |
           mkdir -p artifacts/profile-probes
@@ -40,12 +38,12 @@ jobs:
       - name: Bounded native cold-recovery probes
         shell: bash
         env:
-          NODE_OPTIONS: --require=${{ github.workspace }}/scripts/profile-removal-boundary.cjs
+          NODE_OPTIONS: --require=${{ github.workspace }}/scripts/profile-creation-fingerprint.cjs
           BROWSER2D_PROFILE_TRACE_DIR: ${{ github.workspace }}/artifacts/profile-probes
         run: |
-          echo boundary-only > artifacts/profile-probes/observation-mode.txt
+          echo creation-only > artifacts/profile-probes/observation-mode.txt
           pnpm test:storage
-          for attempt in $(seq 1 40); do
+          for attempt in $(seq 1 80); do
             log="$PWD/artifacts/profile-probes/attempt-$attempt.log"
             if pnpm --filter @browser-2d/worker-runtime exec vitest run tests/chrome.test.ts -t 'recovers a verified owned browser that exited before its release was journaled' > "$log" 2>&1; then
               echo "Cold-recovery probe $attempt passed"

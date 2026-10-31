@@ -1,4 +1,3 @@
-import { channel } from 'node:diagnostics_channel';
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { access, lstat, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -674,44 +673,16 @@ it('recovers a verified owned browser that exited before its release was journal
   const resource = await driver.acquire(admitted.intent, AbortSignal.timeout(15_000));
   database.work.acquired(admitted.intent, resource);
   const observer = await ownedObserver(root);
-  const diagnosticSession = await observer.browser.target().createCDPSession();
-  const { processInfo: observedProcesses } = await diagnosticSession.send(
-    'SystemInfo.getProcessInfo',
-  );
-  const observedIdentities = execFileSync(
-    '/bin/ps',
-    ['-axww', '-o', 'pid=,ppid=,lstart=,command='],
-    {
-      encoding: 'utf8',
-      timeout: 1000,
-    },
-  )
-    .split('\n')
-    .filter((line) => observedProcesses.some(({ id }) => line.trimStart().startsWith(`${id} `)));
-  channel('browser-2d/profile').publish({
-    event: 'before-browser-close',
-    data: { observedProcesses, observedIdentities },
-  });
-  await diagnosticSession.detach();
   await observer.browser.close();
   await expect.poll(() => alive(observer.pid), poll).toBe(false);
-  channel('browser-2d/profile').publish({
-    event: 'browser-absent',
-    data: { processes: observedProcesses.map((info) => ({ ...info, alive: alive(info.id) })) },
-  });
   database.work.recover();
   const recovered = createChromeDriver({ root, journal: database.work.chrome });
   expect(await recovered.cleanup(admitted.intent, AbortSignal.timeout(7000))).toEqual({
     kind: 'resolved',
   });
-  channel('browser-2d/profile').publish({
-    event: 'cleanup-resolved',
-    data: { processes: observedProcesses.map((info) => ({ ...info, alive: alive(info.id) })) },
-  });
   database.work.resolved(admitted.intent.operationId);
   expect(database.work.snapshot().resources).toEqual([]);
   const remaining = await readdir(root);
-  channel('browser-2d/profile').publish({ event: 'assertion-sample', data: { remaining } });
   if (remaining.length > 0) {
     const profile = join(root, admitted.intent.operationId);
     const capturedAt = new Date().toISOString();
@@ -733,15 +704,16 @@ it('recovers a verified owned browser that exited before its release was journal
       const entries = await Promise.all(
         (await readdir(root, { recursive: true })).map(async (path) => {
           try {
-            const stat = await lstat(join(root, path));
+            const stat = await lstat(join(root, path), { bigint: true });
             return {
               path,
-              size: stat.size,
-              inode: stat.ino,
-              ctime: stat.ctime.toISOString(),
-              birthtime: stat.birthtime.toISOString(),
+              size: String(stat.size),
+              inode: String(stat.ino),
+              birthtimeNs: String(stat.birthtimeNs),
+              ctimeNs: String(stat.ctimeNs),
+              mtimeNs: String(stat.mtimeNs),
               mtime: stat.mtime.toISOString(),
-              mode: stat.mode,
+              mode: String(stat.mode),
               directory: stat.isDirectory(),
               symlink: stat.isSymbolicLink(),
             };
@@ -751,17 +723,7 @@ it('recovers a verified owned browser that exited before its release was journal
         }),
       );
       const diagnostic = JSON.stringify(
-        {
-          capturedAt,
-          root,
-          remaining,
-          journal,
-          browserPid: observer.pid,
-          observedProcesses,
-          observedIdentities,
-          processes,
-          entries,
-        },
+        { capturedAt, root, remaining, journal, browserPid: observer.pid, processes, entries },
         null,
         2,
       );
