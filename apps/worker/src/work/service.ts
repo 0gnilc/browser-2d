@@ -88,18 +88,7 @@ export function createWorkService({
         await driver.execute(resource, run, signal);
         repository.finish(run.id, 'completed');
       }
-    } catch (error) {
-      process.stderr.write(
-        JSON.stringify({
-          diagnostic: 'execute-failure',
-          time: new Date().toISOString(),
-          runId: run.id,
-          error:
-            error instanceof Error
-              ? { name: error.name, message: error.message, stack: error.stack }
-              : String(error),
-        }) + '\n',
-      );
+    } catch {
       repository.finish(run.id, 'failed');
     } finally {
       changed();

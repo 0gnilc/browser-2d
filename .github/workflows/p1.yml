@@ -26,7 +26,14 @@ jobs:
         run: node scripts/prepare-test-chrome.mjs
       - run: pnpm typecheck
       - run: pnpm dist -- --target=win-x64
-      - run: pnpm verify:package -- --target=win-x64
+      - name: Bounded quiet fused diagnostic
+        shell: bash
+        run: |
+          for invocation in {1..10}; do
+            echo "Verification invocation $invocation of 10"
+            export BROWSER2D_EVIDENCE_DIR="$PWD/artifacts/quiet-invocation-$invocation"
+            pnpm verify:package -- --target=win-x64 || exit $?
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

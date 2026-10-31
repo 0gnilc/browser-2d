@@ -146,9 +146,6 @@ const evidenceDir = resolve(process.env.BROWSER2D_EVIDENCE_DIR || join(root, 'ar
 await mkdir(evidenceDir, { recursive: true });
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
-  process.stderr.write(
-    JSON.stringify({ diagnostic: 'package-pass', time: new Date().toISOString(), pass }) + '\n',
-  );
   const readyPath = join(dataDir, 'chrome-pages-ready');
   await rm(readyPath, { force: true });
   await rm(`${readyPath}.shutdown`, { force: true });

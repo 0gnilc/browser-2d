@@ -63,6 +63,11 @@ export type OwnedChild = {
   failedToSpawn: boolean;
   lifetime: OwnedLifetime | undefined;
   started: Promise<OwnedLifetime>;
+  diagnostic?: {
+    spawnReturnedPid: number | null;
+    spawnEventSeen: boolean;
+    startedSettled: boolean;
+  };
 };
 export function spawnOwned(executable: string, args: string[]): OwnedChild {
   const child = spawn(executable, args, {
@@ -71,8 +76,14 @@ export function spawnOwned(executable: string, args: string[]): OwnedChild {
     shell: false,
     detached: true,
   });
+  const diagnostic = {
+    spawnReturnedPid: child.pid ?? null,
+    spawnEventSeen: false,
+    startedSettled: false,
+  };
   const started = new Promise<OwnedLifetime>((resolve, reject) => {
     child.once('spawn', () => {
+      diagnostic.spawnEventSeen = true;
       try {
         const lifetime = ownedLifetimeSchema.parse(
           launchContract() === 'posix-group'
@@ -81,12 +92,17 @@ export function spawnOwned(executable: string, args: string[]): OwnedChild {
         );
         if (child.pid === process.pid) throw new Error('Owned process identity is not private');
         owned.lifetime = lifetime;
+        diagnostic.startedSettled = true;
         resolve(lifetime);
       } catch (error) {
+        diagnostic.startedSettled = true;
         reject(error);
       }
     });
-    child.once('error', reject);
+    child.once('error', (error) => {
+      diagnostic.startedSettled = true;
+      reject(error);
+    });
   });
   const owned: OwnedChild = {
     child,
@@ -94,6 +110,7 @@ export function spawnOwned(executable: string, args: string[]): OwnedChild {
     failedToSpawn: false,
     lifetime: undefined,
     started,
+    diagnostic,
   };
   child.once('exit', () => {
     owned.exited = true;

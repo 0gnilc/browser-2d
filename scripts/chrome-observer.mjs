@@ -11,7 +11,6 @@ export async function observeChrome(rootDirectory, signal, readyPath) {
   const pids = new Set();
   const versions = new Set();
   const instances = new Set();
-  let previousObservation = '';
   let maximumPages = 0;
   let maximumBrowsers = 0;
   while (!signal.aborted) {
@@ -47,19 +46,6 @@ export async function observeChrome(rootDirectory, signal, readyPath) {
       } finally {
         await browser?.disconnect();
       }
-    }
-    const observation = JSON.stringify({ pages, browsers, instances: instances.size });
-    if (observation !== previousObservation) {
-      process.stderr.write(
-        JSON.stringify({
-          diagnostic: 'observer',
-          time: new Date().toISOString(),
-          pages,
-          browsers,
-          instances: instances.size,
-        }) + '\n',
-      );
-      previousObservation = observation;
     }
     maximumPages = Math.max(maximumPages, pages);
     maximumBrowsers = Math.max(maximumBrowsers, browsers);
