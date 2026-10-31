@@ -6,22 +6,22 @@
 
 ## 环境、身份与数据
 
-协调者已核对本机为 macOS 15.7.5、Intel x64、Node 24.5.0，已安装 pnpm 10.33，P1 目标 pnpm 为 12.16.1。其余精确依赖以 P1 的 workspace catalog 和锁文件为准。
+P0 初次核对本机为 macOS 15.7.5、Intel x64、Node 24.5.0，当时已安装 pnpm 10.33。P1 交付时使用 pnpm 12.16.1，以根清单的 packageManager 为准。其余精确依赖以 workspace catalog 和锁文件为准。
 
 P0 开始时核对 `0gnilc/browser-2d` 为私有仓库，远端无 heads、size 为 0、Actions 已启用、无 release。此后为执行原生 CI，已推送原 main 基线和独立实现分支。安装用户数量未知，仓库事实不能证明从未分发安装器。
 
 旧清单保存在 [legacy-package.json](../../tests/fixtures/legacy-package.json)，标识为 `browser-bot` 0.0.1，描述为 Browser Bot。旧 Forge 配置包含 Squirrel、macOS ZIP、DEB 与 RPM，未显式声明 appId。已有安装身份和更新兼容性仍待核对。
 
-P1 使用独立产品名 `Browser 2D Foundation`，提议 appId 为 `io.github.0gnilc.browser2d.foundation`。默认使用该产品的独立 `userData`，允许显式指定 `BROWSER2D_DATA_DIR`。P1 只写合成库，绝不默认打开 `~/kys`。正式业务迁移、旧身份继承和数据目录决策属于 P2 与 P6。
+P1 的打包 productName 为 `Browser2DFoundation`，运行时 app 名为 `Browser 2D Foundation`，已配置 appId 为 `io.github.0gnilc.browser2d.foundation`。默认使用该运行时 app 名的独立 `userData`，允许显式指定 `BROWSER2D_DATA_DIR`；普通开发脚本默认指定 `artifacts/dev-data`。P1 只写合成库，绝不默认打开 `~/kys`。正式业务迁移、旧身份继承和数据目录决策属于 P2 与 P6。
 
-| 目标      | 首轮验收环境                              | 当前证据                   |
+| 目标      | 首轮验收环境                              | P0 时的证据                |
 | --------- | ----------------------------------------- | -------------------------- |
 | win-x64   | Windows 11 x64                            | 待目标 runner 构建与运行   |
 | mac-arm64 | macOS 14 或之后的受支持版本               | 待独立构建与运行           |
 | mac-x64   | macOS 14 或之后的受支持版本               | 本机具备环境，实际结果另记 |
 | linux-x64 | Ubuntu 24.04 AppImage、DEB；Fedora 44 RPM | 待对应环境运行             |
 
-此表是目标范围。CI 配置存在、交叉编译成功或另一架构通过，均不等于当前目标已通过。
+此表记录 P0 时的目标范围与证据状态，P1 后续实际四目标结果见[验收记录](p0-p1-acceptance.md)。CI 配置存在、交叉编译成功或另一架构通过，均不等于当前目标已通过。
 
 ## 旧流程与后续验收
 
@@ -46,7 +46,7 @@ P1 使用独立产品名 `Browser 2D Foundation`，提议 appId 为 `io.github.0
 
 - P2、P5。导入只检查少于四列，却直接 trim 第五至第十列。缺列输入存在抛错路径。批量导入用最后一项回调报告全部完成，存在部分失败仍报告总条数的路径。
 - P2、P5。设备更新跳过空字符串与零金额。分页 SQL 使用 truthy 状态条件，数值 0 与 UI 字符串 `"0"` 行为不同。
-- P2、P5。历史删除绑定未定义的 `onDeleteMaterial`，重置按钮无处理器。历史导出取 day，材料导入取 year。真实执行的结果判断和 saveHistory 调用被注释。
+- P2、P5。历史行删除绑定未定义的 `onDeleteMaterial`，行内重置按钮无处理器；筛选表单的 `onReset` 已实现，会清空筛选条件并回到第一页查询。历史导出取 day，材料导入取 year。真实执行的结果判断和 saveHistory 调用被注释。
 - P3。start 未 await `Device.get`，也未阻止同设备重复 Worker。启动预处理会覆盖处理中状态。退出清理未等待完成，未建立外部资源所有权台账。
 - P5。旧重载监听没有返回取消订阅函数，页面反复挂载有累积风险。
 
