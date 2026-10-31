@@ -29,11 +29,13 @@ export function launchWorker(options: {
   const ownership = claimWorkerOwnership(options.businessPath);
   let child: Electron.UtilityProcess;
   try {
-    child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker' });
+    child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker', stdio: 'pipe' });
   } catch (error) {
     ownership.release();
     throw error;
   }
+  child.stderr?.pipe(process.stderr);
+  child.stdout?.pipe(process.stdout);
   const pending = new Map<
     string,
     {

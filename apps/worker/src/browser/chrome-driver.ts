@@ -66,6 +66,14 @@ export function createChromeDriver({
   }
   async function verifyOwned(browser: Browser, intent: Obligation, state: ChromeState) {
     const connection = browserConnection(browser);
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'command-line-start',
+      }) + '\n',
+    );
     const { arguments: args } = await connection.send('Browser.getBrowserCommandLine');
     const owners = args.filter((arg) => arg.startsWith('--browser-2d-owner='));
     const profiles = args.filter((arg) => arg.startsWith('--user-data-dir='));
@@ -79,11 +87,35 @@ export function createChromeDriver({
     const hash = browserHash(browser.wsEndpoint());
     if (state.mode !== 'launch' || (state.phase === 'attached' && state.browserHash !== hash))
       throw new Error('Chrome instance mismatch');
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'process-info-start',
+      }) + '\n',
+    );
     const { processInfo } = await connection.send('SystemInfo.getProcessInfo');
     const info = processInfo.find((process) => process.type === 'browser');
     if (!info || !Number.isSafeInteger(info.id) || info.id < 1)
       throw new Error('Browser process unavailable');
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'identity-start',
+      }) + '\n',
+    );
     const identity = await processIdentity(info.id);
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'identity-complete',
+      }) + '\n',
+    );
     const live = children.get(intent.operationId);
     if (live && live.child.pid !== info.id) throw new Error('Browser process mismatch');
     if ('lifetime' in state) {
@@ -102,6 +134,14 @@ export function createChromeDriver({
   async function launch(intent: Obligation, signal: AbortSignal) {
     const config = journal.config(intent.runId);
     if (config.mode !== 'launch') throw new Error('Wrong Chrome mode');
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'executable-start',
+      }) + '\n',
+    );
     const executable = await executablePath(config.executablePath);
     const path = directory(intent);
     const defaults = await puppeteer.defaultArgs({ headless: config.headless, userDataDir: path });
@@ -117,6 +157,14 @@ export function createChromeDriver({
       phase: 'attempted',
       contract: launchContract(),
     });
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'spawn-start',
+      }) + '\n',
+    );
     const owned = spawnOwned(executable, args);
     children.set(intent.operationId, owned);
     const lifetime = await abortable(owned.started, signal);
@@ -126,6 +174,14 @@ export function createChromeDriver({
       phase: 'spawned',
       lifetime,
     } satisfies ChromeState;
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'spawn-complete',
+      }) + '\n',
+    );
     journal.save(intent.operationId, spawned);
     await checkpoint?.('spawned', intent.operationId, signal);
     const startup = AbortSignal.any([signal, AbortSignal.timeout(10_000)]);
@@ -135,12 +191,39 @@ export function createChromeDriver({
       if (owned.exited || owned.failedToSpawn) throw new Error('Chrome exited before attachment');
       try {
         browser = await connect(await ownedEndpoint(path), startup);
-      } catch {
+      } catch (error) {
+        process.stderr.write(
+          JSON.stringify({
+            diagnostic: 'chrome-connect-error',
+            time: new Date().toISOString(),
+            operationId: intent.operationId,
+            error:
+              error instanceof Error
+                ? { name: error.name, message: error.message, stack: error.stack }
+                : String(error),
+          }) + '\n',
+        );
         await delay(50, undefined, { signal: startup });
       }
     }
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'chrome-stage',
+        time: new Date().toISOString(),
+        operationId: intent.operationId,
+        stage: 'connected',
+      }) + '\n',
+    );
     const removeAbort = disconnectOnAbort(browser, startup);
     try {
+      process.stderr.write(
+        JSON.stringify({
+          diagnostic: 'chrome-stage',
+          time: new Date().toISOString(),
+          operationId: intent.operationId,
+          stage: 'verify-start',
+        }) + '\n',
+      );
       const identity = await abortable(verifyOwned(browser, intent, spawned), startup);
       journal.save(intent.operationId, {
         version: 2,
@@ -151,7 +234,23 @@ export function createChromeDriver({
         pid: identity.pid,
         processIdentity: identity.identity,
       });
+      process.stderr.write(
+        JSON.stringify({
+          diagnostic: 'chrome-stage',
+          time: new Date().toISOString(),
+          operationId: intent.operationId,
+          stage: 'context-start',
+        }) + '\n',
+      );
       const context = await browser.createBrowserContext();
+      process.stderr.write(
+        JSON.stringify({
+          diagnostic: 'chrome-stage',
+          time: new Date().toISOString(),
+          operationId: intent.operationId,
+          stage: 'context-complete',
+        }) + '\n',
+      );
       attached.set(intent.operationId, { browser, context });
       signal.throwIfAborted();
     } catch (error) {
@@ -367,6 +466,14 @@ export function createChromeDriver({
               operation,
             );
         }
+        process.stderr.write(
+          JSON.stringify({
+            diagnostic: 'chrome-stage',
+            time: new Date().toISOString(),
+            operationId: resource.externalId,
+            stage: 'pages-ready',
+          }) + '\n',
+        );
         await checkpoint?.('pages-ready', resource.externalId, operation);
         await delay(durationMs, undefined, { signal: operation });
         if (!active.browser.connected || (active.owner && !active.owner.connected))

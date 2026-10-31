@@ -476,6 +476,16 @@ void app
     );
     const code = parsed.success ? parsed.data : 'INITIALIZATION_FAILED';
     log.error('startup failed', code);
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'main-failure',
+        time: new Date().toISOString(),
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message, stack: error.stack }
+            : String(error),
+      }) + '\n',
+    );
     if (lifecycle.acceptingWork && !reportPath && !process.argv.includes('--worker-only'))
       dialog.showErrorBox(
         'Business storage is unavailable',
