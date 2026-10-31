@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import {
   copyFile,
   cp,
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
@@ -63,6 +64,16 @@ directory = await realpath(installedApp);
 candidates.length = 0;
 await scan(directory);
 const executable = join(installedApp, relative(appDirectory, sourceExecutable));
+const appImage = process.argv.find((arg) => arg.startsWith('--appimage='))?.slice(11);
+if (appImage) {
+  assert(
+    process.platform === 'linux' && isAbsolute(appImage) && appImage.endsWith('.AppImage'),
+    'Direct AppImage verification requires an absolute Linux AppImage path',
+  );
+  assert(!process.env.APPIMAGE_EXTRACT_AND_RUN, 'AppImage verification requires direct FUSE');
+  assert((await lstat(appImage)).isFile(), 'AppImage must be a regular file');
+}
+const launchExecutable = appImage || executable;
 const archive =
   process.platform === 'darwin'
     ? join(installedApp, 'Contents/Resources/app.asar')
@@ -144,7 +155,8 @@ for (let pass = 1; pass <= 2; pass++) {
     observationAbort.signal,
     readyPath,
   );
-  const child = spawn(executable, [`--verify-p1=${reportPath}`], {
+  await rm(reportPath, { force: true });
+  const child = spawn(launchExecutable, [`--verify-p1=${reportPath}`], {
     cwd: tmpdir(),
     stdio: 'inherit',
     env: {
@@ -199,6 +211,8 @@ for (let pass = 1; pass <= 2; pass++) {
     'Worker did not load from packaged dependency graph',
   );
   assert(!report.workerEntry.includes(root), 'Worker still depends on source checkout');
+  if (appImage)
+    assert(report.workerEntry.includes('/.mount_'), 'AppImage worker must execute from FUSE');
   assert.equal(report.result.initialCount, (initialPass + pass - 1) * 4);
   assert.deepEqual(report.result.business, {
     initialDeviceCount: (initialPass + pass - 1) * 3,
@@ -231,7 +245,8 @@ await writeFile(
   JSON.stringify(
     {
       target,
-      executable,
+      executable: launchExecutable,
+      staticExecutable: executable,
       database: dataDir,
       fuses,
       initialPass,

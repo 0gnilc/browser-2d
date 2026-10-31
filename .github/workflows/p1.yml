@@ -69,6 +69,11 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:installation; else pnpm verify:installation; fi
+      - name: Exact ZIP or direct FUSE AppImage runtime
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:formats -- --target=${{ matrix.target }}; else pnpm verify:formats -- --target=${{ matrix.target }}; fi
       - name: Install and run RPM in Fedora 44 userspace
         if: runner.os == 'Linux'
         shell: bash

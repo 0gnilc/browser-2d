@@ -26,6 +26,7 @@
     "package": "node scripts/package.mjs",
     "dist": "node scripts/package.mjs --dist",
     "verify:package": "node scripts/verify-package.mjs",
+    "verify:formats": "node scripts/verify-formats.mjs",
     "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:credentials && pnpm test:updates && pnpm test:release && pnpm test:observer && pnpm test:electron",
     "check:boundaries": "node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs",
     "test:updates": "pnpm --filter @browser-2d/desktop test:updates",
