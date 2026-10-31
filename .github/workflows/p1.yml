@@ -45,8 +45,9 @@ jobs:
         with:
           chrome-version: stable
       - name: Export test Chrome path
-        shell: bash
-        run: echo "BROWSER2D_CHROME_EXECUTABLE=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: node scripts/prepare-test-chrome.mjs
       - run: pnpm check
       - run: pnpm test
       - run: pnpm test:storage

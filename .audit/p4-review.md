@@ -13,3 +13,9 @@ The review requested explicit evidence for pre-attachment crash, lost borrowed-c
 Final reviewer attention flags concerned unrecorded Electron evidence and pending native packaging/matrix. These are verification gates, not asserted passes. The acceptance record and p4.tsv track their actual completion.
 
 Comment audit found two redundant fallback comments, both removed. The observer comment describing Chrome exit during discovery remains, supported by actual packaged process lifecycles.
+
+## Native matrix corrections
+
+The first matrix exposed a Windows-only test path assertion and a macOS Chrome installation layout defect. The path assertion now compares the exact parent of DevToolsActivePort with node:path. CI restores the .app suffix removed by setup-chrome's channel cache. Identical Chrome for Testing 156.0.8078.80 binaries failed with helper IPC and Network.enable timeouts under an extensionless directory, then passed local navigation and all 11 existing Chrome tests after restoring the bundle layout. No production browser flags were changed.
+
+The Linux cancellation gate exposed a Puppeteer target-publication race. A real Chrome regression cancels after Target.createTarget and before waitForTarget subscribes. Before the fix it remained stopping after two seconds. Page operations now use the existing abortable boundary, and resource cleanup still proves context or browser removal. The already-aborted helper regression also reproduced a synchronous throw plus an unhandled late command rejection; the helper now always attaches pending handlers before rejecting cancellation. The corrected Chrome and connection suites contain 14 tests.
