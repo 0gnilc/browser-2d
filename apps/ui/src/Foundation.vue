@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Run } from '@browser-2d/contracts/public';
+import { deviceSchema, type Device, type Run } from '@browser-2d/contracts/public';
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
 import { NAlert, NButton, NTag } from 'naive-ui';
 import { bridgeKey } from './bridge';
@@ -7,33 +7,85 @@ import { useRunsStore } from './runs';
 
 const store = useRunsStore();
 const api = inject(bridgeKey);
-const deviceId = ref('fixture-device');
-const durationMs = ref(3000);
+const devices = ref<Device[]>([]);
+const deviceId = ref<number | null>(null);
+const devicesBusy = ref(false);
+const devicesError = ref('');
 const fixtureMode = import.meta.env.VITE_FIXTURE_MODE === '1';
 const connectionLabel = computed(
   () =>
     ({ connecting: '连接中', connected: '已连接', unavailable: '连接不可用' })[store.connection],
 );
-const valid = computed(
-  () =>
-    deviceId.value.trim().length > 0 &&
-    deviceId.value.trim().length <= 64 &&
-    Number.isInteger(durationMs.value) &&
-    durationMs.value >= 100 &&
-    durationMs.value <= 30000,
-);
+const valid = computed(() => devices.value.some((device) => device.id === deviceId.value));
 const stateLabels: Record<Run['state'], string> = {
+  queued: '排队中',
+  starting: '启动中',
   running: '运行中',
+  stopping: '停止与清理中',
   completed: '已完成',
   cancelled: '已取消',
+  failed: '失败',
   interrupted: '已中断',
 };
+function cancellable(state: Run['state']) {
+  return state === 'queued' || state === 'starting' || state === 'running' || state === 'stopping';
+}
 let disconnect = () => {};
+let disposed = false;
+async function loadDevices() {
+  if (!api || devicesBusy.value) return;
+  devicesBusy.value = true;
+  devicesError.value = '';
+  try {
+    const result = await api.devices.list();
+    if (disposed) return;
+    if (!result.ok) devicesError.value = `${result.error.code} · ${result.error.message}`;
+    else {
+      devices.value = deviceSchema.array().parse(result.value);
+      if (!devices.value.some((device) => device.id === deviceId.value)) {
+        deviceId.value = devices.value[0]?.id ?? null;
+      }
+    }
+  } catch (reason) {
+    if (!disposed) devicesError.value = reason instanceof Error ? reason.message : '设备加载失败。';
+  } finally {
+    if (!disposed) devicesBusy.value = false;
+  }
+}
+async function createFixtureDevice() {
+  if (!api || devicesBusy.value) return;
+  devicesBusy.value = true;
+  devicesError.value = '';
+  try {
+    const result = await api.devices.create({
+      symbol: `p3-fixture-${globalThis.crypto.randomUUID()}`,
+      note: 'P3 受控调度验收设备，无真实账户。',
+    });
+    if (disposed) return;
+    if (!result.ok) devicesError.value = `${result.error.code} · ${result.error.message}`;
+    else {
+      const device = deviceSchema.parse(result.value);
+      devices.value = [...devices.value, device];
+      deviceId.value = device.id;
+    }
+  } catch (reason) {
+    if (!disposed)
+      devicesError.value = reason instanceof Error ? reason.message : '验收设备创建失败。';
+  } finally {
+    if (!disposed) devicesBusy.value = false;
+  }
+}
+function start() {
+  if (valid.value && deviceId.value !== null) void store.start(deviceId.value);
+}
 onMounted(() => {
   disconnect = store.connect(api);
+  void loadDevices();
 });
-onUnmounted(() => disconnect());
-
+onUnmounted(() => {
+  disposed = true;
+  disconnect();
+});
 function time(value: string) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false });
 }
@@ -45,16 +97,22 @@ function time(value: string) {
       <a class="brand" href="#/" aria-label="Browser 2D 首页"
         ><span class="brand-mark">2D</span>Browser 2D</a
       >
-      <span class="phase">P1 / FOUNDATION</span>
+      <span class="phase">P3 / SCHEDULING &amp; RECOVERY</span>
     </header>
     <section class="intro">
       <p class="eyebrow">桌面运行时 · 验证工作台</p>
-      <h1>基础架构验收<span class="heading-dot">.</span></h1>
-      <p class="description">从界面到工作进程，核对任务的启动、取消与持久化记录。</p>
+      <h1>调度与恢复验收<span class="heading-dot">.</span></h1>
+      <p class="description">
+        观察设备排队、容量限制、取消与资源清理。任务使用业务设备 ID 和受理时的设置。
+      </p>
     </section>
-    <div class="environment">
-      <span class="environment-label">合成任务 · 独立测试数据库</span>
-      <span>{{ fixtureMode ? '界面预览模式 · 数据仅保存在当前页面' : '仅执行受控计时任务' }}</span>
+    <div class="environment" data-testid="controlled-mode">
+      <span class="environment-label">P3 受控执行 · 固定 3 秒策略</span>
+      <span>{{
+        fixtureMode
+          ? '界面预览 · 调度与业务功能不可用'
+          : '不启动真实浏览器，不消耗业务材料，不产生业务执行结果'
+      }}</span>
     </div>
     <section class="connection-panel" aria-label="运行时状态">
       <div class="connection" data-testid="connection-status" :data-state="store.connection">
@@ -72,58 +130,87 @@ function time(value: string) {
         >刷新快照</NButton
       >
     </section>
+    <p v-if="store.snapshot" data-testid="capacity-limits" class="business-note">
+      执行上限 {{ store.snapshot.policy.devices }} 台设备 /
+      {{ store.snapshot.policy.pages }} 页。排队任务保留设备，未清理资源继续占用容量。
+    </p>
     <NAlert v-if="store.error" class="error-message" type="error" title="请求未完成" role="alert">{{
       store.error
     }}</NAlert>
+    <NAlert v-if="store.notice" class="error-message" type="info" data-testid="command-receipt">{{
+      store.notice
+    }}</NAlert>
+    <section v-if="store.pending" class="task-panel" data-testid="pending-command">
+      <h2>指令结果待确认</h2>
+      <p>
+        请先查询或用原指令重试。当前指令 ID
+        <code data-testid="command-id">{{ store.pending.input.commandId }}</code>
+      </p>
+      <div class="business-actions">
+        <NButton data-testid="query-command" :disabled="store.busy" @click="store.queryCommand"
+          >查询原指令</NButton
+        >
+        <NButton
+          data-testid="retry-command"
+          :disabled="store.busy || store.connection !== 'connected'"
+          @click="store.retryCommand"
+          >使用相同 ID 重试</NButton
+        >
+      </div>
+    </section>
     <section class="task-panel">
       <div class="section-heading">
         <span class="section-number">01</span>
         <div>
-          <h2>启动合成任务</h2>
-          <p>使用独立设备标识，观察任务状态的完整变化。</p>
+          <h2>启动受控任务</h2>
+          <p>选择已有设备，或创建无账户的验收设备。设备记录保存在业务数据库。</p>
         </div>
       </div>
-      <form class="task-form" @submit.prevent="store.start(deviceId.trim(), durationMs)">
+      <NAlert v-if="devicesError" type="error" role="alert" data-testid="devices-error">{{
+        devicesError
+      }}</NAlert>
+      <form class="task-form" @submit.prevent="start">
         <label class="field device-field"
-          ><span>设备标识</span
-          ><input
-            v-model="deviceId"
-            data-testid="device-id"
-            maxlength="64"
-            required
-            placeholder="fixture-device"
-            autocomplete="off"
-        /></label>
-        <label class="field duration-field"
-          ><span>运行时长 <small>毫秒</small></span
-          ><input
-            v-model.number="durationMs"
-            data-testid="duration-ms"
-            type="number"
-            min="100"
-            max="30000"
-            step="100"
-            required
-        /></label>
+          ><span>业务设备</span>
+          <select v-model="deviceId" data-testid="device-id" :disabled="devicesBusy" required>
+            <option :value="null" disabled>请选择设备</option>
+            <option v-for="device in devices" :key="device.id" :value="device.id">
+              #{{ device.id }} · {{ device.symbol }}
+            </option>
+          </select>
+        </label>
         <NButton
           type="primary"
           attr-type="submit"
           data-testid="start-run"
           :loading="store.busy"
-          :disabled="!valid || store.connection !== 'connected' || store.busy"
-          >启动合成任务 <span aria-hidden="true">↗</span></NButton
+          :disabled="!valid || store.connection !== 'connected' || store.busy || !!store.pending"
+          >启动受控任务 ↗</NButton
         >
       </form>
-      <p class="form-note">100–30,000 毫秒。任务记录由工作进程写入测试数据库。</p>
+      <div class="business-actions fixture-actions">
+        <NButton data-testid="devices-refresh" :disabled="!api || devicesBusy" @click="loadDevices"
+          >刷新设备</NButton
+        >
+        <NButton
+          data-testid="create-fixture-device"
+          :disabled="!api || devicesBusy"
+          @click="createFixtureDevice"
+          >创建验收设备</NButton
+        >
+      </div>
+      <p class="form-note">
+        受理回执只确认指令已记录。最终状态与资源清理结果以快照为准。修改设置只影响之后受理的任务。
+      </p>
     </section>
     <section class="history-panel">
       <div class="section-heading history-heading">
         <span class="section-number">02</span>
         <div>
           <h2>
-            持久化运行记录 <span class="count">{{ store.runs.length }}</span>
+            运行记录 <span class="count">{{ store.runs.length }}</span>
           </h2>
-          <p>状态以工作进程返回的快照为准。</p>
+          <p>包含所有活动任务和有限的终态记录。中断后不会自动重放执行。</p>
         </div>
       </div>
       <div class="table-scroll">
@@ -132,7 +219,7 @@ function time(value: string) {
             <tr>
               <th>设备 / 任务 ID</th>
               <th>状态</th>
-              <th>时长</th>
+              <th>冻结设置</th>
               <th>创建时间</th>
               <th class="action-column">操作</th>
             </tr>
@@ -145,32 +232,31 @@ function time(value: string) {
               :data-state="run.state"
             >
               <td>
-                <strong class="device-name">{{ run.deviceId }}</strong
-                ><span class="run-id" :title="run.id">{{ run.id }}</span>
+                <strong class="device-name">#{{ run.deviceId }}</strong
+                ><span class="run-id">{{ run.id }}</span>
               </td>
               <td>
                 <NTag
                   round
                   size="small"
                   :bordered="false"
-                  :type="
-                    run.state === 'running'
-                      ? 'info'
-                      : run.state === 'completed'
-                        ? 'success'
-                        : 'default'
-                  "
+                  :type="run.state === 'completed' ? 'success' : 'default'"
                   >{{ stateLabels[run.state] }}</NTag
                 >
               </td>
-              <td class="numeric">{{ run.durationMs.toLocaleString() }} ms</td>
+              <td class="numeric">
+                版本 {{ run.config.revision }} · {{ run.config.pageCount }} 页<br />{{
+                  run.config.viewportWidth
+                }}
+                × {{ run.config.viewportHeight }}
+              </td>
               <td class="time-cell">{{ time(run.createdAt) }}</td>
               <td class="action-column">
                 <NButton
-                  v-if="run.state === 'running'"
+                  v-if="cancellable(run.state)"
                   size="small"
                   :data-testid="`cancel-${run.id}`"
-                  :disabled="store.busy || store.connection !== 'connected'"
+                  :disabled="store.busy || !!store.pending || store.connection !== 'connected'"
                   @click="store.cancel(run.id)"
                   >取消</NButton
                 ><span v-else class="muted">—</span>
@@ -178,8 +264,7 @@ function time(value: string) {
             </tr>
             <tr v-if="!store.runs.length">
               <td colspan="5" class="empty-state">
-                <span class="empty-symbol">＋</span><strong>尚无运行记录</strong
-                ><span>启动一个合成任务，开始验证桌面闭环。</span>
+                <strong>尚无运行记录</strong><span>选择验收设备，启动受控任务。</span>
               </td>
             </tr>
           </tbody>
@@ -189,6 +274,48 @@ function time(value: string) {
         <span>当前工作进程会话</span><code>{{ store.snapshot?.epoch ?? '等待连接' }}</code>
       </footer>
     </section>
-    <footer class="page-footer"><span>Browser 2D</span><span>基础能力验证 / P1</span></footer>
+    <section class="history-panel resources-panel">
+      <div class="section-heading history-heading">
+        <span class="section-number">03</span>
+        <div>
+          <h2>
+            未解决资源 <span class="count">{{ store.snapshot?.resources.length ?? 0 }}</span>
+          </h2>
+          <p>保留占用直到确认清理完成。未知所有权不会授权删除资源。</p>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table data-testid="resources-table">
+          <thead>
+            <tr>
+              <th>设备 / 任务</th>
+              <th>资源操作</th>
+              <th>页数 / 所有权</th>
+              <th>状态 / 故障</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="resource in store.snapshot?.resources ?? []"
+              :key="resource.operationId"
+              :data-testid="`resource-${resource.operationId}`"
+            >
+              <td>
+                #{{ resource.deviceId }}<span class="run-id">{{ resource.runId }}</span>
+              </td>
+              <td>{{ resource.operationId }}</td>
+              <td>{{ resource.pages }} / {{ resource.ownership }}</td>
+              <td>{{ resource.state }} / {{ resource.failure ?? '无故障报告' }}</td>
+            </tr>
+            <tr v-if="!store.snapshot?.resources.length">
+              <td colspan="4" class="empty-state">
+                {{ store.connection === 'connected' ? '当前无未解决资源' : '资源状态待连接确认' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="page-footer"><span>Browser 2D</span><span>调度与恢复验证 / P3</span></footer>
   </main>
 </template>
