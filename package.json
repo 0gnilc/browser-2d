@@ -11,7 +11,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:ui": "node scripts/dev-ui.mjs",
     "dev:worker": "node scripts/dev.mjs --worker-only",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && node scripts/check-boundaries.mjs",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint apps packages internal tests/e2e",
@@ -24,7 +24,8 @@
     "package": "node scripts/package.mjs",
     "dist": "node scripts/package.mjs --dist",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:electron"
+    "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:electron",
+    "check:boundaries": "node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs"
   },
   "devDependencies": {
     "typescript": "catalog:",
