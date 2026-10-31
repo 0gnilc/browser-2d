@@ -141,15 +141,24 @@ for (let pass = 1; pass <= 2; pass++) {
     'Worker did not load from packaged dependency graph',
   );
   assert(!report.workerEntry.includes(root), 'Worker still depends on source checkout');
-  assert.equal(report.result.initialCount, pass === 1 ? 0 : 3);
+  assert.equal(report.result.initialCount, pass === 1 ? 0 : 4);
   assert.deepEqual(report.result.business, {
-    initialDeviceCount: pass - 1,
+    initialDeviceCount: (pass - 1) * 3,
     initialMaterialCount: pass - 1,
     settingsRevision: pass,
   });
   const shutdown = report.finalSnapshot.runs.find((run) => run.id === report.result.shutdownId);
   assert.equal(shutdown?.state, 'cancelled', 'Close did not persist cancellation');
-  assert(report.finalSnapshot.runs.every((run) => run.state !== 'running'));
+  assert(
+    report.finalSnapshot.runs.every((run) =>
+      ['completed', 'cancelled', 'failed', 'interrupted'].includes(run.state),
+    ),
+  );
+  assert.deepEqual(report.result.capacity, { devices: 2, pages: 4, queuedObserved: true });
+  assert.deepEqual(report.finalSnapshot.resources, []);
+  assert.deepEqual(await readdir(join(dataDir, 'controlled-resources')), []);
+  assert(Number.isSafeInteger(report.result.workerPid) && report.result.workerPid > 0);
+  assert.throws(() => process.kill(report.result.workerPid, 0), { code: 'ESRCH' });
   reports.push(report);
   await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`));
 }

@@ -63,7 +63,7 @@ export function createControlledDriver({
       if (fixture?.scenario === 'borrowed') {
         const externalId = join(fixture.directory, 'borrowed-resource');
         writeFileSync(externalId, 'borrowed', { flag: 'a', mode: 0o600 });
-        intents.set(externalId, intent);
+        intents.set(intent.runId, intent);
         return { ownership: 'borrowed', externalId };
       }
       signal.throwIfAborted();
@@ -78,7 +78,7 @@ export function createControlledDriver({
         }),
         { mode: 0o600, flag: 'wx', flush: true },
       );
-      intents.set(path, intent);
+      intents.set(intent.runId, intent);
       if (fixture)
         writeFileSync(join(fixture.directory, `${intent.operationId}.created`), '', {
           mode: 0o600,
@@ -90,7 +90,7 @@ export function createControlledDriver({
       return { ownership: 'owned', externalId: path };
     },
     async execute(resource, run, signal) {
-      const operationId = intents.get(resource.externalId)?.operationId ?? run.id;
+      const operationId = intents.get(run.id)?.operationId ?? run.id;
       phase(operationId, 'execute');
       if (resource.ownership === 'owned')
         writeFileSync(join(resource.externalId, 'executed'), '', { mode: 0o600 });
@@ -100,12 +100,12 @@ export function createControlledDriver({
     async reconcile(intent) {
       const observed = inspect(intent);
       if (observed.kind === 'present' && observed.resource.ownership === 'owned')
-        intents.set(observed.resource.externalId, intent);
+        intents.set(intent.runId, intent);
       return observed;
     },
     async release(resource) {
       if (resource.ownership === 'borrowed') return;
-      const intent = intents.get(resource.externalId);
+      const intent = [...intents.values()].find((value) => locate(value) === resource.externalId);
       if (!intent) throw new Error('Ownership not verified');
       phase(intent.operationId, 'release');
       await hold('release');
@@ -119,6 +119,7 @@ export function createControlledDriver({
       if (observed.kind !== 'present' || observed.resource.ownership !== 'owned')
         throw new Error('Ownership not verified');
       rmSync(resource.externalId, { recursive: true });
+      intents.delete(intent.runId);
     },
   };
 }

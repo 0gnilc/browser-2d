@@ -48,6 +48,7 @@ test('initialization rejects stale receipts and cooperatively shuts down while a
             child.on('spawn', () =>
               child.postMessage({
                 type: 'initialize',
+                ownerNonce: input.requestId,
                 dataDir: input.dataDir,
                 businessPath: input.path,
               }),

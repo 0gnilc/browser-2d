@@ -162,7 +162,7 @@ export function launchWorker(options: {
     try {
       ownership.release();
     } catch {
-      /* Preserve an unexpected ownership record. */
+      options.onUnavailable('Worker ownership record could not be released');
     }
     resolveExit(code);
     fail(new Error(`Worker exited (${code})`));
@@ -222,7 +222,6 @@ export function launchWorker(options: {
       }
       if (!exited) {
         child.kill();
-        // Only this live child handle authorizes force; a sidecar PID never does.
         if (!exited && child.pid) {
           try {
             process.kill(child.pid, 'SIGKILL');

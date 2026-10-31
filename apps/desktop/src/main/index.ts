@@ -150,10 +150,14 @@ async function verifyPackagedWindow() {
     assert(typeof require === 'undefined' && typeof process === 'undefined', 'Renderer has Node access');
     assert(document.querySelector('[data-testid="start-run"]'), 'Vue application missing');
     const api = window.browser2d;
-    const initial = await api.getSnapshot(); assert(initial.ok, 'Snapshot failed');
+    const initial = await api.work.getSnapshot(); assert(initial.ok, 'Snapshot failed');
     const initialDevices = await api.devices.list(); assert(initialDevices.ok, 'Business device read failed');
-    const device = await api.devices.create({ symbol: 'release-device-' + initialDevices.value.length, amount: 0 });
-    assert(device.ok && device.value.amount === 0 && device.value.status === 2, 'Business device write failed');
+    const devices = [];
+    for (let index = 0; index < 3; index++) {
+      const device = await api.devices.create({ symbol: 'release-device-' + (initialDevices.value.length + index), amount: 0 });
+      assert(device.ok && device.value.amount === 0 && device.value.status === 2, 'Business device write failed');
+      devices.push(device.value);
+    }
     const initialMaterials = await api.materials.page({}); assert(initialMaterials.ok, 'Business material read failed');
     const material = await api.materials.create({ card: '00000000000000' + String(initialMaterials.value.total).padStart(2, '0'), month: '01', year: '2030', cvv: '000' });
     assert(material.ok, 'Business material write failed');
@@ -161,24 +165,35 @@ async function verifyPackagedWindow() {
     const settings = await api.settings.get(); assert(settings.ok, 'Business settings read failed');
     const saved = await api.settings.save({ expectedRevision: settings.value.revision, values: { adsPowerUrl: 'http://127.0.0.1:50325', viewportWidth: 1280, viewportHeight: 800, pageCount: 2 }, secret: { action: 'retain' } });
     assert(saved.ok && saved.value.revision === settings.value.revision + 1, 'Business settings commit failed');
-    let observed = 0; const dispose = api.subscribe(() => { observed++; });
-    const cancelled = await api.start({ commandId: crypto.randomUUID(), deviceId: 'release-cancel', durationMs: 10000 });
-    assert(cancelled.ok, 'Start failed');
-    const cancellation = await api.cancel({ runId: cancelled.value.id });
-    assert(cancellation.ok && cancellation.value.state === 'cancelled', 'Cancel failed');
-    const completed = await api.start({ commandId: crypto.randomUUID(), deviceId: 'release-complete', durationMs: 100 });
-    assert(completed.ok, 'Completion start failed');
-    let snapshot;
-    for (let i = 0; i < 100; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      snapshot = await api.getSnapshot();
-      if (snapshot.ok && snapshot.value.runs.some(run => run.id === completed.value.id && run.state === 'completed')) break;
+    let observed = 0; const dispose = api.work.subscribe(state => { if (state.status === 'ready') observed++; });
+    const inputs = devices.map(device => ({ commandId: crypto.randomUUID(), deviceId: device.id }));
+    const starts = [];
+    for (const input of inputs) { const started = await api.work.start(input); assert(started.ok, 'Start acceptance failed'); starts.push(started.value); }
+    const repeated = await api.work.start(inputs[0]);
+    assert(repeated.ok && JSON.stringify(repeated.value) === JSON.stringify(starts[0]), 'Command replay changed acceptance');
+    const conflict = await api.work.start({ ...inputs[0], commandId: crypto.randomUUID() });
+    assert(!conflict.ok && conflict.error.code === 'CONFLICT', 'Device exclusion failed');
+    async function waitFor(predicate) {
+      for (let attempt = 0; attempt < 400; attempt++) {
+        const result = await api.work.getSnapshot(); assert(result.ok, 'Snapshot failed');
+        if (predicate(result.value)) return result.value;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error('Controlled work condition timed out');
     }
-    assert(snapshot.ok && snapshot.value.runs.some(run => run.id === completed.value.id && run.state === 'completed'), 'Task did not complete');
+    const full = await waitFor(snapshot => starts.slice(0, 2).every(item => snapshot.runs.some(run => run.id === item.runId && run.state === 'running')) && snapshot.runs.some(run => run.id === starts[2].runId && run.state === 'queued'));
+    assert(full.resources.reduce((sum, resource) => sum + resource.pages, 0) === 4, 'Page capacity reservation failed');
+    const queuedCancel = await api.work.cancel({ commandId: crypto.randomUUID(), runId: starts[2].runId });
+    assert(queuedCancel.ok, 'Queued cancellation failed');
+    const cancelInput = { commandId: crypto.randomUUID(), runId: starts[0].runId };
+    const cancelled = await api.work.cancel(cancelInput); assert(cancelled.ok, 'Cancel acceptance failed');
+    const command = await api.work.getCommand({ commandId: cancelInput.commandId });
+    assert(command.ok && command.value.status === 'recorded' && JSON.stringify(command.value.receipt) === JSON.stringify(cancelled), 'Durable cancel query failed');
+    await waitFor(snapshot => snapshot.runs.some(run => run.id === starts[0].runId && run.state === 'cancelled') && snapshot.runs.some(run => run.id === starts[2].runId && run.state === 'cancelled'));
+    await waitFor(snapshot => snapshot.runs.some(run => run.id === starts[1].runId && run.state === 'completed') && snapshot.resources.length === 0);
     assert(observed > 0, 'Subscription received no events'); dispose();
-    const active = await api.start({ commandId: crypto.randomUUID(), deviceId: 'release-shutdown', durationMs: 30000 });
-    assert(active.ok, 'Shutdown task failed');
-    return { initialCount: initial.value.runs.length, completedId: completed.value.id, cancelledId: cancelled.value.id, shutdownId: active.value.id, workerPid: initial.value.workerPid, observed, nodeIsolation: true, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
+    const active = await api.work.start({ commandId: crypto.randomUUID(), deviceId: devices[0].id }); assert(active.ok, 'Shutdown start failed');
+    return { initialCount: initial.value.runs.length, completedId: starts[1].runId, cancelledId: starts[0].runId, queuedCancelledId: starts[2].runId, shutdownId: active.value.runId, workerPid: initial.value.workerPid, observed, nodeIsolation: true, capacity: { devices: 2, pages: 4, queuedObserved: true }, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
   })()`);
   verification = {
     result,
@@ -344,7 +359,7 @@ void app
     );
     const code = parsed.success ? parsed.data : 'INITIALIZATION_FAILED';
     log.error('startup failed', code);
-    if (!quitting)
+    if (!quitting && !reportPath && !process.argv.includes('--worker-only'))
       dialog.showErrorBox(
         'Business storage is unavailable',
         `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,

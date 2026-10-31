@@ -26,9 +26,11 @@ report=json.load(open(sys.argv[1]))
 assert report['packaged'] is True
 assert report['exitCode'] == 0 and report['workerExited'] is True
 assert report['result']['nodeIsolation'] is True
-assert report['result']['initialCount'] == (0 if sys.argv[2] == '1' else 3)
-assert report['result']['business'] == {'initialDeviceCount': int(sys.argv[2])-1, 'initialMaterialCount': int(sys.argv[2])-1, 'settingsRevision': int(sys.argv[2])}
-assert all(row['state'] != 'running' for row in report['finalSnapshot']['runs'])
+assert report['result']['initialCount'] == (0 if sys.argv[2] == '1' else 4)
+assert report['result']['business'] == {'initialDeviceCount': (int(sys.argv[2])-1)*3, 'initialMaterialCount': int(sys.argv[2])-1, 'settingsRevision': int(sys.argv[2])}
+assert all(row['state'] in ['completed','cancelled','failed','interrupted'] for row in report['finalSnapshot']['runs'])
+assert report['finalSnapshot']['resources'] == []
+assert report['result']['capacity'] == {'devices': 2, 'pages': 4, 'queuedObserved': True}
 print('Installed Fedora RPM verified, pass', sys.argv[2])
 PY
   cp "$data_dir/report.json" "/evidence/rpm-pass-$pass.json"

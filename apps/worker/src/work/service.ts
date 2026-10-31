@@ -123,7 +123,6 @@ export function createWorkService({
     scheduled = true;
     queueMicrotask(pump);
   }
-  // Failed reconciliation is retried at a bounded rate, never execution.
   const retry = setInterval(wake, 1000);
   wake();
   return {

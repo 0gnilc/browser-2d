@@ -33,7 +33,7 @@ test('Vite development origin uses the real preload and updates CSS without rest
     await page.waitForURL((current) => current.origin === new URL(url).origin, {
       waitUntil: 'domcontentloaded',
     });
-    await expect(page.getByTestId('start-run')).toBeEnabled();
+    await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
     const pid = await page.getByTestId('worker-pid').textContent();
     await writeFile(stylesheet, `${original}\n:root { --p1-hmr-proof: changed; }\n`);
     await expect
@@ -44,7 +44,8 @@ test('Vite development origin uses the real preload and updates CSS without rest
       )
       .toBe('changed');
     await expect(page.getByTestId('worker-pid')).toHaveText(pid || '');
-    await page.getByTestId('duration-ms').fill('100');
+    await page.getByTestId('create-fixture-device').click();
+    await expect(page.getByTestId('start-run')).toBeEnabled();
     await page.getByTestId('start-run').click();
     await expect(page.getByTestId('run-table')).toContainText('已完成');
     await page.screenshot({ path: testInfo.outputPath('development.png'), fullPage: true });

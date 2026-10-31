@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -30,7 +29,7 @@ test('UI, isolated preload, real worker, SQLite persistence and graceful shutdow
   let application = await launch();
   try {
     const page = await application.firstWindow();
-    await expect(page.getByTestId('start-run')).toBeEnabled();
+    await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
     expect(
       await page.evaluate(() => ({
         node: typeof globalThis.require,
@@ -52,7 +51,7 @@ test('UI, isolated preload, real worker, SQLite persistence and graceful shutdow
         });
         await other.loadURL('data:text/html,untrusted');
         const result: unknown = await other.webContents.executeJavaScript(
-          'window.browser2d.getSnapshot()',
+          'window.browser2d.work.getSnapshot()',
         );
         other.destroy();
         return result;
@@ -63,15 +62,15 @@ test('UI, isolated preload, real worker, SQLite persistence and graceful shutdow
       ok: false,
       error: { code: 'INVALID_INPUT', message: 'Untrusted application frame' },
     });
-    await page.getByTestId('device-id').fill(`fixture-${randomUUID()}`);
-    await page.getByTestId('duration-ms').fill('30000');
+    await page.getByTestId('create-fixture-device').click();
+    await expect(page.getByTestId('start-run')).toBeEnabled();
     await page.getByTestId('start-run').click();
     await expect(page.getByTestId('run-table')).toContainText('运行中');
     await page.locator('[data-testid^="cancel-"]').first().click();
     await expect(page.getByTestId('run-table')).toContainText('已取消');
     const before = await page.evaluate(async () => {
       if (!window.browser2d) throw new Error('Preload API missing');
-      return window.browser2d.getSnapshot();
+      return window.browser2d.work.getSnapshot();
     });
     expect(before.ok).toBe(true);
     await page.getByTestId('start-run').click();
@@ -87,7 +86,7 @@ test('UI, isolated preload, real worker, SQLite persistence and graceful shutdow
     await expect(reopened.getByTestId('run-table')).toContainText('已取消');
     const after = await reopened.evaluate(async () => {
       if (!window.browser2d) throw new Error('Preload API missing');
-      return window.browser2d.getSnapshot();
+      return window.browser2d.work.getSnapshot();
     });
     expect(after.ok && after.value.runs.length).toBe(2);
     expect(after.ok && after.value.runs.every((run) => run.state === 'cancelled')).toBe(true);
@@ -110,15 +109,15 @@ test('worker crash fails shutdown and recovery never resumes the interrupted tas
   let application = await launch();
   try {
     const page = await application.firstWindow();
+    await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
+    await page.getByTestId('create-fixture-device').click();
     await expect(page.getByTestId('start-run')).toBeEnabled();
-    await page.getByTestId('duration-ms').fill('30000');
     await page.getByTestId('start-run').click();
     await expect(page.getByTestId('run-table')).toContainText('运行中');
     const pid = Number(await page.getByTestId('worker-pid').textContent());
     await application.evaluate((_, workerPid) => {
       process.kill(workerPid, 'SIGKILL');
     }, pid);
-    await page.getByTestId('refresh').click();
     await expect(page.getByTestId('connection-status')).toHaveAttribute(
       'data-state',
       'unavailable',
@@ -155,7 +154,7 @@ test('unresponsive worker cannot be reported as a clean shutdown', async ({
   let workerPid: number | undefined;
   try {
     const page = await application.firstWindow();
-    await expect(page.getByTestId('start-run')).toBeEnabled();
+    await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
     const pid = Number(await page.getByTestId('worker-pid').textContent());
     workerPid = pid;
     await application.evaluate((_, pid) => {

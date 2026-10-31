@@ -8,6 +8,7 @@ import {
 import {
   cancelInputSchema,
   failure,
+  failureSchema,
   startResultSchema,
   cancelResultSchema,
   commandInputSchema,
@@ -56,13 +57,19 @@ function receive(value: unknown) {
 ipcRenderer.on(channels.changed, (_event, value: unknown) => receive(value));
 async function refresh() {
   try {
-    receive(await ipcRenderer.invoke(channels.subscribe));
+    const raw: unknown = await ipcRenderer.invoke(channels.subscribe);
+    const rejected = failureSchema.safeParse(raw);
+    if (rejected.success) return rejected.data;
+    const state = workStateSchema.safeParse(raw);
+    if (!state.success) return failure('UNAVAILABLE', 'Invalid worker state');
+    receive(state.data);
   } catch {
     receive({
       status: 'unavailable',
       generation: current.generation,
       reason: 'Worker is unavailable',
     });
+    return failure('UNAVAILABLE', 'Worker is unavailable');
   }
 }
 const api: Browser2dApi = {
@@ -113,7 +120,8 @@ const api: Browser2dApi = {
   },
   work: {
     async getSnapshot() {
-      await refresh();
+      const rejected = await refresh();
+      if (rejected) return rejected;
       return current.status === 'ready'
         ? { ok: true, value: current.snapshot }
         : failure('UNAVAILABLE', current.reason);

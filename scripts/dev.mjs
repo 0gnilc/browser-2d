@@ -3,6 +3,7 @@ import { watch } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createInterface } from 'node:readline';
 import { createServer } from 'vite';
 import { rendererConfig } from '../internal/build-config/index.mjs';
 import { desktopRequire, resolveNativeBinding } from './native.mjs';
@@ -13,6 +14,7 @@ const dataDir = process.env.BROWSER2D_DATA_DIR || join(root, 'artifacts/dev-data
 await mkdir(dataDir, { recursive: true });
 const nativeBinding = await resolveNativeBinding();
 const workerOnly = process.argv.includes('--worker-only');
+const inspectUi = process.argv.includes('--inspect-ui');
 const server = workerOnly
   ? undefined
   : await createServer({
@@ -28,6 +30,10 @@ let rebuilding = false;
 let dirty = false;
 let debounce;
 const watchers = [];
+const commands = inspectUi ? createInterface({ input: process.stdin }) : undefined;
+commands?.on('line', (line) => {
+  if (line === 'stop') void close();
+});
 
 async function stop() {
   if (!child) return;
@@ -44,7 +50,7 @@ async function stop() {
         timer = setTimeout(() => {
           child.kill();
           reject(new Error('Development shutdown exceeded deadline'));
-        }, 15_000);
+        }, 17_000);
       }),
     ]);
     if (code !== 0) throw new Error(`Development shutdown exited ${code}`);
@@ -65,7 +71,13 @@ async function restart() {
       if (closing) return;
       child = spawn(
         desktopRequire('electron'),
-        [join(root, 'apps/desktop'), ...(workerOnly ? ['--worker-only'] : [])],
+        [
+          ...(inspectUi
+            ? ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1']
+            : []),
+          join(root, 'apps/desktop'),
+          ...(workerOnly ? ['--worker-only'] : []),
+        ],
         {
           stdio: 'inherit',
           detached: true,
@@ -109,7 +121,9 @@ for (const path of [
   );
 }
 async function close() {
+  if (closing) return;
   closing = true;
+  commands?.close();
   clearTimeout(debounce);
   for (const watcher of watchers) watcher.close();
   try {

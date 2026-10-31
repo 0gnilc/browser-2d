@@ -18,7 +18,7 @@ for (const path of await readdir(migrationSource, { recursive: true })) {
 
 for (const path of [
   'apps/worker/dist/entry.cjs',
-  'apps/worker/dist/migrations/001-runs.sql',
+  'apps/worker/dist/migrations/business/003-work.sql',
   'apps/desktop/dist/main/index.cjs',
   'apps/desktop/dist/preload/index.cjs',
   'apps/desktop/dist/renderer/index.html',

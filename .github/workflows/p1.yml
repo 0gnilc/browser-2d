@@ -1,4 +1,4 @@
-name: P0-P2 desktop and storage
+name: P0-P3 desktop and scheduler
 on:
   push:
     branches: [main, 'codex/**']
@@ -67,7 +67,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p2-${{ matrix.target }}
+          name: p3-${{ matrix.target }}
           path: |
             artifacts/
             release/*/*.dmg

@@ -79,7 +79,7 @@ test('legacy CRUD crosses the public bridge, commits, refreshes and survives res
   let application = await launch();
   try {
     const page = await application.firstWindow();
-    await expect(page.getByTestId('start-run')).toBeEnabled();
+    await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
     const untrusted = await application.evaluate(
       async ({ BrowserWindow }, preload) => {
         const other = new BrowserWindow({
@@ -189,7 +189,10 @@ test('legacy CRUD crosses the public bridge, commits, refreshes and survives res
     await application.close();
     application = await launch();
     const reopened = await application.firstWindow();
-    await expect(reopened.getByTestId('start-run')).toBeEnabled();
+    await expect(reopened.getByTestId('connection-status')).toHaveAttribute(
+      'data-state',
+      'connected',
+    );
     const persisted = await reopened.evaluate(async () => {
       const api = window.browser2d;
       if (!api) throw new Error('Public API missing');
