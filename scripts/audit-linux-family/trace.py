@@ -42,7 +42,7 @@ if sys.argv[1] == 'prepare':
         blocks.append(f'''tracepoint:syscalls:sys_enter_{name}
 /strncmp(str(args->{path}), "/tmp/b2d-family-", 16) == 0 || strncmp(str(args->{path}), "/tmp/closed-recovery-", 21) == 0/
 {{
- @start[tid] = nsecs; @path[tid] = str(args->{path}, 200); @arg[tid] = {argument};
+ @start[tid] = nsecs; @path[tid] = str(args->{path}, 128); @arg[tid] = {argument};
  @parent[tid] = curtask->real_parent->tgid; @group[tid] = {group};
 }}
 tracepoint:syscalls:sys_exit_{name}
@@ -65,7 +65,7 @@ tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
     expected = git('rev-parse', 'ee9a0e6:apps/worker/src')
     actual = git('rev-parse', 'HEAD:apps/worker/src')
     assert expected == actual, (expected, actual)
-    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with absolute controlled-prefix paths only, captured paths capped at 200 bytes. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
+    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with absolute controlled-prefix paths only, captured paths capped at 128 bytes. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
     (out / 'context.json').write_text(json.dumps(metadata, indent=2))
 else:
     family = json.loads((out / 'chrome-family-linux-x64.json').read_text())
