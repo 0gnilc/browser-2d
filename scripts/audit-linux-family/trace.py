@@ -12,7 +12,29 @@ if sys.argv[1] == 'prepare':
     (out / 'pid-type.txt').write_text(enum)
     entries = re.findall(r'(PIDTYPE_\w+)\s*=\s*(\d+)', enum)
     pgid = dict(entries)['PIDTYPE_PGID']
-    group = f'curtask->signal->pids[{pgid}]->numbers[0].nr'
+    raw = subprocess.check_output(['sudo', 'bpftool', 'btf', 'dump', 'file', '/sys/kernel/btf/vmlinux', 'format', 'raw'], text=True)
+    (out / 'vmlinux.h').write_text(btf)
+    types = dict(re.findall(r"(?m)^\[(\d+)\] ([\s\S]*?)(?=^\[|\Z)", raw))
+    def named_struct(name):
+        return next(body for body in types.values() if body.startswith(f"STRUCT '{name}' "))
+    def member_offset(body, name):
+        members = re.findall(r"\t'([^']*)' type_id=(\d+) bits_offset=(\d+)", body)
+        for member, type_id, offset in members:
+            if member == name:
+                return int(offset) // 8
+        for member, type_id, offset in members:
+            if not member and types[type_id].startswith(('STRUCT ', 'UNION ')):
+                nested = member_offset(types[type_id], name)
+                if nested is not None:
+                    return int(offset) // 8 + nested
+        return None
+    pid_struct = named_struct('pid')
+    upid_struct = named_struct('upid')
+    numbers_offset = member_offset(pid_struct, 'numbers')
+    nr_offset = member_offset(upid_struct, 'nr')
+    assert numbers_offset is not None and nr_offset is not None, (pid_struct, upid_struct)
+    (out / 'pid-struct-raw.txt').write_text(pid_struct + '\n' + upid_struct)
+    group = f'*(int32 *)((uint64)curtask->signal->pids[{pgid}] + {numbers_offset + nr_offset})'
     blocks = ['BEGIN { printf("READY\\n"); }']
     calls = [('openat', 'filename', 'flags'), ('mkdir', 'pathname', 'mode'), ('mkdirat', 'pathname', 'mode'), ('rmdir', 'pathname', '0'), ('unlink', 'pathname', '0'), ('unlinkat', 'pathname', 'flag'), ('rename', 'newname', '0'), ('renameat', 'newname', '0'), ('renameat2', 'newname', 'flags'), ('symlink', 'newname', '0'), ('symlinkat', 'newname', '0')]
     for name, path, arg in calls:
@@ -43,7 +65,7 @@ tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
     expected = git('rev-parse', 'ee9a0e6:apps/worker/src')
     actual = git('rev-parse', 'HEAD:apps/worker/src')
     assert expected == actual, (expected, actual)
-    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with absolute controlled-prefix paths only, captured paths capped at 200 bytes. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
+    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with absolute controlled-prefix paths only, captured paths capped at 200 bytes. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
     (out / 'context.json').write_text(json.dumps(metadata, indent=2))
 else:
     family = json.loads((out / 'chrome-family-linux-x64.json').read_text())
