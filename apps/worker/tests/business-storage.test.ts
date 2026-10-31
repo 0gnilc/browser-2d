@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   chmodSync,
   mkdtempSync,
@@ -70,6 +70,108 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 describe('business database ownership and migration', () => {
+  it('upgrades a populated v2 WAL prefix without resetting settings, references or historical claims', async () => {
+    const fixture = legacy();
+    const migrationDirectory = fileURLToPath(new URL('../migrations/business', import.meta.url));
+    const first = readFileSync(join(migrationDirectory, '001-legacy.sql'), 'utf8');
+    const second = readFileSync(join(migrationDirectory, '002-settings.sql'), 'utf8');
+    fixture.exec(second);
+    for (const [index, sql] of [first, second].entries())
+      fixture
+        .prepare('INSERT INTO business_migrations VALUES (?, ?, ?)')
+        .run(
+          index + 1,
+          index === 0 ? '001-legacy.sql' : '002-settings.sql',
+          createHash('sha256').update(sql).digest('hex'),
+        );
+    const ref = secretRefSchema.parse(randomUUID());
+    fixture.prepare('UPDATE business_settings SET revision = 19, secret_ref = ?').run(ref);
+    fixture.exec(
+      "INSERT INTO material(card, month, year, status) VALUES ('claimed','01','2030',1); INSERT INTO config(key,value) VALUES ('pageCount','3')",
+    );
+    fixture.close();
+    const writer = spawn(process.execPath, [
+      '-e',
+      `const Database = require(process.argv[1]); const db = new Database(process.argv[2]); db.pragma('journal_mode = WAL'); db.pragma('wal_autocheckpoint = 0'); db.prepare("INSERT INTO device(symbol) VALUES ('v2-wal')").run(); process.stdout.write('ready'); setInterval(() => {}, 1000);`,
+      createRequire(import.meta.url).resolve('better-sqlite3'),
+      path,
+    ]);
+    await once(writer.stdout, 'data');
+    writer.kill('SIGKILL');
+    await once(writer, 'exit');
+    expect(readFileSync(`${path}-wal`).length).toBeGreaterThan(0);
+    const result = await open({
+      confirmLegacy: async () => {
+        throw new Error('v2 must not ask legacy consent');
+      },
+      prepareLegacy: async () => {
+        throw new Error('v2 must not prepare plaintext');
+      },
+      verifyCredential: async (found) => {
+        expect(found).toBe(ref);
+      },
+    });
+    expect(value(result.store.settings.get())).toMatchObject({
+      revision: 19,
+      pageCount: 3,
+      keyConfigured: true,
+    });
+    expect(value(result.store.materials.page()).items[0]?.status).toBe(1);
+    expect(value(result.store.devices.list())[0]?.symbol).toBe('v2-wal');
+    if (!result.backup) throw new Error('Missing upgrade backup');
+    const copy = database(result.backup.path);
+    expect(copy.pragma('user_version', { simple: true })).toBe(2);
+    expect(copy.prepare('SELECT revision, secret_ref FROM business_settings').get()).toEqual({
+      revision: 19,
+      secret_ref: ref,
+    });
+    expect(copy.prepare('SELECT symbol FROM device').pluck().get()).toBe('v2-wal');
+    const tables = [
+      'device',
+      'material',
+      'history',
+      'config',
+      'business_settings',
+      'sqlite_sequence',
+    ];
+    const before = tables.map((table) =>
+      copy.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
+    );
+    const ledger = copy.prepare('SELECT * FROM business_migrations ORDER BY version').all();
+    result.store.close();
+    const upgraded = database();
+    expect(
+      tables.map((table) => upgraded.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()),
+    ).toEqual(before);
+    expect(
+      upgraded
+        .prepare('SELECT * FROM business_migrations WHERE version <= 2 ORDER BY version')
+        .all(),
+    ).toEqual(ledger);
+    expect(upgraded.pragma('user_version', { simple: true })).toBe(3);
+    upgraded.close();
+    expect((await open()).backup).toBeNull();
+    for (const candidate of stores) candidate.close();
+    cpSync(result.backup.path, path);
+    chmodSync(path, 0o600);
+    await expect(
+      open({
+        beforeCommit() {
+          throw new Error('injected failure');
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'MIGRATION_FAILED' });
+    const rolledBack = database();
+    expect(rolledBack.pragma('user_version', { simple: true })).toBe(2);
+    expect(rolledBack.prepare('SELECT * FROM business_migrations ORDER BY version').all()).toEqual(
+      ledger,
+    );
+    expect(rolledBack.prepare('SELECT revision, secret_ref FROM business_settings').get()).toEqual({
+      revision: 19,
+      secret_ref: ref,
+    });
+  });
+
   it('waits for migration consent before excluding the old connection', async () => {
     legacy().close();
     let observed = false;

@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { dirname, join } from 'node:path';
 import { failure } from '@browser-2d/contracts/public';
 import {
   businessRequestSchema,
   credentialReceiptSchema,
   initializeSchema,
+  heartbeatSchema,
   requestSchema,
   workerEventSchema,
   type BusinessRequest,
@@ -11,17 +13,24 @@ import {
   type CredentialReceipt,
   type WorkerEvent,
 } from '@browser-2d/contracts/host';
-import { createRunService } from './service';
+import { createWorkService } from './work/service';
+import { createControlledDriver } from './work/controlled-driver';
 import { openBusinessStore, StorageError } from './storage/open-business-store';
 import type { BusinessStore } from './storage/business-store';
 
 const port = process.parentPort;
 if (!port) throw new Error('Worker requires an Electron utilityProcess parent');
 let phase: 'new' | 'opening' | 'ready' | 'closing' | 'closed' = 'new';
-let service: ReturnType<typeof createRunService> | undefined;
+let service: ReturnType<typeof createWorkService> | undefined;
 let business: BusinessStore | undefined;
 let opening: Promise<void> = Promise.resolve();
 const cancellation = new AbortController();
+let ownerNonce: string | undefined;
+let lease = Date.now() + 5000;
+const watchdog = setInterval(() => {
+  if (Date.now() < lease || phase === 'closing' || phase === 'closed') return;
+  void shutdown().catch(() => process.exit(1));
+}, 250);
 let challenge:
   | {
       request: CredentialChallenge;
@@ -52,6 +61,8 @@ function ask(request: CredentialChallenge) {
 }
 async function initialize(data: unknown) {
   const input = initializeSchema.parse(data);
+  ownerNonce = input.ownerNonce;
+  lease = Date.now() + 5000;
   phase = 'opening';
   try {
     const result = await openBusinessStore({
@@ -91,9 +102,13 @@ async function initialize(data: unknown) {
       business.close();
       return;
     }
-    service = createRunService({
-      ...input,
-      onSnapshot: (snapshot) => send({ type: 'snapshot', snapshot }),
+    service = createWorkService({
+      repository: result.work,
+      driver: createControlledDriver({
+        root: join(dirname(input.businessPath), 'controlled-resources'),
+        fixture: input.fixture,
+      }),
+      publish: (snapshot) => send({ type: 'snapshot', snapshot }),
     });
     phase = 'ready';
     send({ type: 'ready', snapshot: service.snapshot() });
@@ -151,21 +166,43 @@ function dispatch(request: BusinessRequest) {
     }
   }
 }
-async function shutdown(requestId: string) {
+async function shutdown(requestId?: string) {
+  const deadline = setTimeout(() => process.exit(1), 10_000);
+  clearInterval(watchdog);
   phase = 'closing';
   cancellation.abort();
   challenge?.reject();
   challenge = undefined;
   await opening;
-  business?.close();
-  service?.close();
-  send({ type: 'response', requestId, result: { ok: true, value: null } });
-  phase = 'closed';
-  setImmediate(() => process.exit(0));
+  try {
+    await service?.stop();
+    business?.close();
+    if (requestId) send({ type: 'response', requestId, result: { ok: true, value: null } });
+    phase = 'closed';
+    clearTimeout(deadline);
+    setImmediate(() => process.exit(requestId ? 0 : 1));
+  } catch {
+    business?.close();
+    if (requestId)
+      send({
+        type: 'response',
+        requestId,
+        result: failure('INTERNAL', 'Resource cleanup is incomplete'),
+      });
+    phase = 'closed';
+    clearTimeout(deadline);
+    setImmediate(() => process.exit(1));
+  }
 }
 port.on('message', ({ data }: { data: unknown }) => {
   if (phase === 'closed' || phase === 'closing') return;
   try {
+    const heartbeat = heartbeatSchema.safeParse(data);
+    if (heartbeat.success) {
+      if (heartbeat.data.ownerNonce === ownerNonce) lease = Date.now() + 5000;
+      else fail();
+      return;
+    }
     const task = requestSchema.safeParse(data);
     if (task.success && task.data.method === 'shutdown') {
       void shutdown(task.data.requestId).catch(fail);
@@ -225,6 +262,13 @@ port.on('message', ({ data }: { data: unknown }) => {
           type: 'response',
           requestId: task.data.requestId,
           result: service.start(task.data.input),
+        });
+        break;
+      case 'getCommand':
+        send({
+          type: 'response',
+          requestId: task.data.requestId,
+          result: service.getCommand(task.data.input),
         });
         break;
       case 'cancel':
