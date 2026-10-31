@@ -80,7 +80,7 @@ jobs:
         run: |
           mkdir -p artifacts/fedora44
           sha256sum release/linux-x64/linux-unpacked/browser-2d-foundation | cut -d ' ' -f 1 > release/linux-x64/executable.sha256
-          docker run --rm --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
+          docker run --rm --init --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
             -v "$PWD/release/linux-x64:/artifacts:ro" \
             -v "$PWD/scripts/verify-rpm.sh:/verify-rpm.sh:ro" \
             -v "$PWD/artifacts/fedora44:/evidence" fedora:44 bash /verify-rpm.sh
