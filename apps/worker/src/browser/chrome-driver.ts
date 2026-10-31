@@ -359,7 +359,9 @@ export function createChromeDriver({
           : cleanupBorrowed(intent, state, bounded));
         if (result.kind === 'blocked') await disconnect(intent.operationId);
         return result;
-      } catch {
+      } catch (error) {
+        const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+        process.stderr.write(JSON.stringify({ stage: 'cleanup', runId: intent.runId, error: detail.replace(/wss?:\/\/[^\s)]+/g, '[redacted-cdp]') }) + '\n');
         await disconnect(intent.operationId);
         return {
           kind: 'blocked',
