@@ -112,7 +112,7 @@ export function observeOwnedLifetime(lifetime: OwnedLifetime): 'present' | 'empt
     return 'present';
   } catch (error) {
     const code = error instanceof Error && 'code' in error ? error.code : 'unclassified';
-    if (code !== 'ESRCH') {
+    if (code !== 'ESRCH' && process.env.BROWSER2D_ARM_DIAGNOSTIC === '1') {
       let mainProbe: unknown = 'present';
       try {
         process.kill(id, 0);

@@ -27,9 +27,18 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: node scripts/prepare-test-chrome.mjs
-      - run: pnpm typecheck
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm test:release
+      - run: pnpm test:storage
+      - run: pnpm test:observer
+      - run: pnpm test:credentials
+      - run: pnpm test:updates
+      - run: pnpm test:electron
       - run: pnpm dist -- --target=mac-arm64
       - name: Fused package verification outside checkout
+        env:
+          BROWSER2D_ARM_DIAGNOSTIC: '1'
         run: |
           mkdir -p artifacts
           pnpm verify:package -- --target=mac-arm64 2>&1 | tee artifacts/arm-cleanup.log
