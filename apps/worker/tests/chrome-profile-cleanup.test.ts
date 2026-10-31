@@ -80,7 +80,7 @@ afterEach(async () => {
   await filesystem.rm(directory, { recursive: true, force: true });
 });
 
-it.each(['prepared', 'attempted', 'attached'])(
+it.each(['prepared', 'spawned', 'attached'])(
   'retains %s launch cleanup failures and retries the partially deleted profile after cold recovery',
   async (phase) => {
     const { intent } = admit();
@@ -90,13 +90,13 @@ it.each(['prepared', 'attempted', 'attached'])(
       root,
       journal: storage.work.chrome,
       checkpoint: async (stage) => {
-        if (phase === 'attempted' && stage === 'spawned') throw new Error('Attachment interrupted');
+        if (phase === 'spawned' && stage === 'spawned') throw new Error('Attachment interrupted');
       },
     });
     if (phase === 'prepared') {
       storage.work.chrome.prepare(intent.operationId);
       await mkdir(profile, { recursive: true });
-    } else if (phase === 'attempted') {
+    } else if (phase === 'spawned') {
       await expect(driver.acquire(intent, AbortSignal.timeout(15_000))).rejects.toThrow(
         'Attachment interrupted',
       );
@@ -114,8 +114,15 @@ it.each(['prepared', 'attempted', 'attached'])(
     const service = recover(driver);
     await expect.poll(() => service.snapshot().resources[0]?.failure, poll).toBe('CLEANUP_FAILED');
     expect(storage.work.chrome.get(intent.operationId)).toEqual({
+      version: 2,
       mode: 'launch',
       phase: 'stopped',
+      proof:
+        phase === 'prepared'
+          ? { kind: 'never-spawned' }
+          : process.platform === 'win32'
+            ? { kind: 'windows-main-exited', pid: expect.any(Number) }
+            : { kind: 'posix-group-empty', pgid: expect.any(Number) },
     });
     expect(await readFile(join(profile, 'retained-data'), 'utf8')).toBe('private profile data');
     expect(service.snapshot().resources).toMatchObject([
@@ -135,8 +142,15 @@ it.each(['prepared', 'attempted', 'attached'])(
     const restarted = recover();
     await expect.poll(() => restarted.snapshot().resources.length, poll).toBe(0);
     expect(storage.work.chrome.get(intent.operationId)).toEqual({
+      version: 2,
       mode: 'launch',
       phase: 'released',
+      proof:
+        phase === 'prepared'
+          ? { kind: 'never-spawned' }
+          : process.platform === 'win32'
+            ? { kind: 'windows-main-exited', pid: expect.any(Number) }
+            : { kind: 'posix-group-empty', pgid: expect.any(Number) },
     });
     await expect(filesystem.access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
     expect(vi.mocked(rm)).toHaveBeenCalledWith(profile, { recursive: true, force: true });
@@ -170,8 +184,10 @@ it('bounds profile removal and keeps its durable cleanup obligation after cancel
       reason: 'CLEANUP_FAILED',
     });
     expect(storage.work.chrome.get(intent.operationId)).toEqual({
+      version: 2,
       mode: 'launch',
       phase: 'stopped',
+      proof: { kind: 'never-spawned' },
     });
     expect(storage.work.obligations()).toHaveLength(1);
   } finally {
@@ -181,3 +197,74 @@ it('bounds profile removal and keeps its durable cleanup obligation after cancel
   expect(storage.work.chrome.get(intent.operationId)?.phase).toBe('stopped');
   expect(await driver.cleanup(intent, AbortSignal.timeout(1000))).toEqual({ kind: 'resolved' });
 });
+
+it.each(['posix-group', 'windows-child'] as const)(
+  'retries durable %s stopped proof after partial profile deletion without observing a PID',
+  async (contract) => {
+    const { intent } = admit();
+    storage.work.chrome.prepare(intent.operationId);
+    storage.work.chrome.save(intent.operationId, {
+      version: 2,
+      mode: 'launch',
+      phase: 'attempted',
+      contract,
+    });
+    storage.work.chrome.save(intent.operationId, {
+      version: 2,
+      mode: 'launch',
+      phase: 'spawned',
+      lifetime:
+        contract === 'posix-group'
+          ? { kind: 'posix-group', pgid: 123456 }
+          : { kind: 'windows-child', pid: 123456 },
+    });
+    const proof =
+      contract === 'posix-group'
+        ? { kind: 'posix-group-empty' as const, pgid: 123456 }
+        : { kind: 'windows-main-exited' as const, pid: 123456 };
+    storage.work.chrome.save(intent.operationId, {
+      version: 2,
+      mode: 'launch',
+      phase: 'stopped',
+      proof,
+    });
+    const root = join(directory, 'chrome-sessions');
+    const profile = join(root, intent.operationId);
+    await mkdir(profile, { recursive: true });
+    await writeFile(join(profile, 'retained-data'), 'private data');
+    const kill = vi.spyOn(process, 'kill');
+    try {
+      vi.mocked(rm).mockRejectedValueOnce(Object.assign(new Error('Denied'), { code: 'EACCES' }));
+      expect(
+        await createChromeDriver({ root, journal: storage.work.chrome }).cleanup(
+          intent,
+          AbortSignal.timeout(1000),
+        ),
+      ).toEqual({ kind: 'blocked', reason: 'CLEANUP_FAILED' });
+      expect(storage.work.chrome.get(intent.operationId)).toEqual({
+        version: 2,
+        mode: 'launch',
+        phase: 'stopped',
+        proof,
+      });
+      storage.store.close();
+      storage = await open();
+      expect(
+        await createChromeDriver({ root, journal: storage.work.chrome }).cleanup(
+          intent,
+          AbortSignal.timeout(1000),
+        ),
+      ).toEqual({ kind: 'resolved' });
+      expect(storage.work.chrome.get(intent.operationId)).toEqual({
+        version: 2,
+        mode: 'launch',
+        phase: 'released',
+        proof,
+      });
+      expect(kill).not.toHaveBeenCalled();
+      await expect(filesystem.access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      kill.mockRestore();
+    }
+  },
+);

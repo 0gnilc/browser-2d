@@ -4,6 +4,7 @@ import { constants } from 'node:fs';
 import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import puppeteer from 'puppeteer-core';
+import { z } from 'zod';
 
 const exec = promisify(execFile);
 export async function executablePath(configured: string): Promise<string> {
@@ -40,15 +41,60 @@ export async function executablePath(configured: string): Promise<string> {
   }
   throw new Error('Chrome executable unavailable');
 }
-export type OwnedChild = { child: ChildProcess; exited: boolean; failedToSpawn: boolean };
+const processId = z.number().int().safe().min(2);
+export const launchContractSchema = z.enum(['posix-group', 'windows-child']);
+export const ownedLifetimeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('posix-group'), pgid: processId }),
+  z.strictObject({ kind: z.literal('windows-child'), pid: processId }),
+]);
+export const stoppedProofSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('never-spawned') }),
+  z.strictObject({ kind: z.literal('posix-group-empty'), pgid: processId }),
+  z.strictObject({ kind: z.literal('windows-main-exited'), pid: processId }),
+]);
+export type OwnedLifetime = z.infer<typeof ownedLifetimeSchema>;
+export type StoppedProof = z.infer<typeof stoppedProofSchema>;
+export function launchContract(): z.infer<typeof launchContractSchema> {
+  return process.platform === 'win32' ? 'windows-child' : 'posix-group';
+}
+export type OwnedChild = {
+  child: ChildProcess;
+  exited: boolean;
+  failedToSpawn: boolean;
+  lifetime: OwnedLifetime | undefined;
+  started: Promise<OwnedLifetime>;
+};
 export function spawnOwned(executable: string, args: string[]): OwnedChild {
   const child = spawn(executable, args, {
     stdio: 'ignore',
     windowsHide: true,
     shell: false,
-    detached: process.platform === 'win32',
+    detached: true,
   });
-  const owned: OwnedChild = { child, exited: false, failedToSpawn: false };
+  const started = new Promise<OwnedLifetime>((resolve, reject) => {
+    child.once('spawn', () => {
+      try {
+        const lifetime = ownedLifetimeSchema.parse(
+          launchContract() === 'posix-group'
+            ? { kind: 'posix-group', pgid: child.pid }
+            : { kind: 'windows-child', pid: child.pid },
+        );
+        if (child.pid === process.pid) throw new Error('Owned process identity is not private');
+        owned.lifetime = lifetime;
+        resolve(lifetime);
+      } catch (error) {
+        reject(error);
+      }
+    });
+    child.once('error', reject);
+  });
+  const owned: OwnedChild = {
+    child,
+    exited: false,
+    failedToSpawn: false,
+    lifetime: undefined,
+    started,
+  };
   child.once('exit', () => {
     owned.exited = true;
   });
@@ -56,6 +102,43 @@ export function spawnOwned(executable: string, args: string[]): OwnedChild {
     if (child.pid === undefined) owned.failedToSpawn = true;
   });
   return owned;
+}
+export function observeOwnedLifetime(lifetime: OwnedLifetime): 'present' | 'empty' | 'unknown' {
+  if (lifetime.kind !== launchContract()) return 'unknown';
+  const id = lifetime.kind === 'posix-group' ? lifetime.pgid : lifetime.pid;
+  if (!Number.isSafeInteger(id) || id <= 1 || id === process.pid) return 'unknown';
+  try {
+    process.kill(lifetime.kind === 'posix-group' ? -id : id, 0);
+    return 'present';
+  } catch (error) {
+    return error instanceof Error && 'code' in error && error.code === 'ESRCH'
+      ? 'empty'
+      : 'unknown';
+  }
+}
+export async function awaitOwnedLifetime(
+  lifetime: OwnedLifetime,
+  signal: AbortSignal,
+): Promise<StoppedProof | undefined> {
+  for (;;) {
+    signal.throwIfAborted();
+    const observation = observeOwnedLifetime(lifetime);
+    switch (observation) {
+      case 'unknown':
+        return undefined;
+      case 'empty':
+        return lifetime.kind === 'posix-group'
+          ? { kind: 'posix-group-empty', pgid: lifetime.pgid }
+          : { kind: 'windows-main-exited', pid: lifetime.pid };
+      case 'present':
+        await delay(25, undefined, { signal });
+        break;
+      default: {
+        const unreachable: never = observation;
+        throw new Error(`Unknown owned lifetime observation ${unreachable}`);
+      }
+    }
+  }
 }
 export async function processIdentity(pid: number): Promise<string | null> {
   if (!Number.isSafeInteger(pid) || pid < 1) return null;

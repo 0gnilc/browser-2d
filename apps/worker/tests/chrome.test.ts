@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { secretRefSchema } from '@browser-2d/contracts/host';
 import type { Result, SettingsValues } from '@browser-2d/contracts/public';
+import { launchContract } from '../src/browser/process';
 import { createChromeDriver } from '../src/browser/chrome-driver';
 import { openBusinessStore } from '../src/storage/open-business-store';
 import { createWorkService } from '../src/work/service';
@@ -622,7 +623,12 @@ it('refuses to close an unrelated Chrome found through a forged owned discovery 
   if (!admitted) throw new Error('Missing admission');
   const intent = admitted.intent;
   database.work.chrome.prepare(intent.operationId);
-  database.work.chrome.save(intent.operationId, { mode: 'launch', phase: 'attempted' });
+  database.work.chrome.save(intent.operationId, {
+    version: 2,
+    mode: 'launch',
+    phase: 'attempted',
+    contract: launchContract(),
+  });
   const root = join(directory, 'chrome-sessions');
   const operationDirectory = join(root, intent.operationId);
   await mkdir(operationDirectory, { recursive: true });
