@@ -32,7 +32,10 @@ jobs:
           node --version > artifacts/profile-probes/node-version.txt
           pnpm --version > artifacts/profile-probes/pnpm-version.txt
           git rev-parse HEAD > artifacts/profile-probes/source.txt
-          git hash-object apps/worker/tests/chrome.test.ts > artifacts/profile-probes/test-blob.txt
+          test "$(git rev-parse HEAD:apps/worker/src)" = "$(git rev-parse ee9a0e68da942295f3a5611ddbb4b0a99abe5953:apps/worker/src)"
+          git rev-parse HEAD:apps/worker/src > artifacts/profile-probes/worker-source-tree.txt
+          git hash-object apps/worker/tests/chrome.test.ts apps/worker/tests/chrome-family.test.ts apps/worker/tests/chrome-process.test.ts apps/worker/tests/chrome-journal.test.ts > artifacts/profile-probes/test-blobs.txt
+          git ls-files -s apps/worker/src apps/worker/tests/chrome*.test.ts > artifacts/profile-probes/source-manifest.txt
           shasum -a 256 pnpm-lock.yaml > artifacts/profile-probes/lock.sha256
           "$BROWSER2D_CHROME_EXECUTABLE" --version > artifacts/profile-probes/chrome-version.txt
       - name: Bounded native cold-recovery probes

@@ -11,7 +11,11 @@ export NODE_OPTIONS="--require=$PWD/scripts/profile-creation-fingerprint.cjs"
 trace_pid=''
 finish_trace() {
   if [[ -f "$trace_dir/dtrace.pid" ]]; then
-    sudo -n kill -INT "$(cat "$trace_dir/dtrace.pid")" 2>/dev/null || true
+    owned_pid=$(cat "$trace_dir/dtrace.pid")
+    owned_command=$(ps -p "$owned_pid" -o command= || true)
+    if [[ "$owned_pid" =~ ^[0-9]+$ && "$owned_command" == "/usr/sbin/dtrace -Z -q -s $PWD/scripts/profile-namespace.d" ]] && sudo -n kill -0 "$owned_pid" 2>/dev/null; then
+      sudo -n kill -TERM "$owned_pid" 2>/dev/null || true
+    fi
   fi
   if [[ -n "$trace_pid" ]]; then
     if wait "$trace_pid"; then
@@ -39,6 +43,8 @@ if sudo -n /usr/sbin/dtrace -l -n 'syscall::mkdir:entry' > "$trace_dir/dtrace-av
 else
   echo 'syscall provider unavailable; no SIP changes attempted' > "$trace_dir/dtrace-status.txt"
 fi
+node -e 'const fs=require("node:fs"); const os=require("node:os"); const path=require("node:path"); const dir=fs.mkdtempSync(path.join(os.tmpdir(),"b2d-family-dtrace-control-")); fs.mkdirSync(path.join(dir,"positive-control")); fs.writeFileSync(path.join(dir,"positive-control","writer"),"captured"); fs.rmSync(dir,{recursive:true});' > "$trace_dir/positive-control.log" 2>&1
+pnpm --filter @browser-2d/worker-runtime exec vitest run tests/chrome-family.test.ts > "$trace_dir/family.log" 2>&1 || { cat "$trace_dir/family.log"; exit 1; }
 for attempt in $(seq 1 80); do
   log="$trace_dir/attempt-$attempt.log"
   if pnpm --filter @browser-2d/worker-runtime exec vitest run tests/chrome.test.ts -t 'recovers a verified owned browser that exited before its release was journaled' > "$log" 2>&1; then
