@@ -2,6 +2,8 @@
 
 `pnpm dist` produces an unsigned preview by default. Preview runs never enable the updater and cannot pass `release:verify`. Signing credentials, notarization credentials and a production feed are not currently supplied. Final signed four-target acceptance remains open. No command in this repository uploads files.
 
+Preview acceptance includes `pnpm verify:formats -- --target=mac-x64`, `mac-arm64` or `linux-x64` on the matching native host. This command requires a clean-source preview build at the current revision and checks the lockfile and full inventory before and after two launches. macOS runs the application extracted from the actual ZIP. Linux launches the original AppImage through FUSE and checks the mounted worker path. The normal native workflow runs this check alongside installer and unpacked application acceptance. Dirty local previews remain available through `package`, `dist` and `verify:package`.
+
 ## Build modes
 
 ```sh

@@ -40,6 +40,8 @@ pnpm build
 
 Component tests use public DTOs. Storage tests use temporary SQLite databases and real Chrome. Electron tests build first and drive the real preload, worker and UI. Development tests temporarily edit source files and restore them in `finally`; do not run a second watcher or edit those files during the test. Playwright reports and traces are written under `artifacts/`.
 
+The Electron suite also starts the independent UI preview and windowless worker entrypoints. It checks unavailable preview operations, zero worker-host windows, clean process exit and database retention across two worker starts.
+
 On Linux, run Electron tests inside a desktop session with a working secret service. CI uses a disposable D-Bus session, GNOME keyring and Xvfb. `scripts/linux-secret-session.sh` only configures that disposable test session.
 
 Set `BROWSER2D_CHROME_EXECUTABLE` to use a specific Chrome binary in tests. Runtime browser settings remain separate. The application opens neutral local verification pages. It does not consume materials or execute external purchases.
