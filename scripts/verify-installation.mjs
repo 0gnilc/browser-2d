@@ -72,7 +72,7 @@ async function install() {
     debName = await command('dpkg-deb', ['--field', installer, 'Package']);
     assert(/^[a-z0-9][a-z0-9+.-]+$/.test(debName), 'Invalid Debian package name');
     installed = true;
-    await command('sudo', ['dpkg', '--install', installer]);
+    await command('sudo', ['apt-get', 'install', '--yes', installer]);
     const listing = (await command('dpkg', ['--listfiles', debName])).split('\n');
     const executables = listing.filter(
       (path) => path.endsWith('/browser-2d-foundation') && path.startsWith('/opt/'),

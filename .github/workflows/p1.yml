@@ -94,4 +94,5 @@ jobs:
             release/*/*.blockmap
             release/*/*.yml
             release/*/build-context.json
+            release/*/artifact-inventory.json
           retention-days: 7
