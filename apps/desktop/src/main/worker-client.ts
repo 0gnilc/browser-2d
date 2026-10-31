@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { app, utilityProcess } from 'electron';
+import { claimWorkerOwnership } from './worker-ownership';
 import {
   shutdownResultSchema,
   workerEventSchema,
@@ -10,19 +11,26 @@ import {
   type CredentialChallenge,
   type CredentialReceipt,
 } from '@browser-2d/contracts/host';
-import type { Snapshot } from '@browser-2d/contracts/public';
+import type { WorkSnapshot } from '@browser-2d/contracts/public';
 
 export function launchWorker(options: {
   dataDir: string;
   businessPath: string;
   onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
   nativeBinding?: string;
-  onSnapshot: (snapshot: Snapshot) => void;
+  onSnapshot: (snapshot: WorkSnapshot) => void;
   onUnavailable: (message: string) => void;
 }) {
   const require = createRequire(join(app.getAppPath(), 'package.json'));
   const entry = require.resolve('@browser-2d/worker-runtime/entry');
-  const child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker' });
+  const ownership = claimWorkerOwnership(options.businessPath);
+  let child: Electron.UtilityProcess;
+  try {
+    child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker' });
+  } catch (error) {
+    ownership.release();
+    throw error;
+  }
   const pending = new Map<
     string,
     {
@@ -35,9 +43,9 @@ export function launchWorker(options: {
   let state: 'starting' | 'challenge' | 'ready' | 'closing' | 'failed' = 'starting';
   let closing = false;
   let exited = false;
-  let resolveReady: (snapshot: Snapshot) => void;
+  let resolveReady: (snapshot: WorkSnapshot) => void;
   let rejectReady: (error: Error) => void;
-  const ready = new Promise<Snapshot>((resolve, reject) => {
+  const ready = new Promise<WorkSnapshot>((resolve, reject) => {
     resolveReady = resolve;
     rejectReady = reject;
   });
@@ -45,6 +53,7 @@ export function launchWorker(options: {
   const exit = new Promise<number>((resolve) => {
     resolveExit = resolve;
   });
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
   let startupTimer: ReturnType<typeof setTimeout> | undefined;
   function armStartupTimeout() {
     clearTimeout(startupTimer);
@@ -60,6 +69,7 @@ export function launchWorker(options: {
     unavailable = error;
     state = 'failed';
     clearTimeout(startupTimer);
+    clearInterval(heartbeat);
     rejectReady(error);
     for (const request of pending.values()) {
       clearTimeout(request.timer);
@@ -68,14 +78,29 @@ export function launchWorker(options: {
     pending.clear();
     if (!closing) options.onUnavailable(error.message);
   }
-  child.on('spawn', () =>
-    child.postMessage({
-      type: 'initialize',
-      dataDir: options.dataDir,
-      businessPath: options.businessPath,
-      nativeBinding: options.nativeBinding,
-    }),
-  );
+  child.on('spawn', () => {
+    try {
+      if (!child.pid) throw new Error('Worker PID is unavailable');
+      ownership.authorize(child.pid);
+      if (closing || unavailable) {
+        child.kill();
+        return;
+      }
+      child.postMessage({
+        type: 'initialize',
+        ownerNonce: ownership.ownerNonce,
+        dataDir: options.dataDir,
+        businessPath: options.businessPath,
+        nativeBinding: options.nativeBinding,
+      });
+      heartbeat = setInterval(() => {
+        if (!exited) child.postMessage({ type: 'heartbeat', ownerNonce: ownership.ownerNonce });
+      }, 1000);
+    } catch {
+      fail(new Error('Worker authorization failed'));
+      child.kill();
+    }
+  });
   child.on('message', (raw: unknown) => {
     const parsed = workerEventSchema.safeParse(raw);
     if (!parsed.success) {
@@ -84,6 +109,7 @@ export function launchWorker(options: {
       return;
     }
     const event = parsed.data;
+    if (unavailable) return;
     if (event.type === 'credential-challenge') {
       if (state !== 'starting') {
         fail(new Error('Unexpected initialization request'));
@@ -132,6 +158,12 @@ export function launchWorker(options: {
   });
   child.on('exit', (code) => {
     exited = true;
+    clearInterval(heartbeat);
+    try {
+      ownership.release();
+    } catch {
+      /* Preserve an unexpected ownership record. */
+    }
     resolveExit(code);
     fail(new Error(`Worker exited (${code})`));
   });
@@ -160,38 +192,58 @@ export function launchWorker(options: {
     clearTimeout(startupTimer);
     rejectReady(new Error('Worker is closing'));
     if (exited) throw unavailable ?? new Error('Worker exited before shutdown');
-    let shutdownError: unknown;
-    try {
-      const result = shutdownResultSchema.parse(
-        await request({ type: 'request', requestId: randomUUID(), method: 'shutdown' }),
-      );
-      if (!result.ok) throw new Error(result.error.message);
-    } catch (error) {
-      shutdownError = error;
-      child.kill();
-    }
+    const deadline = Date.now() + 10_000;
+    let forced = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const code = await Promise.race([
-        exit,
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            try {
-              if (child.pid) process.kill(child.pid, 'SIGKILL');
-            } catch (error) {
-              reject(error);
-              return;
-            }
-            reject(new Error('Worker exit not confirmed'));
-          }, 5_000);
-        }),
-      ]);
-      if (shutdownError) throw shutdownError;
-      if (code !== 0) throw new Error(`Worker shutdown exited (${code})`);
+      const cooperative = (async () => {
+        const result = shutdownResultSchema.parse(
+          await request({ type: 'request', requestId: randomUUID(), method: 'shutdown' }),
+        );
+        if (!result.ok) throw new Error(result.error.message);
+        const code = await exit;
+        if (code !== 0) throw new Error(`Worker shutdown exited (${code})`);
+      })();
+      try {
+        await Promise.race([
+          cooperative,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error('Worker cooperative shutdown timed out')),
+              Math.max(0, deadline - Date.now()),
+            );
+          }),
+        ]);
+        return;
+      } catch {
+        forced = true;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!exited) {
+        child.kill();
+        // Only this live child handle authorizes force; a sidecar PID never does.
+        if (!exited && child.pid) {
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch (error) {
+            if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error;
+          }
+        }
+        await Promise.race([
+          exit,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error('Worker exit not confirmed')), 5000);
+          }),
+        ]);
+      }
+      if (forced) throw new Error('Worker did not shut down cleanly');
     } finally {
       clearTimeout(timer);
+      clearInterval(heartbeat);
     }
   }
+
   return {
     ready,
     request,

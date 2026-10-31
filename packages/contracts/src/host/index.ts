@@ -36,6 +36,12 @@ export const controlledFixtureSchema = z.strictObject({
   ]),
 });
 export type ControlledFixture = z.infer<typeof controlledFixtureSchema>;
+export const workerOwnerSchema = z.strictObject({
+  format: z.literal(1),
+  hostPid: z.number().int().positive(),
+  pid: z.number().int().positive().nullable(),
+  ownerNonce: z.uuid(),
+});
 export const initializeSchema = z.strictObject({
   type: z.literal('initialize'),
   ownerNonce: z.uuid(),
