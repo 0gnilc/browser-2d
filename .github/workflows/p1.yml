@@ -24,18 +24,21 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: node scripts/prepare-test-chrome.mjs
+      - name: Restore original target without JavaScript tracing
+        run: git show b1b592fbacd33f20fc2bf42a7583280b2b6f184d:apps/worker/tests/chrome.test.ts > apps/worker/tests/chrome.test.ts
       - name: Record the exact diagnostic environment
         run: |
           mkdir -p artifacts/profile-probes
           node --version > artifacts/profile-probes/node-version.txt
           pnpm --version > artifacts/profile-probes/pnpm-version.txt
           git rev-parse HEAD > artifacts/profile-probes/source.txt
+          git hash-object apps/worker/tests/chrome.test.ts > artifacts/profile-probes/test-blob.txt
           shasum -a 256 pnpm-lock.yaml > artifacts/profile-probes/lock.sha256
           "$BROWSER2D_CHROME_EXECUTABLE" --version > artifacts/profile-probes/chrome-version.txt
-      - name: Full unmodified storage and browser sequence
-        run: pnpm test:storage
       - name: Bounded native cold-recovery probes
         shell: bash
+        env:
+          BROWSER2D_PROFILE_NATIVE_ONLY: '1'
         run: bash scripts/run-profile-cleanup-probes.sh
       - uses: actions/upload-artifact@v4
         if: always()
