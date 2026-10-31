@@ -7,12 +7,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import puppeteer, { Browser, type BrowserContext, type Target } from 'puppeteer-core';
+import puppeteer, { Browser, Connection, type BrowserContext, type Target } from 'puppeteer-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { secretRefSchema } from '@browser-2d/contracts/host';
 import type { Result, SettingsValues } from '@browser-2d/contracts/public';
-import { launchContract } from '../src/browser/process';
 import { createChromeDriver } from '../src/browser/chrome-driver';
 import { openBusinessStore } from '../src/storage/open-business-store';
 import { createWorkService } from '../src/work/service';
@@ -617,34 +616,67 @@ it('refuses to close an unrelated Chrome found through a forged owned discovery 
     database.store.close();
     await rm(directory, { recursive: true, force: true });
   });
+  const settings = value(database.store.settings.get());
+  value(
+    database.store.settings.commit({
+      expectedRevision: settings.revision,
+      values: {
+        ...settings,
+        browser: { mode: 'launch', executablePath, headless: true },
+      },
+    }),
+  );
   const deviceId = value(database.store.devices.create({ symbol: 'marker-refusal' })).id;
   value(database.work.start({ commandId: randomUUID(), deviceId }));
   const admitted = database.work.admit();
   if (!admitted) throw new Error('Missing admission');
   const intent = admitted.intent;
-  database.work.chrome.prepare(intent.operationId);
-  database.work.chrome.save(intent.operationId, {
-    version: 2,
-    mode: 'launch',
-    phase: 'attempted',
-    contract: launchContract(),
-  });
   const root = join(directory, 'chrome-sessions');
-  const operationDirectory = join(root, intent.operationId);
-  await mkdir(operationDirectory, { recursive: true });
-  const endpoint = new URL(harness.browser.wsEndpoint());
-  await writeFile(
-    join(operationDirectory, 'DevToolsActivePort'),
-    `${endpoint.port}\n${endpoint.pathname}\n`,
-  );
-  const driver = createChromeDriver({ root, journal: database.work.chrome });
-  expect(await driver.cleanup(intent, AbortSignal.timeout(5000))).toEqual({
-    kind: 'blocked',
-    reason: 'OWNERSHIP_UNCERTAIN',
+  const discoveryPath = join(root, intent.operationId, 'DevToolsActivePort');
+  const driver = createChromeDriver({
+    root,
+    journal: database.work.chrome,
+    checkpoint: async (stage) => {
+      if (stage === 'spawned') throw new Error('Attachment interrupted');
+    },
   });
-  expect(harness.browser.connected).toBe(true);
-  expect(await sentinel.title()).toBe('preserved unrelated Chrome');
-  expect(database.work.obligations()).toHaveLength(1);
+  let originalDiscovery: string | undefined;
+  try {
+    await expect(driver.acquire(intent, AbortSignal.timeout(15_000))).rejects.toThrow(
+      'Attachment interrupted',
+    );
+    const observer = await ownedObserver(root);
+    await observer.browser.disconnect();
+    expect(database.work.chrome.get(intent.operationId)).toEqual({
+      version: 2,
+      mode: 'launch',
+      phase: 'spawned',
+      lifetime:
+        process.platform === 'win32'
+          ? { kind: 'windows-child', pid: observer.pid }
+          : { kind: 'posix-group', pgid: observer.pid },
+    });
+    expect(alive(observer.pid)).toBe(true);
+    originalDiscovery = await readFile(discoveryPath, 'utf8');
+    const endpoint = new URL(harness.browser.wsEndpoint());
+    await writeFile(discoveryPath, `${endpoint.port}\n${endpoint.pathname}\n`);
+    const recovered = createChromeDriver({ root, journal: database.work.chrome });
+    const send = vi.spyOn(Connection.prototype, 'send');
+    try {
+      const result = await recovered.cleanup(intent, AbortSignal.timeout(5000));
+      expect(send).toHaveBeenCalledWith('Browser.getBrowserCommandLine');
+      expect(harness.browser.connected).toBe(true);
+      expect(sentinel.isClosed()).toBe(false);
+      expect(await sentinel.title()).toBe('preserved unrelated Chrome');
+      expect(result).toEqual({ kind: 'blocked', reason: 'OWNERSHIP_UNCERTAIN' });
+      expect(database.work.obligations()).toHaveLength(1);
+    } finally {
+      send.mockRestore();
+    }
+  } finally {
+    if (originalDiscovery !== undefined) await writeFile(discoveryPath, originalDiscovery);
+    expect(await driver.cleanup(intent, AbortSignal.timeout(7000))).toEqual({ kind: 'resolved' });
+  }
 }, 30_000);
 
 it('recovers a verified owned browser that exited before its release was journaled', async () => {
