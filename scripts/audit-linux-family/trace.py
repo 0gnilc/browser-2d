@@ -74,9 +74,9 @@ tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
         blocks.append(f'''kprobe:{function} {{
  $dentry = (struct dentry *)arg{index};
  $base = {base};
- if (str($base->d_parent->d_name.name, 16) == "chrome-sessions" && strncmp(str($base->d_parent->d_parent->d_name.name, 32), "b2d-family-", 11) == 0 && str($base->d_parent->d_parent->d_parent->d_name.name, 4) == "tmp"{leaf_guard}) {{
+ if (str($base->d_parent->d_name.name, 16) == "chrome-sessions" && strncmp(str($base->d_parent->d_parent->d_name.name, 32), "b2d-family-", 11) == 0{leaf_guard}) {{
   @vfsstart[tid] = nsecs;
-  printf("VFS_ENTRY\\t%llu\\t%d\\t%d\\t%d\\t%d\\t%s\\t{function}\\t%s\\t%s\\t%s\\n", @vfsstart[tid], pid, tid, curtask->real_parent->tgid, {group}, comm, str($base->d_parent->d_parent->d_name.name, 32), str($base->d_name.name, 40), str($dentry->d_name.name, 40));
+  printf("VFS_ENTRY\\t%llu\\t%d\\t%d\\t%d\\t%d\\t{function}\\t%s\\n", @vfsstart[tid], pid, tid, curtask->real_parent->tgid, {group}, str($base->d_name.name, 40));
  }}
 }}
 kretprobe:{function} /@vfsstart[tid]/ {{
@@ -114,13 +114,13 @@ else:
         elif cols[0] == 'NS_RETURN':
             returns.append((*map(int, cols[1:6]), cols[6]))
         elif cols[0] == 'VFS_ENTRY':
-            keys = ['kind', 'start', 'pid', 'tid', 'ppid', 'pgid', 'name', 'syscall', 'family', 'root', 'leaf']
+            keys = ['kind', 'start', 'pid', 'tid', 'ppid', 'pgid', 'syscall', 'root']
             event = dict(zip(keys, cols))
             for key in ['start', 'pid', 'tid', 'ppid', 'pgid']:
                 event[key] = int(event[key])
-            event['path'] = f"/tmp/{event['family']}/chrome-sessions/{event['root']}"
+            event['path'] = family['profile'] if event['root'] == family['operationId'] else 'other-profile:' + event['root']
             if event['syscall'] == 'vfs_create':
-                event['path'] += '/' + event['leaf']
+                event['path'] += '/late-helper-write'
             vfs_pending[(event['tid'], event['start'])] = event
         elif cols[0] == 'VFS_RETURN':
             vfs_returns.append(tuple(map(int, cols[1:])))
