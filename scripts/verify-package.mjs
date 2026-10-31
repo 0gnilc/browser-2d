@@ -9,6 +9,7 @@ import {
   readFile,
   readdir,
   realpath,
+  rm,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -112,8 +113,14 @@ const reportPath = join(dataDir, 'report.json');
 await mkdir(join(root, 'artifacts', target), { recursive: true });
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
+  const readyPath = join(dataDir, 'chrome-pages-ready');
+  await rm(readyPath, { force: true });
   const observationAbort = new AbortController();
-  const observation = observeChrome(join(dataDir, 'chrome-sessions'), observationAbort.signal);
+  const observation = observeChrome(
+    join(dataDir, 'chrome-sessions'),
+    observationAbort.signal,
+    readyPath,
+  );
   const child = spawn(executable, [`--verify-p1=${reportPath}`], {
     cwd: tmpdir(),
     stdio: 'inherit',

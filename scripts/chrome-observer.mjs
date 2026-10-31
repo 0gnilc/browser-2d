@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from './process.mjs';
@@ -7,7 +7,7 @@ import { root } from './process.mjs';
 const workerRequire = createRequire(join(root, 'apps/worker/package.json'));
 const puppeteer = workerRequire('puppeteer-core');
 
-export async function observeChrome(rootDirectory, signal) {
+export async function observeChrome(rootDirectory, signal, readyPath) {
   const pids = new Set();
   const versions = new Set();
   let maximumPages = 0;
@@ -44,6 +44,7 @@ export async function observeChrome(rootDirectory, signal) {
     }
     maximumPages = Math.max(maximumPages, pages);
     maximumBrowsers = Math.max(maximumBrowsers, browsers);
+    if (pages === 4 && readyPath) await writeFile(readyPath, '4', { mode: 0o600 });
     await delay(100);
   }
   return { maximumPages, maximumBrowsers, pids: [...pids], versions: [...versions] };

@@ -145,7 +145,15 @@ async function verifyPackagedWindow() {
     resolve(reportPath) !== join(dataDir, 'report.json')
   )
     throw new Error('P1 verification requires its own temporary directory');
-  const result: unknown = await window.webContents.executeJavaScript(`(async () => {
+  const pageProof = setInterval(() => {
+    if (!existsSync(join(dataDir, 'chrome-pages-ready')) || !window || window.isDestroyed()) return;
+    void window.webContents
+      .executeJavaScript("document.documentElement.dataset.chromePagesVerified = 'true'")
+      .catch(() => undefined);
+  }, 100);
+  const result: unknown = await window.webContents
+    .executeJavaScript(
+      `(async () => {
     const assert = (value, message) => { if (!value) throw new Error(message); };
     assert(typeof require === 'undefined' && typeof process === 'undefined', 'Renderer has Node access');
     assert(document.querySelector('[data-testid="start-run"]'), 'Vue application missing');
@@ -183,6 +191,7 @@ async function verifyPackagedWindow() {
     }
     const full = await waitFor(snapshot => starts.slice(0, 2).every(item => snapshot.runs.some(run => run.id === item.runId && run.state === 'running')) && snapshot.runs.some(run => run.id === starts[2].runId && run.state === 'queued'));
     assert(full.resources.reduce((sum, resource) => sum + resource.pages, 0) === 4, 'Page capacity reservation failed');
+    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromePagesVerified === 'true');
     const queuedCancel = await api.work.cancel({ commandId: crypto.randomUUID(), runId: starts[2].runId });
     assert(queuedCancel.ok, 'Queued cancellation failed');
     const cancelInput = { commandId: crypto.randomUUID(), runId: starts[0].runId };
@@ -194,7 +203,9 @@ async function verifyPackagedWindow() {
     assert(observed > 0, 'Subscription received no events'); dispose();
     const active = await api.work.start({ commandId: crypto.randomUUID(), deviceId: devices[0].id }); assert(active.ok, 'Shutdown start failed');
     return { initialCount: initial.value.runs.length, completedId: starts[1].runId, cancelledId: starts[0].runId, queuedCancelledId: starts[2].runId, shutdownId: active.value.runId, workerPid: initial.value.workerPid, observed, nodeIsolation: true, capacity: { devices: 2, pages: 4, queuedObserved: true }, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
-  })()`);
+  })()`,
+    )
+    .finally(() => clearInterval(pageProof));
   verification = {
     result,
     versions: process.versions,
