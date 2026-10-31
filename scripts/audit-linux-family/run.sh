@@ -13,7 +13,7 @@ cleanup() {
 trap cleanup EXIT
 for attempt in $(seq 1 30); do
   if grep -q '^READY' "$out/trace.tsv"; then break; fi
-  if ! kill -0 "$trace_sudo" 2>/dev/null; then
+  if ! sudo kill -0 "$trace_sudo" 2>/dev/null; then
     cat "$out/trace.stderr"
     status=0
     wait "$trace_sudo" || status=$?
