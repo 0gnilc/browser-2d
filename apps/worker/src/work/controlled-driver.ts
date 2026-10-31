@@ -55,7 +55,7 @@ export function createControlledDriver({
       return { kind: 'unknown' };
     }
   }
-  const owned = new Map<string, Obligation>();
+  const intents = new Map<string, Obligation>();
   return {
     async acquire(intent, signal) {
       phase(intent.operationId, 'acquire');
@@ -63,6 +63,7 @@ export function createControlledDriver({
       if (fixture?.scenario === 'borrowed') {
         const externalId = join(fixture.directory, 'borrowed-resource');
         writeFileSync(externalId, 'borrowed', { flag: 'a', mode: 0o600 });
+        intents.set(externalId, intent);
         return { ownership: 'borrowed', externalId };
       }
       signal.throwIfAborted();
@@ -77,7 +78,7 @@ export function createControlledDriver({
         }),
         { mode: 0o600, flag: 'wx', flush: true },
       );
-      owned.set(path, intent);
+      intents.set(path, intent);
       if (fixture)
         writeFileSync(join(fixture.directory, `${intent.operationId}.created`), '', {
           mode: 0o600,
@@ -89,7 +90,7 @@ export function createControlledDriver({
       return { ownership: 'owned', externalId: path };
     },
     async execute(resource, run, signal) {
-      const operationId = owned.get(resource.externalId)?.operationId ?? run.id;
+      const operationId = intents.get(resource.externalId)?.operationId ?? run.id;
       phase(operationId, 'execute');
       if (resource.ownership === 'owned')
         writeFileSync(join(resource.externalId, 'executed'), '', { mode: 0o600 });
@@ -99,12 +100,12 @@ export function createControlledDriver({
     async reconcile(intent) {
       const observed = inspect(intent);
       if (observed.kind === 'present' && observed.resource.ownership === 'owned')
-        owned.set(observed.resource.externalId, intent);
+        intents.set(observed.resource.externalId, intent);
       return observed;
     },
     async release(resource) {
       if (resource.ownership === 'borrowed') return;
-      const intent = owned.get(resource.externalId);
+      const intent = intents.get(resource.externalId);
       if (!intent) throw new Error('Ownership not verified');
       phase(intent.operationId, 'release');
       await hold('release');
