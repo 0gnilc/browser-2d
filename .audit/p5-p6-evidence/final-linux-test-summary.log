@@ -1,0 +1,8 @@
+2026-10-31T08:21:24.3943653Z       Tests  30 passed (30)
+2026-10-31T08:21:45.6994638Z       Tests  59 passed (59)
+2026-10-31T08:21:47.6383044Z       Tests  31 passed (31)
+2026-10-31T08:21:53.7042214Z       Tests  27 passed (27)
+2026-10-31T08:24:32.8132805Z   31 passed (2.6m)
+2026-10-31T08:28:32.0463404Z Preview installation/reinstallation/uninstallation verified: linux-x64
+2026-10-31T08:29:15.8838412Z Installed Fedora RPM verified, pass 1
+2026-10-31T08:29:19.6089186Z Installed Fedora RPM verified, pass 2

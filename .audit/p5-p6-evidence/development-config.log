@@ -1,0 +1,16 @@
+
+Running 5 tests using 1 worker
+
+(node:26287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/development-restart.spec.ts:108:1 › real source rebuild preserves the old worker on build failure and replaces only after clean exit (17.6s)
+  ✓  2 tests/e2e/development-restart.spec.ts:142:1 › development restart refuses to replace an unresponsive predecessor after forced shutdown (24.8s)
+  ✓  3 tests/e2e/development-restart.spec.ts:173:1 › shared TypeScript preset changes restart only after the previous worker exits (16.0s)
+  ✓  4 tests/e2e/development-restart.spec.ts:195:1 › renderer preset changes reach the live page after coordinated restart (14.4s)
+9:17:24 AM [vite] (client) hmr update /src/style.css
+9:17:24 AM [vite] (client) hmr update /src/App.vue
+9:17:28 AM [vite] (client) hmr update /src/style.css
+9:17:28 AM [vite] (client) hmr update /src/App.vue
+  ✓  5 tests/e2e/development.spec.ts:9:1 › Vite development origin uses the real preload and updates CSS without restarting work (8.0s)
+
+  5 passed (1.4m)

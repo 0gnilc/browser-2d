@@ -1,0 +1,89 @@
+$ node scripts/package.mjs --dist -- --mode=preview --target=mac-x64
+Scope: all 9 workspace projects
+✓ Lockfile passes supply-chain policies (verified 20m ago)
+Lockfile is up to date, resolution step is skipped
+Packages are copied from the content-addressable store to the virtual store.
+  Content-addressable store is at: /Users/kyhns7/Library/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 194, reused 194, downloaded 0, added 191
+Progress: resolved 327, reused 327, downloaded 0, added 324
+Progress: resolved 443, reused 443, downloaded 0, added 440
+Packages: +560
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 560, reused 560, downloaded 0, added 560, done
+
+devDependencies:
++ @browser-2d/lint-config <- internal/lint-config
++ @browser-2d/test-utils <- internal/test-utils
++ @electron/asar 3.4.1
++ @eslint/js 9.39.1
++ @playwright/test 1.64.1
++ @types/node 24.5.2
++ @vitejs/plugin-vue 6.0.10
++ @vue/test-utils 2.5.1
++ eslint 9.39.1
++ eslint-plugin-vue 10.5.1
++ jsdom 26.1.0
++ prettier 3.9.10
++ typescript 5.9.3
++ typescript-eslint 8.72.1
++ vite 8.3.5
++ vitest 5.0.5
++ yaml 2.9.1
+
+Done in 4.3s using pnpm v12.16.1
+$ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+$ vite build
+vite v8.3.5 building ssr environment for production...
+
+ WARN  inlineDynamicImports option is deprecated, please use codeSplitting: false instead.
+
+transforming...
+✓ 115 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/entry.cjs  273.30 kB │ gzip: 61.64 kB
+
+✓ built in 99ms
+$ electron-vite build
+vite v8.3.5 building ssr environment for production...
+transforming...
+✓ 112 modules transformed.
+rendering chunks...
+dist/main/index.cjs  244.33 kB
+
+✓ built in 99ms
+vite v8.3.5 building ssr environment for production...
+transforming...
+✓ 106 modules transformed.
+rendering chunks...
+dist/preload/index.cjs  209.04 kB
+
+✓ built in 56ms
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 2802 modules transformed.
+rendering chunks...
+dist/renderer/index.html                     0.46 kB
+dist/renderer/assets/index-UbkR51Wm.css      9.18 kB
+dist/renderer/assets/index-D6S3rCDw.js   1,260.35 kB
+
+✓ built in 465ms
+All runtime entries, bundled contracts and migration assets are present.
+  • electron-builder  version=26.18.0 os=24.6.0
+  • loaded configuration  file=/private/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-build-vvfK5b/apps/desktop/electron-builder.config.mjs
+  • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=pnpm detected=/Volumes/fc/automator/browser-2d
+  • detected workspace root for project using packageManager field  pm=pnpm config=pnpm@12.16.1 resolved=/private/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-build-vvfK5b projectDir=/private/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-build-vvfK5b/apps/desktop
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=darwin arch=x64 electron=45.2.0 appOutDir=/Volumes/fc/automator/browser-2d/release/mac-x64/mac
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Volumes/fc/automator/browser-2d/release/mac-x64/mac
+  • searching for node modules  pm=pnpm searchDir=/private/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-build-vvfK5b/apps/desktop
+  • duplicate dependency references  dependencies=["strip-ansi@7.2.0"]
+  • default Electron icon is used  reason=application icon is not set
+  • skipped macOS code signing  reason=identity explicitly is set to null
+  • building        target=macOS zip arch=x64 file=/Volumes/fc/automator/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.zip
+  • building        target=DMG arch=x64 file=/Volumes/fc/automator/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg
+  • building block map  blockMapFile=/Volumes/fc/automator/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.dmg.blockmap
+  • building block map  blockMapFile=/Volumes/fc/automator/browser-2d/release/mac-x64/browser-2d-foundation-0.1.0-mac-x64.zip.blockmap
+preview packaged target ready: /Volumes/fc/automator/browser-2d/release/mac-x64

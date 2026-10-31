@@ -1,0 +1,20 @@
+$ node scripts/verify-package.mjs -- --target=mac-x64
+{
+  "target": "mac-x64",
+  "executable": "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-install-7JZjUb/browser-2d-foundation.app/Contents/MacOS/browser-2d-foundation",
+  "database": "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-release-J1wu2Z",
+  "fuses": {
+    "0": 48,
+    "1": 48,
+    "2": 48,
+    "3": 48,
+    "4": 49,
+    "5": 49,
+    "6": 48,
+    "7": 49,
+    "8": 49,
+    "version": "1"
+  },
+  "passes": 2,
+  "result": "VERIFIED"
+}

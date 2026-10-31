@@ -1,0 +1,21 @@
+[
+  {
+    "command": [
+      "pnpm",
+      "release:verify",
+      "--",
+      "--directory=release/mac-x64",
+      "--evidence=artifacts/installation/mac-x64"
+    ],
+    "exitCode": 1,
+    "output": "$ node scripts/release-verify.mjs -- --directory=release/mac-x64 --evidence=artifacts/installation/mac-x64\nnode:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: Preview builds cannot become production releases\n+ actual - expected\n\n+ 'preview'\n- 'production'\n     ^\n\n    at verifyRelease (file:///Volumes/fc/automator/browser-2d/scripts/release-verify.mjs:429:10)\n    at async file:///Volumes/fc/automator/browser-2d/scripts/release-verify.mjs:496:19 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 'preview',\n  expected: 'production',\n  operator: 'strictEqual'\n}\n\nNode.js v24.5.0\n[ELIFECYCLE] Command failed with exit code 1.\n"
+  },
+  {
+    "command": [
+      "pnpm",
+      "release"
+    ],
+    "exitCode": 1,
+    "output": "$ node scripts/release-publish.mjs\nfile:///Volumes/fc/automator/browser-2d/scripts/release-publish.mjs:1\nthrow new Error(\n      ^\n\nError: Remote publication is disabled. No upload destination has been configured or authorized. Use release:prepare to stage the exact verified four-target inventory; staging does not publish it.\n    at file:///Volumes/fc/automator/browser-2d/scripts/release-publish.mjs:1:7\n    at ModuleJob.run (node:internal/modules/esm/module_job:371:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:669:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.5.0\n[ELIFECYCLE] Command failed with exit code 1.\n"
+  }
+]

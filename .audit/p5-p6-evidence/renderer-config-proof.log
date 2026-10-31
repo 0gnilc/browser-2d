@@ -1,0 +1,20 @@
+dev process exit 0
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /textContent = "before"/. Input:
+
+'document.body.textContent = "after";\n' +
+  '//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImVudHJ5LmpzIl0sInNvdXJjZXNDb250ZW50IjpbImRvY3VtZW50LmJvZHkudGV4dENvbnRlbnQgPSBcImFmdGVyXCI7Il0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFFBQVEsQ0FBQyxJQUFJLENBQUMsV0FBVyxDQUFDLENBQUMsQ0FBQyxDQUFDLEtBQUssQ0FBQyJ9'
+
+    at file:///private/tmp/b2d-dev-config-probe.mjs:41:9 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'document.body.textContent = "after";\n' +
+    '//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImVudHJ5LmpzIl0sInNvdXJjZXNDb250ZW50IjpbImRvY3VtZW50LmJvZHkudGV4dENvbnRlbnQgPSBcImFmdGVyXCI7Il0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFFBQVEsQ0FBQyxJQUFJLENBQUMsV0FBVyxDQUFDLENBQUMsQ0FBQyxDQUFDLEtBQUssQ0FBQyJ9',
+  expected: /textContent = "before"/,
+  operator: 'match'
+}
+
+Node.js v24.5.0

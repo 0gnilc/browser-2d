@@ -1,0 +1,38 @@
+{
+  "sourceRun": 41184202293,
+  "sourceCommit": "f52238f4e54117649cfeee710ed336d0724dba67",
+  "context": {
+    "schemaVersion": 1,
+    "sourceCommit": "f52238f4e54117649cfeee710ed336d0724dba67",
+    "dirty": false,
+    "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+    "version": "0.1.0",
+    "target": "linux-x64",
+    "mode": "preview",
+    "configuration": {
+      "mode": "preview"
+    },
+    "identity": {
+      "appId": "io.github.0gnilc.browser2d.foundation",
+      "productName": "Browser2DFoundation",
+      "executableName": "browser-2d-foundation"
+    },
+    "node": "v24.22.1",
+    "packageManager": "pnpm@12.16.1",
+    "createdAt": "2026-10-31T08:24:33.020Z",
+    "tools": {
+      "electron": "45.2.0",
+      "electron-builder": "26.18.0",
+      "electron-updater": "6.8.11"
+    }
+  },
+  "artifact": {
+    "name": "browser-2d-foundation-0.1.0-linux-x86_64.AppImage",
+    "size": 141747304,
+    "sha256": "54e391665307d7cdfe066ac2483a6d6e1edd9096b4441dff2be1c913be854ae8",
+    "sha512": "dY3cavGXCWRwwcQyh2PcVCaxuB4Lxn3/7zq4OQsJLeewKewvcCeFTnjj7oXL0Sjls1uZBi05ZKMZyXTMVh4FKQ=="
+  },
+  "inventoryVerified": true,
+  "format": ".AppImage",
+  "launch": "direct AppImage with FUSE"
+}

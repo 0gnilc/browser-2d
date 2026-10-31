@@ -18,7 +18,7 @@ The desktop opens with an isolated database in `artifacts/dev-data`. Closing its
 
 ## Change source
 
-Vue templates and styles use Vite HMR and keep the same worker alive. Main, preload, contracts, worker, migrations, app build configuration and shared TypeScript presets trigger a build followed by coordinated restart. A build failure leaves the running app available. A shutdown failure prevents a replacement process from starting.
+Vue templates and styles use Vite HMR and keep the same worker alive. Main, preload, contracts, worker, migrations, app build configuration and shared TypeScript presets trigger a build followed by coordinated restart. A successful restart reloads the renderer preset and recreates the Vite server after the old application exits, so changed plugins and defines reach the live UI. A build or preset-load failure leaves the running app available. A shutdown failure prevents a replacement process from starting.
 
 After changing dependency manifests, the lockfile, pnpm configuration or the Node version, stop development, install dependencies and restart. The coordinator does not update dependencies while the application is running.
 
@@ -31,6 +31,8 @@ pnpm check
 pnpm test
 pnpm test:storage
 pnpm test:credentials
+pnpm test:updates
+pnpm test:release
 pnpm test:observer
 pnpm test:electron
 pnpm build

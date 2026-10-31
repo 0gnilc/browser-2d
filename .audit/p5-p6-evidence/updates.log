@@ -1,0 +1,13 @@
+$ pnpm --filter @browser-2d/desktop test:updates
+$ vitest run --config vitest.updates.config.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.updates.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.5 /Volumes/fc/automator/browser-2d/apps/desktop
+
+
+ Test Files  5 passed (5)
+      Tests  27 passed (27)
+   Start at  08:23:33
+   Duration  1.09s (tests 60%, transform 20%, import 17%, worker 2%)
