@@ -398,3 +398,99 @@ td {
     padding-left: 18px;
   }
 }
+.business-nav {
+  display: flex;
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid #dce2dc;
+}
+.business-nav a {
+  color: #657268;
+  text-decoration: none;
+  font-size: 14px;
+}
+.business-nav a.router-link-exact-active {
+  color: #236b53;
+  font-weight: 600;
+}
+.business-page {
+  padding-bottom: 40px;
+}
+.business-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+.business-actions,
+.business-note {
+  grid-column: 1 / -1;
+}
+.business-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.business-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 20px 26px;
+}
+.business-toolbar h2 {
+  margin-right: auto;
+  align-self: center;
+}
+.task-panel > .business-toolbar {
+  padding: 0;
+}
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  color: #35463b;
+  background: #fcfdfb;
+  border: 1px solid #dce2d9;
+  border-radius: 6px;
+  font: inherit;
+}
+.field textarea {
+  resize: vertical;
+}
+.import-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.import-form button {
+  justify-self: start;
+}
+.import-report,
+.export-result {
+  margin-top: 20px;
+  font-size: 13px;
+}
+.import-report ol {
+  max-height: 240px;
+  overflow: auto;
+}
+.export-result button {
+  margin-top: 12px;
+}
+.business-note {
+  font-size: 12px;
+  color: #657268;
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .business-form {
+    grid-template-columns: 1fr;
+  }
+  .business-nav {
+    gap: 18px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

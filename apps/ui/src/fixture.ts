@@ -1,4 +1,9 @@
-import type { Browser2dApi, Run, Snapshot } from '@browser-2d/contracts/public';
+import type { Browser2dApi, Failure, Run, Snapshot } from '@browser-2d/contracts/public';
+
+const businessUnavailable = async (): Promise<Failure> => ({
+  ok: false,
+  error: { code: 'UNAVAILABLE', message: '界面预览不连接业务数据库。请在桌面应用中使用业务功能。' },
+});
 
 export function createFixtureBridge(): Browser2dApi {
   const epoch = crypto.randomUUID();
@@ -24,6 +29,28 @@ export function createFixtureBridge(): Browser2dApi {
     publish();
   };
   return {
+    devices: {
+      list: businessUnavailable,
+      create: businessUnavailable,
+      update: businessUnavailable,
+      delete: businessUnavailable,
+    },
+    materials: {
+      page: businessUnavailable,
+      create: businessUnavailable,
+      update: businessUnavailable,
+      delete: businessUnavailable,
+      clear: businessUnavailable,
+      reset: businessUnavailable,
+      importText: businessUnavailable,
+    },
+    history: {
+      page: businessUnavailable,
+      delete: businessUnavailable,
+      clear: businessUnavailable,
+      exportText: businessUnavailable,
+    },
+    settings: { get: businessUnavailable, save: businessUnavailable },
     async getSnapshot() {
       return { ok: true, value: snapshot() };
     },
