@@ -111,69 +111,25 @@ export function observeOwnedLifetime(lifetime: OwnedLifetime): 'present' | 'empt
     process.kill(lifetime.kind === 'posix-group' ? -id : id, 0);
     return 'present';
   } catch (error) {
-    const code = error instanceof Error && 'code' in error ? error.code : 'unclassified';
-    if (code !== 'ESRCH' && process.env.BROWSER2D_ARM_DIAGNOSTIC === '1') {
-      let mainProbe: unknown = 'present';
-      try {
-        process.kill(id, 0);
-      } catch (mainError) {
-        mainProbe =
-          mainError instanceof Error && 'code' in mainError ? mainError.code : 'unclassified';
-      }
-      process.stderr.write(
-        JSON.stringify({
-          diagnostic: 'owned-lifetime-unknown',
-          time: Date.now(),
-          code,
-          lifetime,
-          platform: process.platform,
-          arch: process.arch,
-          workerPid: process.pid,
-          mainProbe,
-        }) + '\n',
-      );
-      for (const milliseconds of [5, 25, 100, 300]) {
-        setTimeout(() => {
-          let result: unknown = 'present';
-          try {
-            process.kill(lifetime.kind === 'posix-group' ? -id : id, 0);
-          } catch (sampleError) {
-            result =
-              sampleError instanceof Error && 'code' in sampleError
-                ? sampleError.code
-                : 'unclassified';
-          }
-          process.stderr.write(
-            JSON.stringify({
-              diagnostic: 'owned-lifetime-followup',
-              time: Date.now(),
-              milliseconds,
-              lifetime,
-              workerPid: process.pid,
-              result,
-            }) + '\n',
-          );
-        }, milliseconds).unref();
-      }
-    }
-    return code === 'ESRCH' ? 'empty' : 'unknown';
+    return error instanceof Error && 'code' in error && error.code === 'ESRCH'
+      ? 'empty'
+      : 'unknown';
   }
 }
 export async function awaitOwnedLifetime(
   lifetime: OwnedLifetime,
   signal: AbortSignal,
-): Promise<StoppedProof | undefined> {
+): Promise<StoppedProof> {
   for (;;) {
     signal.throwIfAborted();
     const observation = observeOwnedLifetime(lifetime);
     switch (observation) {
-      case 'unknown':
-        return undefined;
       case 'empty':
         return lifetime.kind === 'posix-group'
           ? { kind: 'posix-group-empty', pgid: lifetime.pgid }
           : { kind: 'windows-main-exited', pid: lifetime.pid };
       case 'present':
+      case 'unknown':
         await delay(25, undefined, { signal });
         break;
       default: {

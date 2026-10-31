@@ -243,22 +243,7 @@ export function createChromeDriver({
       if (!lifetime) return uncertain();
     }
     const observation = observeOwnedLifetime(lifetime);
-    if (observation === 'unknown') {
-      if (process.env.BROWSER2D_ARM_DIAGNOSTIC === '1')
-        process.stderr.write(
-          JSON.stringify({
-            diagnostic: 'cleanup-initial-unknown',
-            time: Date.now(),
-            operationId: intent.operationId,
-            lifetime,
-            phase: state.phase,
-            live: Boolean(live),
-            exited: live?.exited,
-            workerPid: process.pid,
-          }) + '\n',
-        );
-      return uncertain();
-    }
+    if (observation === 'unknown') return uncertain();
     const mainPid = lifetime.kind === 'posix-group' ? lifetime.pgid : lifetime.pid;
     if (observation !== 'empty' && !live?.exited && !processAbsent(mainPid)) {
       let browser: Browser | undefined;
@@ -290,21 +275,7 @@ export function createChromeDriver({
       }
     }
     const proof = await awaitOwnedLifetime(lifetime, signal);
-    if (process.env.BROWSER2D_ARM_DIAGNOSTIC === '1')
-      process.stderr.write(
-        JSON.stringify({
-          diagnostic: 'cleanup-after-final-probe',
-          time: Date.now(),
-          operationId: intent.operationId,
-          lifetime,
-          phase: state.phase,
-          live: Boolean(live),
-          exited: live?.exited,
-          proof,
-          workerPid: process.pid,
-        }) + '\n',
-      );
-    return proof ? releasedOwned(intent, proof, signal) : uncertain();
+    return releasedOwned(intent, proof, signal);
   }
   async function cleanupBorrowed(
     intent: Obligation,
@@ -427,25 +398,7 @@ export function createChromeDriver({
           : cleanupBorrowed(intent, state, bounded));
         if (result.kind === 'blocked') await disconnect(intent.operationId);
         return result;
-      } catch (error) {
-        if (process.env.BROWSER2D_ARM_DIAGNOSTIC === '1')
-          process.stderr.write(
-            JSON.stringify({
-              diagnostic: 'cleanup-caught',
-              time: Date.now(),
-              operationId: intent.operationId,
-              boundedAborted: bounded.aborted,
-              name: error instanceof Error ? error.name : typeof error,
-              code: error instanceof Error && 'code' in error ? error.code : undefined,
-              frames:
-                error instanceof Error
-                  ? error.stack
-                      ?.split('\n')
-                      .slice(1)
-                      .map((line) => line.trim().split(' (')[0])
-                  : undefined,
-            }) + '\n',
-          );
+      } catch {
         await disconnect(intent.operationId);
         return {
           kind: 'blocked',

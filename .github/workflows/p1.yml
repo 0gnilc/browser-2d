@@ -1,4 +1,4 @@
-name: Packaged ARM cleanup diagnosis
+name: Final Mac ARM package verification
 on:
   push:
     branches: ['codex/audit-arm-cleanup']
@@ -14,6 +14,24 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Verify final source trees
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { execFileSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { mkdir, readFile, writeFile } from 'node:fs/promises';
+          const expected = {"apps": "133e633d5225e0ffb0482432f514f1a9d2e94992", "packages": "3760625e7eb93e3dc5b08f663a36cb5d43cb69a5", "internal": "a7bb35741dab39943f4e67cd4830a888b129f5df", "scripts": "2374fdf3e0d5093d725abfd44d7498133eb8b1ab", "package.json": "c1bbf411cf362e8ef6cc363a7a63648d8b91ed5d", "pnpm-workspace.yaml": "3ba21edc6d3c4c15f02de82e3a4afd3e09292690", "pnpm-lock.yaml": "e79908ed305eafa3e4ce30b7470cca2cf16532c9", ".npmrc": "214c29d1395919ce175f26d140526368127981ba", ".node-version": "ce62013c39aed63f656bb7ae41bdd45d81163ffe"};
+          const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+          const actual = Object.fromEntries(Object.keys(expected).map((path) => [path, git('rev-parse', `HEAD:${path}`)]));
+          assert.deepEqual(actual, expected);
+          assert.equal(git('status', '--porcelain'), '');
+          await mkdir('artifacts', { recursive: true });
+          const evidence = { sourceCommit: git('rev-parse', 'HEAD'), rootTree: git('rev-parse', 'HEAD^{tree}'), referenceCommit: 'beeaba0c9fae03192714dbe51be753a882c0c6e5', sourceTreesMatchReference: true, trees: actual, lockSha256: createHash('sha256').update(await readFile('pnpm-lock.yaml')).digest('hex') };
+          await writeFile('artifacts/final-source.json', JSON.stringify(evidence, null, 2));
+          console.log(JSON.stringify(evidence, null, 2));
+          NODE
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -27,40 +45,20 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: node scripts/prepare-test-chrome.mjs
-      - run: pnpm check
-      - run: pnpm test
-      - run: pnpm test:release
-      - run: pnpm test:storage
-      - run: pnpm test:observer
-      - run: pnpm test:credentials
-      - run: pnpm test:updates
-      - run: pnpm test:electron
       - run: pnpm dist -- --target=mac-arm64
       - name: Fused package verification outside checkout
-        env:
-          BROWSER2D_ARM_DIAGNOSTIC: '1'
-        run: |
-          mkdir -p artifacts
-          pnpm verify:package -- --target=mac-arm64 2>&1 | tee artifacts/arm-cleanup.log
-      - name: Read-only final group observations
-        if: always()
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFile } from 'node:fs/promises';
-          const log = await readFile('artifacts/arm-cleanup.log', 'utf8').catch(() => '');
-          for (const line of log.split('\n')) {
-            if (!line.startsWith('{"diagnostic":"owned-lifetime-unknown"')) continue;
-            const event = JSON.parse(line);
-            let result = 'present';
-            try { process.kill(-event.lifetime.pgid, 0); }
-            catch (error) { result = error.code; }
-            console.log(JSON.stringify({ diagnostic: 'observer-after-verifier', time: Date.now(), unknownAt: event.time, lifetime: event.lifetime, result }));
-          }
-          NODE
+        shell: bash
+        run: pnpm verify:package -- --target=mac-arm64 2>&1 | tee artifacts/final-package.log
+      - name: Preview native install, reinstall and uninstall
+        shell: bash
+        run: pnpm verify:installation 2>&1 | tee artifacts/final-installation.log
+      - name: Exact ZIP runtime
+        shell: bash
+        run: pnpm verify:formats -- --target=mac-arm64 2>&1 | tee artifacts/final-formats.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: arm-cleanup-diagnostic
+          name: final-mac-arm64-package
           path: |
             artifacts/
             release/*/build-context.json

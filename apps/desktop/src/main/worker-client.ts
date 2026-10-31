@@ -29,12 +29,7 @@ export function launchWorker(options: {
   const ownership = claimWorkerOwnership(options.businessPath);
   let child: Electron.UtilityProcess;
   try {
-    child = utilityProcess.fork(entry, [], {
-      serviceName: 'browser-2d-worker',
-      stdio: process.env.BROWSER2D_ARM_DIAGNOSTIC === '1' ? 'pipe' : 'inherit',
-    });
-    child.stderr?.pipe(process.stderr);
-    child.stdout?.pipe(process.stdout);
+    child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker' });
   } catch (error) {
     ownership.release();
     throw error;
