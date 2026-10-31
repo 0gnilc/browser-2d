@@ -1,9 +1,11 @@
+import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, lstat, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import puppeteer, { Browser, type BrowserContext, type Target } from 'puppeteer-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -680,5 +682,63 @@ it('recovers a verified owned browser that exited before its release was journal
   });
   database.work.resolved(admitted.intent.operationId);
   expect(database.work.snapshot().resources).toEqual([]);
-  expect(await readdir(root)).toEqual([]);
+  const remaining = await readdir(root);
+  if (remaining.length > 0) {
+    const profile = join(root, admitted.intent.operationId);
+    const capturedAt = new Date().toISOString();
+    const journal = database.work.chrome.get(admitted.intent.operationId);
+    try {
+      let processes: string[] | { error: string };
+      try {
+        processes = execFileSync('/bin/ps', ['-axww', '-o', 'pid=,ppid=,lstart=,command='], {
+          encoding: 'utf8',
+          timeout: 1000,
+        })
+          .split('\n')
+          .filter(
+            (line) => line.includes(profile) || line.trimStart().startsWith(`${observer.pid} `),
+          );
+      } catch (error) {
+        processes = { error: String(error) };
+      }
+      const entries = await Promise.all(
+        (await readdir(root, { recursive: true })).map(async (path) => {
+          try {
+            const stat = await lstat(join(root, path));
+            return {
+              path,
+              size: stat.size,
+              mtime: stat.mtime.toISOString(),
+              mode: stat.mode,
+              directory: stat.isDirectory(),
+              symlink: stat.isSymbolicLink(),
+            };
+          } catch (error) {
+            return { path, error: String(error) };
+          }
+        }),
+      );
+      const diagnostic = JSON.stringify(
+        { capturedAt, root, remaining, journal, browserPid: observer.pid, processes, entries },
+        null,
+        2,
+      );
+      console.error(`Chrome profile cleanup failure\n${diagnostic}`);
+      const artifacts = fileURLToPath(new URL('../../../artifacts/', import.meta.url));
+      await mkdir(artifacts, { recursive: true });
+      await writeFile(
+        join(artifacts, `chrome-profile-${admitted.intent.operationId}.json`),
+        diagnostic,
+      );
+    } catch (error) {
+      console.error('Chrome profile cleanup diagnostic failed', {
+        capturedAt,
+        root,
+        remaining,
+        journal,
+        error,
+      });
+    }
+  }
+  expect(remaining).toEqual([]);
 }, 30_000);
