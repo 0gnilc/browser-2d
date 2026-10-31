@@ -8,8 +8,8 @@ export const idInputSchema = z.strictObject({
   id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 });
 const text = z.string().max(16_384);
-const requiredText = text.min(1);
-const nullableText = text.nullable();
+const requiredText = text.trim().min(1);
+const nullableText = z.string().nullable();
 const integer = z.number().int().min(Number.MIN_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER);
 export const materialStatusSchema = z.union([
   z.literal(0),
@@ -29,7 +29,13 @@ const deviceFields = {
   status: integer,
   note: nullableText,
 };
-export const deviceSchema = z.strictObject({ ...row, ...deviceFields });
+export const deviceSchema = z.strictObject({
+  ...row,
+  ...deviceFields,
+  symbol: z.string(),
+  account: z.string().nullable(),
+  note: z.string().nullable(),
+});
 export const deviceCreateSchema = z.strictObject({
   symbol: requiredText,
   account: nullableText.optional(),
@@ -51,33 +57,44 @@ const materialFields = {
   zip: nullableText,
   country: nullableText,
   extra: nullableText,
-  amount: integer.nullable(),
+  amount: z.number().finite().nullable(),
   status: materialStatusSchema.nullable(),
   device: nullableText,
   note: nullableText,
 };
-export const materialSchema = z.strictObject({ ...row, ...materialFields });
+export const materialSchema = z.strictObject({
+  ...row,
+  ...materialFields,
+  status: integer.nullable(),
+  card: z.string(),
+  month: z.string(),
+  year: z.string(),
+});
+const materialIdentity = {
+  card: requiredText.regex(/^\d{10,}$/),
+  month: requiredText.regex(/^(0?[1-9]|1[0-2])$/),
+  year: requiredText.regex(/^\d+$/),
+  cvv: requiredText.regex(/^\d{3,}$/),
+};
 export const materialCreateSchema = z.strictObject({
   ...z.object(materialFields).partial().shape,
-  card: requiredText,
-  month: requiredText,
-  year: requiredText,
-  cvv: requiredText,
+  ...materialIdentity,
 });
 export const materialUpdateSchema = z.strictObject({
   ...z.object(materialFields).partial().shape,
+  ...z.object(materialIdentity).partial().shape,
   ...idInputSchema.shape,
 });
 export const historySchema = z.strictObject({
   ...row,
-  card: requiredText,
+  card: z.string(),
   month: nullableText,
   day: nullableText,
   year: nullableText,
   cvv: nullableText,
   extra: nullableText,
-  amount: integer.nullable(),
-  status: materialStatusSchema.nullable(),
+  amount: z.number().finite().nullable(),
+  status: integer.nullable(),
   device: nullableText,
   note: nullableText,
 });
@@ -123,7 +140,18 @@ export const exportTextSchema = z.strictObject({
   count: z.number().int().nonnegative(),
 });
 export const settingsValuesSchema = z.strictObject({
-  adsPowerUrl: z.string().max(2048),
+  adsPowerUrl: z
+    .string()
+    .max(2048)
+    .refine((value) => {
+      if (value === '') return true;
+      try {
+        const url = new URL(value);
+        return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
+      } catch {
+        return false;
+      }
+    }),
   viewportWidth: z.number().int().min(1).max(16_384),
   viewportHeight: z.number().int().min(1).max(16_384),
   pageCount: z.number().int().min(1).max(10_000),

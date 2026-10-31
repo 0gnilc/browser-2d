@@ -1,6 +1,11 @@
 export * from './business';
 import { z } from 'zod';
 import {
+  businessResultSchema,
+  credentialChallengeSchema,
+  storageFailureCodeSchema,
+} from './business';
+import {
   cancelInputSchema,
   failureSchema,
   runResultSchema,
@@ -19,6 +24,7 @@ export const channels = {
 export const initializeSchema = z.object({
   type: z.literal('initialize'),
   dataDir: z.string().min(1),
+  businessPath: z.string().min(1),
   nativeBinding: z.string().min(1).optional(),
 });
 export const requestSchema = z.discriminatedUnion('method', [
@@ -42,14 +48,23 @@ export const shutdownResultSchema = z.union([
   z.object({ ok: z.literal(true), value: z.null() }),
   failureSchema,
 ]);
-export const workerEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('ready'), snapshot: snapshotSchema }),
-  z.object({ type: z.literal('snapshot'), snapshot: snapshotSchema }),
-  z.object({ type: z.literal('fatal'), message: z.string() }),
-  z.object({
-    type: z.literal('response'),
-    requestId: z.uuid(),
-    result: z.union([runResultSchema, snapshotResultSchema, shutdownResultSchema]),
-  }),
+export const workerEventSchema = z.union([
+  credentialChallengeSchema,
+  z.discriminatedUnion('type', [
+    z.strictObject({ type: z.literal('blocked'), code: storageFailureCodeSchema }),
+    z.strictObject({
+      type: z.literal('business-response'),
+      requestId: z.uuid(),
+      result: businessResultSchema,
+    }),
+    z.object({ type: z.literal('ready'), snapshot: snapshotSchema }),
+    z.object({ type: z.literal('snapshot'), snapshot: snapshotSchema }),
+    z.object({ type: z.literal('fatal'), message: z.string() }),
+    z.object({
+      type: z.literal('response'),
+      requestId: z.uuid(),
+      result: z.union([runResultSchema, snapshotResultSchema, shutdownResultSchema]),
+    }),
+  ]),
 ]);
 export type WorkerEvent = z.infer<typeof workerEventSchema>;
