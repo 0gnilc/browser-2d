@@ -3,14 +3,14 @@ out="$PWD/artifacts/linux-family"
 mkdir -p "$out"
 sudo bpftrace --version > "$out/bpftrace-version.txt"
 python3 scripts/audit-linux-family/trace.py prepare
-sudo env BPFTRACE_MAX_STRLEN=128 bpftrace -q "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
+sudo env BPFTRACE_MAX_STRLEN=128 timeout --signal=TERM --kill-after=5s 150s bpftrace -B line -q "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
 trace_sudo=$!
 cleanup() {
-  sudo pkill -INT -x bpftrace || true
+  sudo pkill -TERM -x bpftrace || true
   wait "$trace_sudo" || true
 }
 trap cleanup EXIT
-for attempt in $(seq 1 120); do
+for attempt in $(seq 1 30); do
   if grep -q '^READY' "$out/trace.tsv"; then break; fi
   if ! kill -0 "$trace_sudo" 2>/dev/null; then cat "$out/trace.stderr"; exit 1; fi
   sleep 1

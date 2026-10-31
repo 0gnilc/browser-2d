@@ -73,6 +73,7 @@ else:
     events = []
     groups = []
     pending = {}
+    returns = []
     for line in (out / 'trace.tsv').read_text().splitlines():
         cols = line.split('\t')
         if cols[0] == 'NS_ENTRY':
@@ -82,17 +83,18 @@ else:
                 event[key] = int(event[key])
             pending[(event['tid'], event['start'])] = event
         elif cols[0] == 'NS_RETURN':
-            start, end, pid, tid, result = map(int, cols[1:])
-            event = pending.pop((tid, start))
-            assert event['pid'] == pid
-            event.update(end=end, result=result)
-            events.append(event)
+            returns.append(tuple(map(int, cols[1:])))
         elif cols[0] == 'GROUP':
             keys = ['kind', 'start', 'end', 'pid', 'tid', 'pgid', 'target', 'signal', 'result']
             event = dict(zip(keys, cols))
             for key in keys[1:]:
                 event[key] = int(event[key])
             groups.append(event)
+    for start, end, pid, tid, result in returns:
+        event = pending.pop((tid, start))
+        assert event['pid'] == pid
+        event.update(end=end, result=result)
+        events.append(event)
     profile = family['profile']
     main = family['mainPid']
     native = {entry['id'] for entry in family['nativeMembers']}
