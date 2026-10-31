@@ -41,11 +41,11 @@ export async function ownedEndpoint(directory: string): Promise<string> {
   return endpoint;
 }
 export function abortable<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
-  signal.throwIfAborted();
   return new Promise<T>((resolve, reject) => {
     const aborted = () => reject(signal.reason);
-    signal.addEventListener('abort', aborted, { once: true });
     pending.then(resolve, reject).finally(() => signal.removeEventListener('abort', aborted));
+    if (signal.aborted) aborted();
+    else signal.addEventListener('abort', aborted, { once: true });
   });
 }
 export async function connect(endpoint: string, signal: AbortSignal): Promise<Browser> {

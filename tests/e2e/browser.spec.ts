@@ -224,6 +224,9 @@ for (const phase of ['running', 'context-created', 'cleanup'] as const) {
           { commandId: randomUUID(), runId },
         );
         await expect
+          .poll(async () => (await readdir(checkpointDir).catch(() => [])).length)
+          .toBe(1);
+        await expect
           .poll(async () => (await snapshot(worker!)).resources[0]?.failure, { timeout: 12_000 })
           .toBe('CLEANUP_FAILED');
         expect((await snapshot(worker)).runs.find((run) => run.id === runId)?.state).toBe(

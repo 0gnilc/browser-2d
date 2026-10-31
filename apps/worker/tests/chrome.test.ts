@@ -3,10 +3,10 @@ import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:f
 import { constants } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import puppeteer, { type Browser, type BrowserContext, type Target } from 'puppeteer-core';
-import { afterEach, describe, expect, it } from 'vitest';
+import puppeteer, { Browser, type BrowserContext, type Target } from 'puppeteer-core';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { secretRefSchema } from '@browser-2d/contracts/host';
 import type { Result, SettingsValues } from '@browser-2d/contracts/public';
@@ -230,7 +230,7 @@ async function ownedObserver(root: string) {
   });
   const session = await browser.target().createCDPSession();
   const { arguments: args } = await session.send('Browser.getBrowserCommandLine');
-  expect(args.some((argument) => argument.startsWith(`--user-data-dir=${root}/`))).toBe(true);
+  expect(args).toContain(`--user-data-dir=${dirname(path)}`);
   const { processInfo } = await session.send('SystemInfo.getProcessInfo');
   await session.detach();
   const processInfoBrowser = processInfo.find((entry) => entry.type === 'browser');
@@ -387,6 +387,33 @@ describe('real Chrome execution with local pages', () => {
     },
     30_000,
   );
+
+  it('cancels before a newly created page target is published', async () => {
+    const fixture = await localPages();
+    const harness = await chrome();
+    const worker = await subject({
+      browser: { mode: 'connect', endpoint: harness.endpoint },
+      pageCount: 1,
+      url: `${fixture.origin}/probe`,
+    });
+    const waitForTarget = Browser.prototype.waitForTarget;
+    const targetWait = vi
+      .spyOn(Browser.prototype, 'waitForTarget')
+      .mockImplementationOnce(function (this: Browser, predicate, options) {
+        worker.cancel(runId);
+        return waitForTarget.call(this, predicate, { ...options, timeout: 5000 });
+      });
+    const { runId } = worker.start('cancel-target-publication');
+    try {
+      await expect.poll(() => worker.state(runId), { timeout: 2000 }).toBe('cancelled');
+      expect(targetWait).toHaveBeenCalled();
+      expect(worker.service.snapshot().resources).toEqual([]);
+      expect(await workContexts(harness.browser)).toEqual([]);
+      expect(harness.browser.connected).toBe(true);
+    } finally {
+      targetWait.mockRestore();
+    }
+  }, 15_000);
 
   it('blocks a local page redirect before Chrome can request an external origin', async () => {
     const fixture = await localPages();

@@ -294,11 +294,11 @@ export function createChromeDriver({
       try {
         for (let index = 0; index < run.config.pageCount; index++) {
           operation.throwIfAborted();
-          const page = await active.context.newPage();
+          const page = await abortable(active.context.newPage(), operation);
           pages.push(page);
           page.on('error', failed);
           page.on('close', failed);
-          await page.setRequestInterception(true);
+          await abortable(page.setRequestInterception(true), operation);
           page.on('request', (request) => {
             const url = new URL(request.url());
             const allowed =
@@ -307,14 +307,24 @@ export function createChromeDriver({
               (probeOrigin !== undefined && url.origin === probeOrigin);
             void (allowed ? request.continue() : request.abort('blockedbyclient')).catch(() => {});
           });
-          await page.setViewport({
-            width: run.config.viewportWidth,
-            height: run.config.viewportHeight,
-          });
-          if (probe.url) await page.goto(probe.url, { timeout: 15_000, waitUntil: 'load' });
+          await abortable(
+            page.setViewport({
+              width: run.config.viewportWidth,
+              height: run.config.viewportHeight,
+            }),
+            operation,
+          );
+          if (probe.url)
+            await abortable(
+              page.goto(probe.url, { timeout: 15_000, waitUntil: 'load' }),
+              operation,
+            );
           else
-            await page.setContent(
-              '<!doctype html><title>Browser 2D controlled workload</title><main>Local browser verification</main>',
+            await abortable(
+              page.setContent(
+                '<!doctype html><title>Browser 2D controlled workload</title><main>Local browser verification</main>',
+              ),
+              operation,
             );
         }
         await delay(durationMs, undefined, { signal: operation });
