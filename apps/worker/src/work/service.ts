@@ -19,13 +19,16 @@ export function createWorkService({
   repository,
   driver,
   publish,
+  policy = { executionTimeoutMs: 30_000, cleanupTimeoutMs: 1000, cleanupAttempts: 3 },
 }: {
   repository: WorkRepository;
   driver: ControlledDriver;
   publish: (snapshot: WorkSnapshot) => void;
+  policy?: { executionTimeoutMs: number; cleanupTimeoutMs: number; cleanupAttempts: number };
 }) {
   const running = new Map<string, { abort: AbortController; promise: Promise<void> }>();
   const cleaning = new Map<string, Promise<void>>();
+  const cleanupAttempts = new Map<string, number>();
   let accepting = true;
   let scheduled = false;
   let stopped = false;
@@ -33,8 +36,14 @@ export function createWorkService({
   repository.recover();
   const changed = () => publish(repository.snapshot());
   async function clean(intent: Obligation) {
+    const abort = new AbortController();
+    const deadline = setTimeout(() => {
+      repository.cleanupFailure(intent.operationId, 'CLEANUP_FAILED');
+      changed();
+      abort.abort();
+    }, policy.cleanupTimeoutMs);
     try {
-      const signal = new AbortController().signal;
+      const signal = abort.signal;
       const observed = await driver.reconcile(intent, signal);
       if (observed.kind === 'unknown') {
         repository.cleanupFailure(intent.operationId, 'OWNERSHIP_UNCERTAIN');
@@ -51,6 +60,7 @@ export function createWorkService({
     } catch {
       repository.cleanupFailure(intent.operationId, 'CLEANUP_FAILED');
     } finally {
+      clearTimeout(deadline);
       changed();
     }
     return !repository.obligations().some((item) => item.operationId === intent.operationId);
@@ -60,6 +70,9 @@ export function createWorkService({
       if (running.has(intent.runId) || cleaning.has(intent.operationId)) continue;
       const state = repository.run(intent.runId)?.state;
       if (state !== 'stopping' && state !== 'interrupted') continue;
+      const attempts = cleanupAttempts.get(intent.operationId) ?? 0;
+      if (attempts >= policy.cleanupAttempts) continue;
+      cleanupAttempts.set(intent.operationId, attempts + 1);
       const promise = clean(intent).then((resolved) => {
         cleaning.delete(intent.operationId);
         if (resolved) wake();
@@ -92,7 +105,13 @@ export function createWorkService({
       if (!admitted) return;
       changed();
       const abort = new AbortController();
+      const deadline = setTimeout(() => {
+        repository.finish(admitted.run.id, 'failed');
+        changed();
+        abort.abort();
+      }, policy.executionTimeoutMs);
       const promise = execute(admitted.run, admitted.intent, abort.signal).finally(() => {
+        clearTimeout(deadline);
         running.delete(admitted.run.id);
         wake();
       });
@@ -128,6 +147,7 @@ export function createWorkService({
     stop(): Promise<void> {
       stopping ??= (async () => {
         accepting = false;
+        stopped = true;
         repository.stopAll();
         for (const task of running.values()) task.abort.abort();
         changed();

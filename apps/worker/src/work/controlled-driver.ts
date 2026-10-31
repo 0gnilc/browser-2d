@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import type { ControlledFixture } from '@browser-2d/contracts/host';
-import type { Acquisition, Obligation, Reconciliation } from './repository';
+import type { Obligation, Reconciliation } from './repository';
 import type { ControlledDriver } from './service';
 
 const markerSchema = z.strictObject({

@@ -38,12 +38,21 @@ async function open() {
   opened.push(storage);
   return storage;
 }
-function runtime(storage: Awaited<ReturnType<typeof open>>, driver?: ControlledDriver) {
+function runtime(
+  storage: Awaited<ReturnType<typeof open>>,
+  driver?: ControlledDriver,
+  policy?: { executionTimeoutMs: number; cleanupTimeoutMs: number; cleanupAttempts: number },
+) {
   const actual = driver ?? {
     ...createControlledDriver({ root: join(directory, 'resources') }),
     async execute() {},
   };
-  const service = createWorkService({ repository: storage.work, driver: actual, publish() {} });
+  const service = createWorkService({
+    repository: storage.work,
+    driver: actual,
+    publish() {},
+    policy,
+  });
   services.push(service);
   return service;
 }
@@ -312,6 +321,71 @@ describe('durable work commands and resource lifecycle', () => {
     await until(() => unknown.snapshot().resources[0]?.failure === 'OWNERSHIP_UNCERTAIN');
     expect(unknown.snapshot().runs[0]?.state).toBe('stopping');
   });
+  it('times out execution durably without releasing capacity before an abort-ignoring operation settles', async () => {
+    const storage = await open();
+    const barrier = gate();
+    let released = 0;
+    const actual = createControlledDriver({ root: join(directory, 'resources') });
+    const service = runtime(
+      storage,
+      {
+        ...actual,
+        async execute() {
+          await barrier.promise;
+        },
+        async release(resource, signal) {
+          released += 1;
+          await actual.release(resource, signal);
+        },
+      },
+      { executionTimeoutMs: 20, cleanupTimeoutMs: 100, cleanupAttempts: 3 },
+    );
+    start(service, device(storage));
+    await until(() => service.snapshot().runs[0]?.outcome === 'failed');
+    expect(service.snapshot().runs[0]?.state).toBe('stopping');
+    expect(service.snapshot().resources).toHaveLength(1);
+    expect(released).toBe(0);
+    barrier.release();
+    await until(() => service.snapshot().runs[0]?.state === 'failed');
+    expect(released).toBe(1);
+  });
+
+  it('bounds cleanup retries and aborts each timed-out attempt while retaining unresolved resources', async () => {
+    const storage = await open();
+    const actual = createControlledDriver({ root: join(directory, 'resources') });
+    let attempts = 0;
+    let aborted = 0;
+    const service = runtime(
+      storage,
+      {
+        ...actual,
+        async execute() {},
+        async release(_resource, signal) {
+          attempts += 1;
+          await new Promise<void>((_resolve, reject) =>
+            signal.addEventListener(
+              'abort',
+              () => {
+                aborted += 1;
+                reject(new Error('cleanup timeout'));
+              },
+              { once: true },
+            ),
+          );
+        },
+      },
+      { executionTimeoutMs: 1000, cleanupTimeoutMs: 20, cleanupAttempts: 2 },
+    );
+    start(service, device(storage));
+    await until(() => aborted === 2);
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    expect(attempts).toBe(2);
+    expect(service.snapshot().runs[0]?.state).toBe('stopping');
+    expect(service.snapshot().resources[0]?.failure).toBe('CLEANUP_FAILED');
+    await expect(service.stop()).rejects.toThrow('cleanup is incomplete');
+    expect(attempts).toBe(2);
+  });
+
   it('includes every active run and unresolved resource beyond bounded terminal history', async () => {
     const storage = await open();
     const id = device(storage);
