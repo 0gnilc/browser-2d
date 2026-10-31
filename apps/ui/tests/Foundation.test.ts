@@ -10,6 +10,7 @@ import { createPinia } from 'pinia';
 import { describe, expect, it, vi } from 'vitest';
 import Foundation from '../src/Foundation.vue';
 import { bridgeKey } from '../src/bridge';
+import { createFixtureBridge } from '../src/fixture';
 
 const run: Run = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -32,6 +33,7 @@ function fixture() {
   let listener: (snapshot: Snapshot) => void = () => {};
   const dispose = vi.fn();
   const api: Browser2dApi = {
+    ...createFixtureBridge(),
     getSnapshot: vi.fn(async (): Promise<SnapshotResult> => ({ ok: true, value })),
     start: vi.fn(async (input): Promise<RunResult> => {
       value = {

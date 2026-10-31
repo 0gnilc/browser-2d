@@ -1,0 +1,179 @@
+<script setup lang="ts">
+import type { History, HistoryFilter } from '@browser-2d/contracts/public';
+import { onMounted, reactive, ref } from 'vue';
+import { NButton, NPagination, NPopconfirm } from 'naive-ui';
+import BusinessPage from './BusinessPage.vue';
+import { useBusinessRequest } from './request';
+
+const { busy, error, request } = useBusinessRequest();
+const rows = ref<History[]>([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = ref(20);
+const form = reactive({ card: '', note: '', startTime: '', endTime: '' });
+const status = ref<HistoryFilter['status']>();
+const exported = ref<{ text: string; count: number }>();
+function filters(): HistoryFilter {
+  return {
+    ...(form.card ? { card: form.card } : {}),
+    ...(form.note ? { note: form.note } : {}),
+    ...(form.startTime ? { startTime: form.startTime } : {}),
+    ...(form.endTime ? { endTime: form.endTime } : {}),
+    ...(status.value === undefined ? {} : { status: status.value }),
+  };
+}
+async function load() {
+  const value = await request((api) =>
+    api.history.page({ ...filters(), page: page.value, pageSize: pageSize.value }),
+  );
+  if (value) {
+    rows.value = value.items;
+    total.value = value.total;
+    page.value = value.page;
+  }
+}
+async function filter() {
+  page.value = 1;
+  exported.value = undefined;
+  await load();
+}
+async function resetFilter() {
+  Object.assign(form, { card: '', note: '', startTime: '', endTime: '' });
+  status.value = undefined;
+  await filter();
+}
+async function remove(id: number) {
+  if (await request((api) => api.history.delete({ id }))) await load();
+}
+async function clear() {
+  if (await request((api) => api.history.clear())) await filter();
+}
+async function exportText() {
+  exported.value = undefined;
+  const value = await request((api) => api.history.exportText(filters()));
+  if (value) exported.value = value;
+}
+function download() {
+  if (!exported.value) return;
+  const url = globalThis.URL.createObjectURL(
+    new globalThis.Blob([exported.value.text], { type: 'text/plain;charset=utf-8' }),
+  );
+  const link = globalThis.document.createElement('a');
+  link.href = url;
+  link.download = 'history.txt';
+  link.click();
+  globalThis.URL.revokeObjectURL(url);
+}
+onMounted(load);
+</script>
+
+<template>
+  <BusinessPage title="历史" :error="error">
+    <section class="task-panel">
+      <form class="business-form" data-testid="history-filter" @submit.prevent="filter">
+        <label class="field"
+          >卡号<input v-model="form.card" data-testid="history-filter-card"
+        /></label>
+        <label class="field"
+          >状态<select v-model="status" data-testid="history-filter-status">
+            <option :value="undefined">全部</option>
+            <option v-for="value in 7" :key="value" :value="value - 1">{{ value - 1 }}</option>
+          </select></label
+        >
+        <label class="field"
+          >备注<input v-model="form.note" data-testid="history-filter-note"
+        /></label>
+        <label class="field"
+          >开始时间，含边界<input
+            v-model="form.startTime"
+            data-testid="history-start-time"
+            placeholder="YYYY-MM-DD HH:mm:ss"
+        /></label>
+        <label class="field"
+          >结束时间，含边界<input
+            v-model="form.endTime"
+            data-testid="history-end-time"
+            placeholder="YYYY-MM-DD HH:mm:ss"
+        /></label>
+        <div class="business-actions">
+          <NButton attr-type="submit" :disabled="busy" data-testid="history-filter-submit"
+            >筛选</NButton
+          ><NButton :disabled="busy" @click="resetFilter">重置筛选</NButton
+          ><NButton :disabled="busy" data-testid="history-export" @click="exportText"
+            >导出全部匹配记录</NButton
+          ><NPopconfirm @positive-click="clear"
+            ><template #trigger
+              ><NButton :disabled="busy" data-testid="history-clear">清空历史</NButton></template
+            >清空全部历史？</NPopconfirm
+          >
+        </div>
+      </form>
+      <div v-if="exported" class="export-result" data-testid="history-export-result">
+        <p>已导出 {{ exported.count }} 条。旧格式 card|month|day|cvv。</p>
+        <label class="field"
+          >导出文本<textarea
+            readonly
+            :value="exported.text"
+            rows="4"
+            data-testid="history-export-text"
+          /></label
+        ><NButton @click="download" data-testid="history-download">下载 history.txt</NButton>
+      </div>
+    </section>
+    <section class="history-panel">
+      <div class="table-scroll">
+        <table data-testid="history-table">
+          <thead>
+            <tr>
+              <th>卡号</th>
+              <th>月 / 日 / 年</th>
+              <th>金额</th>
+              <th>状态</th>
+              <th>备注</th>
+              <th>时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id" :data-testid="`history-${row.id}`">
+              <td>{{ row.card }}</td>
+              <td>{{ row.month }} / {{ row.day }} / {{ row.year }}</td>
+              <td>{{ row.amount ?? 'null' }}</td>
+              <td>{{ row.status ?? 'null' }}</td>
+              <td>{{ row.note }}</td>
+              <td>{{ row.createTime }}</td>
+              <td>
+                <NPopconfirm @positive-click="remove(row.id)"
+                  ><template #trigger
+                    ><NButton
+                      size="small"
+                      :disabled="busy"
+                      :data-testid="`history-delete-${row.id}`"
+                      >删除</NButton
+                    ></template
+                  >删除此历史记录？</NPopconfirm
+                >
+              </td>
+            </tr>
+            <tr v-if="!rows.length">
+              <td colspan="7" class="empty-state">暂无匹配历史</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="business-toolbar">
+        <span data-testid="history-total">共 {{ total }} 条</span
+        ><NPagination
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :item-count="total"
+          :page-sizes="[20, 50, 100]"
+          show-size-picker
+          :disabled="busy"
+          @update:page="load"
+          @update:page-size="filter"
+        />
+      </div>
+    </section>
+  </BusinessPage>
+</template>
