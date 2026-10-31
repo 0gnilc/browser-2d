@@ -6,7 +6,7 @@ const browserHash = z.string().regex(/^[a-f0-9]{64}$/);
 export const chromeStateSchema = z.union([
   z.strictObject({
     mode: z.literal('launch'),
-    phase: z.enum(['prepared', 'attempted', 'released']),
+    phase: z.enum(['prepared', 'attempted', 'stopped', 'released']),
   }),
   z.strictObject({
     mode: z.literal('launch'),
@@ -48,9 +48,10 @@ export function createChromeJournal(db: Database.Database) {
     const current = get(operationId);
     if (!current || current.mode !== next.mode) throw new Error('Chrome operation is not prepared');
     const transitions: Record<ChromeState['phase'], ChromeState['phase'][]> = {
-      prepared: ['attempted', 'creating', 'released'],
-      attempted: ['attached', 'released'],
-      attached: ['released'],
+      prepared: ['attempted', 'creating', 'stopped', 'released'],
+      attempted: ['attached', 'stopped'],
+      attached: ['stopped'],
+      stopped: ['released'],
       creating: ['known', 'released'],
       known: ['released'],
       released: [],
