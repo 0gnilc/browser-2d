@@ -4,7 +4,7 @@ mkdir -p "$out"
 sudo bpftrace --version > "$out/bpftrace-version.txt"
 python3 scripts/audit-linux-family/trace.py prepare
 sudo env BPFTRACE_MAX_STRLEN=128 bpftrace -B line -e 'BEGIN { printf("CAPABILITY\n"); exit(); }' > "$out/capability.stdout" 2> "$out/capability.stderr"
-sudo env BPFTRACE_MAX_STRLEN=128 timeout --signal=TERM --kill-after=5s 150s bpftrace -B line -q "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
+sudo env BPFTRACE_MAX_STRLEN=128 BPFTRACE_PERF_RB_PAGES=1024 timeout --signal=TERM --kill-after=5s 150s bpftrace -B line "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
 trace_sudo=$!
 cleanup() {
   sudo pkill -TERM -x bpftrace || true
