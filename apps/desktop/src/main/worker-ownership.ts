@@ -5,6 +5,7 @@ import {
   fsyncSync,
   openSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -20,9 +21,12 @@ function absent(pid: number) {
     return error instanceof Error && 'code' in error && error.code === 'ESRCH';
   }
 }
-function syncDirectory(path: string) {
+function missing(error: unknown) {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
+}
+function syncDirectory(directory: string) {
   if (process.platform === 'win32') return;
-  const fd = openSync(dirname(path), 'r');
+  const fd = openSync(directory, 'r');
   try {
     fsyncSync(fd);
   } finally {
@@ -30,41 +34,56 @@ function syncDirectory(path: string) {
   }
 }
 export function claimWorkerOwnership(businessPath: string) {
-  mkdirSync(dirname(businessPath), { recursive: true, mode: 0o700 });
-  const path = join(dirname(businessPath), 'worker-owner.json');
+  const directory = join(dirname(businessPath), 'worker-owners');
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
   const ownerNonce = randomUUID();
+  const path = join(directory, `${ownerNonce}.json`);
   const pending = { format: 1, hostPid: process.pid, pid: null, ownerNonce } as const;
-  function read() {
-    return workerOwnerSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
+  function read(file: string) {
+    const record = workerOwnerSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+    if (file !== join(directory, `${record.ownerNonce}.json`))
+      throw new Error('Worker ownership changed');
+    return record;
   }
+  function publish(record: typeof pending | (Omit<typeof pending, 'pid'> & { pid: number })) {
+    const temporary = `${path}.tmp`;
+    writeFileSync(temporary, JSON.stringify(record), { flag: 'wx', mode: 0o600, flush: true });
+    renameSync(temporary, path);
+    syncDirectory(directory);
+  }
+  publish(pending);
   try {
-    const previous = read();
-    if (!absent(previous.pid ?? previous.hostPid))
-      throw new Error('Previous worker exit is not confirmed');
-    if (read().ownerNonce !== previous.ownerNonce) throw new Error('Worker ownership changed');
-    rmSync(path);
+    for (const name of readdirSync(directory)) {
+      if (!name.endsWith('.json') || name === `${ownerNonce}.json`) continue;
+      const other = join(directory, name);
+      try {
+        const previous = read(other);
+        if (!absent(previous.pid ?? previous.hostPid))
+          throw new Error('Previous worker exit is not confirmed');
+        const current = read(other);
+        if (!absent(current.pid ?? current.hostPid))
+          throw new Error('Previous worker exit is not confirmed');
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
+    }
   } catch (error) {
-    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
+    rmSync(path);
+    syncDirectory(directory);
+    throw error;
   }
-  writeFileSync(path, JSON.stringify(pending), { flag: 'wx', mode: 0o600, flush: true });
-  syncDirectory(path);
   return {
     ownerNonce,
     authorize(pid: number) {
-      if (read().ownerNonce !== ownerNonce) throw new Error('Worker ownership changed');
-      const temporary = `${path}.${ownerNonce}.tmp`;
-      writeFileSync(temporary, JSON.stringify({ ...pending, pid }), {
-        flag: 'wx',
-        mode: 0o600,
-        flush: true,
-      });
-      renameSync(temporary, path);
-      syncDirectory(path);
+      const current = read(path);
+      if (current.ownerNonce !== ownerNonce) throw new Error('Worker ownership changed');
+      if (current.pid !== null) throw new Error('Worker was already authorized');
+      publish({ ...pending, pid });
     },
     release() {
-      if (read().ownerNonce !== ownerNonce) throw new Error('Worker ownership changed');
+      if (read(path).ownerNonce !== ownerNonce) throw new Error('Worker ownership changed');
       rmSync(path);
-      syncDirectory(path);
+      syncDirectory(directory);
     },
   };
 }
