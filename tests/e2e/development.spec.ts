@@ -14,6 +14,7 @@ test('Vite development origin uses the real preload and updates CSS without rest
   const require = createRequire(join(desktop, 'package.json'));
   const server = await createServer({
     ...rendererConfig(resolve('apps/ui')),
+    cacheDir: join(dataDir, 'vite-cache'),
     server: { host: '127.0.0.1', port: 0 },
   });
   const stylesheet = resolve('apps/ui/src/style.css');
@@ -26,8 +27,12 @@ test('Vite development origin uses the real preload and updates CSS without rest
     args: [desktop],
     env: { ...process.env, BROWSER2D_DATA_DIR: dataDir, ELECTRON_RENDERER_URL: url },
   });
+  await application.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
   try {
     const page = await application.firstWindow();
+    await page.waitForURL((current) => current.origin === new URL(url).origin, {
+      waitUntil: 'domcontentloaded',
+    });
     await expect(page.getByTestId('start-run')).toBeEnabled();
     const pid = await page.getByTestId('worker-pid').textContent();
     await writeFile(stylesheet, `${original}\n:root { --p1-hmr-proof: changed; }\n`);
@@ -45,6 +50,7 @@ test('Vite development origin uses the real preload and updates CSS without rest
     await page.screenshot({ path: testInfo.outputPath('development.png'), fullPage: true });
   } finally {
     await writeFile(stylesheet, original);
+    await application.context().tracing.stop({ path: testInfo.outputPath('electron-trace.zip') });
     await application.close();
     await server.close();
     await rm(dataDir, { recursive: true, force: true });
