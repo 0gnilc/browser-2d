@@ -155,14 +155,15 @@ function validateRows(db: Database.Database) {
     )
       throw new StorageError('DATABASE_UNRECOGNIZED');
   }
-  for (const table of ['material', 'history']) {
-    if (
-      db
-        .prepare(
-          `SELECT 1 FROM ${table} WHERE status NOT BETWEEN -9007199254740991 AND 9007199254740991 LIMIT 1`,
-        )
-        .get()
-    )
+  for (const [table, columns] of Object.entries({
+    device: ['count', 'status'],
+    material: ['status'],
+    history: ['status'],
+  })) {
+    const invalid = columns
+      .map((column) => `${column} NOT BETWEEN -9007199254740991 AND 9007199254740991`)
+      .join(' OR ');
+    if (db.prepare(`SELECT 1 FROM ${table} WHERE ${invalid} LIMIT 1`).get())
       throw new StorageError('DATABASE_UNRECOGNIZED');
   }
   for (const table of ['device', 'material', 'history']) {
