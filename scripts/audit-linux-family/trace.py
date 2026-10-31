@@ -70,11 +70,11 @@ tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
 }}''')
     for function, index in vfs_arguments.items():
         base = '$dentry' if function == 'vfs_rmdir' else '$dentry->d_parent'
-        leaf_guard = '' if function == 'vfs_rmdir' else ' && str($dentry->d_name.name) == "late-helper-write"'
+        leaf_guard = '' if function == 'vfs_rmdir' else ' && str($dentry->d_name.name, 20) == "late-helper-write"'
         blocks.append(f'''kprobe:{function} {{
  $dentry = (struct dentry *)arg{index};
  $base = {base};
- if (str($base->d_parent->d_name.name) == "chrome-sessions" && strncmp(str($base->d_parent->d_parent->d_name.name), "b2d-family-", 11) == 0 && str($base->d_parent->d_parent->d_parent->d_name.name) == "tmp"{leaf_guard}) {{
+ if (str($base->d_parent->d_name.name, 16) == "chrome-sessions" && strncmp(str($base->d_parent->d_parent->d_name.name, 32), "b2d-family-", 11) == 0 && str($base->d_parent->d_parent->d_parent->d_name.name, 4) == "tmp"{leaf_guard}) {{
   @vfsstart[tid] = nsecs;
   printf("VFS_ENTRY\\t%llu\\t%d\\t%d\\t%d\\t%d\\t%s\\t{function}\\t%s\\t%s\\t%s\\n", @vfsstart[tid], pid, tid, curtask->real_parent->tgid, {group}, comm, str($base->d_parent->d_parent->d_name.name, 32), str($base->d_name.name, 40), str($dentry->d_name.name, 40));
  }}
