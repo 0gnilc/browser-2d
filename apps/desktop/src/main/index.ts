@@ -2,11 +2,17 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, watch } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, net, protocol, safeStorage, dialog } from 'electron';
 import log from 'electron-log/main';
-import { channels, requestSchema } from '@browser-2d/contracts/host';
+import {
+  businessChannel,
+  businessMethods,
+  channels,
+  requestSchema,
+  storageFailureCodeSchema,
+} from '@browser-2d/contracts/host';
 import {
   failure,
   runResultSchema,
@@ -14,6 +20,8 @@ import {
   type Snapshot,
 } from '@browser-2d/contracts/public';
 import { launchWorker } from './worker-client';
+import { createCredentialVault } from '../platform/credentials';
+import { createBusinessCoordinator } from '../bridge/business';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -29,6 +37,7 @@ let worker: ReturnType<typeof launchWorker> | undefined;
 let window: BrowserWindow | undefined;
 let latestSnapshot: Snapshot | undefined;
 let quitting = false;
+let coordinator: ReturnType<typeof createBusinessCoordinator> | undefined;
 let verification: Record<string, unknown> | undefined;
 
 function allowedFrame(event: Electron.IpcMainInvokeEvent) {
@@ -60,10 +69,18 @@ for (const [method, channel] of Object.entries(channels)) {
       return method === 'snapshot'
         ? snapshotResultSchema.parse(result)
         : runResultSchema.parse(result);
-    } catch (error) {
-      log.error('worker request failed', error);
+    } catch {
+      log.error('worker request failed');
       return failure('UNAVAILABLE', 'Worker is unavailable');
     }
+  });
+}
+
+for (const method of businessMethods) {
+  ipcMain.handle(businessChannel(method), async (event, input: unknown) => {
+    if (!allowedFrame(event)) return failure('INVALID_INPUT', 'Untrusted application frame');
+    if (!coordinator || quitting) return failure('UNAVAILABLE', 'Worker is unavailable');
+    return coordinator.invoke(method, input);
   });
 }
 
@@ -73,9 +90,9 @@ async function closeApplication() {
   let exitCode = 0;
   try {
     await worker?.close();
-  } catch (error) {
+  } catch {
     exitCode = 1;
-    log.error('shutdown failed', error);
+    log.error('shutdown failed');
   }
   if (reportPath && verification) {
     await writeFile(
@@ -189,8 +206,57 @@ async function startApplication() {
     );
     return new Response(response.body, { status: response.status, headers });
   });
+  const vault = createCredentialVault({
+    path: join(dataDir, 'credentials.enc'),
+    encryption: {
+      async available() {
+        const available = await safeStorage.isAsyncEncryptionAvailable();
+        return (
+          available &&
+          (process.platform !== 'linux' ||
+            !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend()))
+        );
+      },
+      encrypt: (value) => safeStorage.encryptStringAsync(value),
+      async decrypt(value) {
+        return (await safeStorage.decryptStringAsync(value)).result;
+      },
+    },
+  });
   worker = launchWorker({
     dataDir,
+    businessPath:
+      process.env.BROWSER2D_DATA_DIR || !app.isPackaged
+        ? join(dataDir, 'data.db')
+        : join(homedir(), 'kys', 'data.db'),
+    async onCredentialChallenge(challenge) {
+      const response = { type: 'credential-receipt', bootNonce: challenge.bootNonce } as const;
+      if (challenge.kind === 'confirm') {
+        const confirmed =
+          process.argv.includes('--confirm-legacy-closed') ||
+          (
+            await dialog.showMessageBox({
+              type: 'question',
+              title: 'Upgrade local business data',
+              message: 'Close the old Browser 2D application before continuing.',
+              detail:
+                'The worker will keep a validated recovery backup and upgrade the existing data. Confirm that the old application is closed.',
+              buttons: ['Cancel', 'Old application is closed. Continue'],
+              defaultId: 0,
+              cancelId: 0,
+            })
+          ).response === 1;
+        return { ...response, kind: confirmed ? 'confirmed' : 'refused' };
+      }
+      if (challenge.kind === 'legacy')
+        return {
+          ...response,
+          kind: 'saved',
+          secretRef: await vault.preparePersistent(challenge.value),
+        };
+      await vault.verify(challenge.secretRef);
+      return { ...response, kind: 'verified' };
+    },
     nativeBinding: app.isPackaged ? undefined : process.env.BROWSER2D_NATIVE_BINDING,
     onSnapshot(snapshot) {
       latestSnapshot = snapshot;
@@ -199,6 +265,12 @@ async function startApplication() {
     onUnavailable(message) {
       log.error(message);
     },
+  });
+  coordinator = createBusinessCoordinator({
+    vault,
+    available: () => !!worker?.available && !quitting,
+    request: (message) =>
+      worker ? worker.request(message) : Promise.reject(new Error('Worker unavailable')),
   });
   await worker.ready;
   if (quitting) return;
@@ -235,12 +307,17 @@ void app
   .whenReady()
   .then(startApplication)
   .catch(async (error: unknown) => {
-    log.error('startup failed', error);
-    if (reportPath)
-      await writeFile(
-        reportPath,
-        JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+    const parsed = storageFailureCodeSchema.safeParse(
+      error instanceof Error ? error.message : undefined,
+    );
+    const code = parsed.success ? parsed.data : 'INITIALIZATION_FAILED';
+    log.error('startup failed', code);
+    if (!quitting)
+      dialog.showErrorBox(
+        'Business storage is unavailable',
+        `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,
       );
+    if (reportPath) await writeFile(reportPath, JSON.stringify({ error: code }));
     await worker?.close().catch(() => undefined);
     app.exit(1);
   });

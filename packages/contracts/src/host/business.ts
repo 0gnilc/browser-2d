@@ -42,6 +42,9 @@ export const businessOperations = {
   'settings.save': { input: settingsSaveSchema, result: resultSchema(settingsViewSchema) },
 };
 export type BusinessMethod = keyof typeof businessOperations;
+export const businessMethods = Object.keys(businessOperations).filter(
+  (key): key is BusinessMethod => key in businessOperations,
+);
 export const businessChannel = (method: BusinessMethod) => `business:${method}`;
 export const secretRefSchema = z.uuid().brand<'SecretRef'>();
 export type SecretRef = z.infer<typeof secretRefSchema>;
@@ -49,7 +52,7 @@ export const credentialCommitSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('retain') }),
   z.strictObject({ action: z.literal('clear') }),
   z.strictObject({ action: z.literal('persistent'), secretRef: secretRefSchema }),
-  z.strictObject({ action: z.literal('session') }),
+  z.strictObject({ action: z.literal('session'), secretRef: secretRefSchema }),
 ]);
 export const settingsCommitSchema = z.strictObject({
   values: settingsValuesSchema,
@@ -98,6 +101,11 @@ export const businessResultSchema = z.union([
 export const credentialChallengeSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     type: z.literal('credential-challenge'),
+    kind: z.literal('confirm'),
+    bootNonce: z.uuid(),
+  }),
+  z.strictObject({
+    type: z.literal('credential-challenge'),
     kind: z.literal('legacy'),
     bootNonce: z.uuid(),
     value: z.string().min(1).max(16_384),
@@ -110,6 +118,11 @@ export const credentialChallengeSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 export const credentialReceiptSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    type: z.literal('credential-receipt'),
+    kind: z.literal('confirmed'),
+    bootNonce: z.uuid(),
+  }),
   z.strictObject({
     type: z.literal('credential-receipt'),
     kind: z.literal('saved'),
@@ -140,3 +153,8 @@ export const storageFailureCodeSchema = z.enum([
   'INITIALIZATION_FAILED',
 ]);
 export type StorageFailureCode = z.infer<typeof storageFailureCodeSchema>;
+
+export const credentialVaultSchema = z.strictObject({
+  version: z.literal(1),
+  records: z.record(secretRefSchema, z.string().min(1).max(100_000)),
+});

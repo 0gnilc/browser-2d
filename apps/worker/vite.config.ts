@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   define: {
+    __BUSINESS_MIGRATIONS__: '__dirname + "/migrations/business"',
     __WORKER_MIGRATION__: '__dirname + "/migrations/001-runs.sql"',
     'import.meta.url': 'undefined',
   },

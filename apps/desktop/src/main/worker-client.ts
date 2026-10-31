@@ -6,11 +6,16 @@ import {
   shutdownResultSchema,
   workerEventSchema,
   type WorkerRequest,
+  type BusinessRequest,
+  type CredentialChallenge,
+  type CredentialReceipt,
 } from '@browser-2d/contracts/host';
 import type { Snapshot } from '@browser-2d/contracts/public';
 
 export function launchWorker(options: {
   dataDir: string;
+  businessPath: string;
+  onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
   nativeBinding?: string;
   onSnapshot: (snapshot: Snapshot) => void;
   onUnavailable: (message: string) => void;
@@ -27,6 +32,7 @@ export function launchWorker(options: {
     }
   >();
   let unavailable: Error | undefined;
+  let state: 'starting' | 'challenge' | 'ready' | 'closing' | 'failed' = 'starting';
   let closing = false;
   let exited = false;
   let resolveReady: (snapshot: Snapshot) => void;
@@ -39,11 +45,20 @@ export function launchWorker(options: {
   const exit = new Promise<number>((resolve) => {
     resolveExit = resolve;
   });
-  const startupTimer = setTimeout(() => fail(new Error('Worker readiness timed out')), 15_000);
+  let startupTimer: ReturnType<typeof setTimeout> | undefined;
+  function armStartupTimeout() {
+    clearTimeout(startupTimer);
+    startupTimer = setTimeout(() => {
+      fail(new Error('Worker readiness timed out'));
+      child.kill();
+    }, 60_000);
+  }
+  armStartupTimeout();
 
   function fail(error: Error) {
     if (unavailable) return;
     unavailable = error;
+    state = 'failed';
     clearTimeout(startupTimer);
     rejectReady(error);
     for (const request of pending.values()) {
@@ -57,6 +72,7 @@ export function launchWorker(options: {
     child.postMessage({
       type: 'initialize',
       dataDir: options.dataDir,
+      businessPath: options.businessPath,
       nativeBinding: options.nativeBinding,
     }),
   );
@@ -68,13 +84,42 @@ export function launchWorker(options: {
       return;
     }
     const event = parsed.data;
-    if (event.type === 'ready') {
+    if (event.type === 'credential-challenge') {
+      if (state !== 'starting') {
+        fail(new Error('Unexpected initialization request'));
+        child.kill();
+        return;
+      }
+      state = 'challenge';
+      if (event.kind === 'confirm') clearTimeout(startupTimer);
+      void options
+        .onCredentialChallenge(event)
+        .then((receipt) => {
+          if (state !== 'challenge' || closing) return;
+          state = 'starting';
+          armStartupTimeout();
+          child.postMessage(receipt);
+        })
+        .catch(() => {
+          if (state !== 'challenge' || closing) return;
+          state = 'starting';
+          armStartupTimeout();
+          child.postMessage({
+            type: 'credential-receipt',
+            kind: 'refused',
+            bootNonce: event.bootNonce,
+          });
+        });
+    } else if (event.type === 'ready') {
+      if (state !== 'starting' || closing) return;
+      state = 'ready';
       clearTimeout(startupTimer);
       resolveReady(event.snapshot);
       options.onSnapshot(event.snapshot);
-    } else if (event.type === 'snapshot') options.onSnapshot(event.snapshot);
-    else if (event.type === 'fatal') {
-      fail(new Error(event.message));
+    } else if (event.type === 'snapshot') {
+      if (state === 'ready' || closing) options.onSnapshot(event.snapshot);
+    } else if (event.type === 'fatal' || event.type === 'blocked') {
+      fail(new Error(event.type === 'blocked' ? event.code : 'Worker failed'));
       child.kill();
     } else {
       const request = pending.get(event.requestId);
@@ -91,8 +136,10 @@ export function launchWorker(options: {
     fail(new Error(`Worker exited (${code})`));
   });
 
-  function request(message: WorkerRequest): Promise<unknown> {
+  function request(message: WorkerRequest | BusinessRequest): Promise<unknown> {
     if (unavailable) return Promise.reject(unavailable);
+    if (message.method !== 'shutdown' && state !== 'ready')
+      return Promise.reject(new Error('Worker is not ready'));
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(message.requestId);
@@ -102,8 +149,16 @@ export function launchWorker(options: {
       child.postMessage(message);
     });
   }
-  async function close() {
+  let closingPromise: Promise<void> | undefined;
+  function close() {
+    closingPromise ??= closeWorker();
+    return closingPromise;
+  }
+  async function closeWorker() {
     closing = true;
+    state = 'closing';
+    clearTimeout(startupTimer);
+    rejectReady(new Error('Worker is closing'));
     if (exited) throw unavailable ?? new Error('Worker exited before shutdown');
     let shutdownError: unknown;
     try {
@@ -142,6 +197,9 @@ export function launchWorker(options: {
     request,
     close,
     entry,
+    get available() {
+      return state === 'ready' && !closing && !unavailable;
+    },
     get pid() {
       return child.pid;
     },

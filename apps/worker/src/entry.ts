@@ -1,92 +1,245 @@
+import { randomUUID } from 'node:crypto';
 import { failure } from '@browser-2d/contracts/public';
 import {
+  businessRequestSchema,
+  credentialReceiptSchema,
   initializeSchema,
   requestSchema,
   workerEventSchema,
+  type BusinessRequest,
+  type CredentialChallenge,
+  type CredentialReceipt,
   type WorkerEvent,
 } from '@browser-2d/contracts/host';
 import { createRunService } from './service';
+import { openBusinessStore, StorageError } from './storage/open-business-store';
+import type { BusinessStore } from './storage/business-store';
 
 const port = process.parentPort;
 if (!port) throw new Error('Worker requires an Electron utilityProcess parent');
+let phase: 'new' | 'opening' | 'ready' | 'closing' | 'closed' = 'new';
 let service: ReturnType<typeof createRunService> | undefined;
-let shuttingDown = false;
-
+let business: BusinessStore | undefined;
+let opening: Promise<void> = Promise.resolve();
+const cancellation = new AbortController();
+let challenge:
+  | {
+      request: CredentialChallenge;
+      resolve: (receipt: CredentialReceipt) => void;
+      reject: () => void;
+    }
+  | undefined;
 function send(event: WorkerEvent) {
   port?.postMessage(workerEventSchema.parse(event));
 }
-function fatal(error: unknown) {
-  if (shuttingDown) return;
-  shuttingDown = true;
+function fail() {
+  if (phase === 'closing' || phase === 'closed') return;
+  phase = 'closed';
+  send({ type: 'fatal', message: 'Worker failed' });
+  setImmediate(() => process.exit(1));
+}
+process.on('uncaughtException', fail);
+process.on('unhandledRejection', fail);
+function ask(request: CredentialChallenge) {
+  return new Promise<CredentialReceipt>((resolve, reject) => {
+    challenge = {
+      request,
+      resolve,
+      reject: () => reject(new StorageError('CREDENTIAL_UNAVAILABLE')),
+    };
+    send(request);
+  });
+}
+async function initialize(data: unknown) {
+  const input = initializeSchema.parse(data);
+  phase = 'opening';
   try {
-    send({ type: 'fatal', message: error instanceof Error ? error.message : 'Worker failed' });
-  } finally {
+    const result = await openBusinessStore({
+      path: input.businessPath,
+      nativeBinding: input.nativeBinding,
+      signal: cancellation.signal,
+      async confirmLegacy() {
+        const receipt = await ask({
+          type: 'credential-challenge',
+          kind: 'confirm',
+          bootNonce: randomUUID(),
+        });
+        return receipt.kind === 'confirmed';
+      },
+      async prepareLegacy(value) {
+        const receipt = await ask({
+          type: 'credential-challenge',
+          kind: 'legacy',
+          bootNonce: randomUUID(),
+          value,
+        });
+        if (receipt.kind !== 'saved') throw new StorageError('CREDENTIAL_UNAVAILABLE');
+        return receipt.secretRef;
+      },
+      async verifyCredential(secretRef) {
+        const receipt = await ask({
+          type: 'credential-challenge',
+          kind: 'verify',
+          bootNonce: randomUUID(),
+          secretRef,
+        });
+        if (receipt.kind !== 'verified') throw new StorageError('CREDENTIAL_UNAVAILABLE');
+      },
+    });
+    business = result.store;
+    if (cancellation.signal.aborted) {
+      business.close();
+      return;
+    }
+    service = createRunService({
+      ...input,
+      onSnapshot: (snapshot) => send({ type: 'snapshot', snapshot }),
+    });
+    phase = 'ready';
+    send({ type: 'ready', snapshot: service.snapshot() });
+  } catch (error) {
+    if (cancellation.signal.aborted) return;
+    phase = 'closed';
+    send({
+      type: 'blocked',
+      code: error instanceof StorageError ? error.code : 'INITIALIZATION_FAILED',
+    });
     setImmediate(() => process.exit(1));
   }
 }
-process.on('uncaughtException', fatal);
-process.on('unhandledRejection', fatal);
-
+function dispatch(request: BusinessRequest) {
+  if (!business || phase !== 'ready')
+    return failure('UNAVAILABLE', 'Business storage is unavailable');
+  switch (request.method) {
+    case 'devices.list':
+      return business.devices.list();
+    case 'devices.create':
+      return business.devices.create(request.input);
+    case 'devices.update':
+      return business.devices.update(request.input);
+    case 'devices.delete':
+      return business.devices.delete(request.input);
+    case 'materials.page':
+      return business.materials.page(request.input);
+    case 'materials.create':
+      return business.materials.create(request.input);
+    case 'materials.update':
+      return business.materials.update(request.input);
+    case 'materials.delete':
+      return business.materials.delete(request.input);
+    case 'materials.clear':
+      return business.materials.clear();
+    case 'materials.reset':
+      return business.materials.reset(request.input);
+    case 'materials.importText':
+      return business.materials.importText(request.input);
+    case 'history.page':
+      return business.history.page(request.input);
+    case 'history.delete':
+      return business.history.delete(request.input);
+    case 'history.clear':
+      return business.history.clear();
+    case 'history.exportText':
+      return business.history.exportText(request.input);
+    case 'settings.get':
+      return business.settings.get();
+    case 'settings.commit':
+      return business.settings.commit(request.input);
+    default: {
+      const exhaustive: never = request;
+      return exhaustive;
+    }
+  }
+}
+async function shutdown(requestId: string) {
+  phase = 'closing';
+  cancellation.abort();
+  challenge?.reject();
+  challenge = undefined;
+  await opening;
+  business?.close();
+  service?.close();
+  send({ type: 'response', requestId, result: { ok: true, value: null } });
+  phase = 'closed';
+  setImmediate(() => process.exit(0));
+}
 port.on('message', ({ data }: { data: unknown }) => {
-  if (shuttingDown) return;
+  if (phase === 'closed' || phase === 'closing') return;
   try {
-    if (!service) {
-      const input = initializeSchema.parse(data);
-      service = createRunService({
-        ...input,
-        onSnapshot: (snapshot) => send({ type: 'snapshot', snapshot }),
-      });
-      send({ type: 'ready', snapshot: service.snapshot() });
+    const task = requestSchema.safeParse(data);
+    if (task.success && task.data.method === 'shutdown') {
+      void shutdown(task.data.requestId).catch(fail);
       return;
     }
-    const parsed = requestSchema.safeParse(data);
-    if (!parsed.success) {
-      const envelope = requestSchema.options[0]
-        .pick({ type: true, requestId: true })
-        .safeParse(data);
-      if (!envelope.success) throw new Error('Invalid worker request envelope');
-      send({
-        type: 'response',
-        requestId: envelope.data.requestId,
-        result: failure('INVALID_INPUT', 'Invalid task request'),
-      });
+    if (phase === 'new') {
+      opening = initialize(data);
       return;
     }
-    const request = parsed.data;
-    switch (request.method) {
+    const receipt = credentialReceiptSchema.safeParse(data);
+    if (receipt.success) {
+      const waiting = challenge;
+      if (phase !== 'opening' || !waiting || waiting.request.bootNonce !== receipt.data.bootNonce) {
+        fail();
+        return;
+      }
+      const valid =
+        receipt.data.kind === 'refused' ||
+        (waiting.request.kind === 'confirm' && receipt.data.kind === 'confirmed') ||
+        (waiting.request.kind === 'legacy' && receipt.data.kind === 'saved') ||
+        (waiting.request.kind === 'verify' && receipt.data.kind === 'verified');
+      if (!valid) {
+        fail();
+        return;
+      }
+      challenge = undefined;
+      waiting.resolve(receipt.data);
+      return;
+    }
+    const request = businessRequestSchema.safeParse(data);
+    if (request.success) {
+      let result;
+      try {
+        result = dispatch(request.data);
+      } catch {
+        result = failure('INTERNAL', 'Business operation failed');
+      }
+      send({ type: 'business-response', requestId: request.data.requestId, result });
+      return;
+    }
+    if (phase !== 'ready' || !service || !task.success) {
+      fail();
+      return;
+    }
+    switch (task.data.method) {
+      case 'shutdown':
+        return;
       case 'snapshot':
         send({
           type: 'response',
-          requestId: request.requestId,
+          requestId: task.data.requestId,
           result: { ok: true, value: service.snapshot() },
         });
         break;
       case 'start':
         send({
           type: 'response',
-          requestId: request.requestId,
-          result: service.start(request.input),
+          requestId: task.data.requestId,
+          result: service.start(task.data.input),
         });
         break;
       case 'cancel':
         send({
           type: 'response',
-          requestId: request.requestId,
-          result: service.cancel(request.input),
+          requestId: task.data.requestId,
+          result: service.cancel(task.data.input),
         });
         break;
-      case 'shutdown':
-        service.close();
-        send({ type: 'response', requestId: request.requestId, result: { ok: true, value: null } });
-        shuttingDown = true;
-        setImmediate(() => process.exit(0));
-        break;
       default: {
-        const exhaustive: never = request;
-        throw new Error(`Unsupported worker request ${String(exhaustive)}`);
+        const exhaustive: never = task.data;
+        throw new Error(String(exhaustive));
       }
     }
-  } catch (error) {
-    fatal(error);
+  } catch {
+    fail();
   }
 });

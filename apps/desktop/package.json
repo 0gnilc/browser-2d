@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:credentials": "vitest run --config vitest.credentials.config.ts"
   },
   "dependencies": {
     "@browser-2d/worker-runtime": "workspace:*",
@@ -26,7 +27,8 @@
     "@electron/fuses": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "homepage": "https://github.com/0gnilc/browser-2d",
   "repository": {
