@@ -242,6 +242,18 @@ export function createChromeDriver({
       lifetime = live.lifetime;
       if (!lifetime) return uncertain();
     }
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'cleanup-before-initial-probe',
+        time: Date.now(),
+        operationId: intent.operationId,
+        lifetime,
+        phase: state.phase,
+        live: Boolean(live),
+        exited: live?.exited,
+        workerPid: process.pid,
+      }) + '\n',
+    );
     const observation = observeOwnedLifetime(lifetime);
     if (observation === 'unknown') return uncertain();
     const mainPid = lifetime.kind === 'posix-group' ? lifetime.pgid : lifetime.pid;
@@ -274,7 +286,30 @@ export function createChromeDriver({
         }
       }
     }
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'cleanup-before-final-probe',
+        time: Date.now(),
+        operationId: intent.operationId,
+        lifetime,
+        phase: state.phase,
+        live: Boolean(live),
+        exited: live?.exited,
+        workerPid: process.pid,
+      }) + '\n',
+    );
     const proof = await awaitOwnedLifetime(lifetime, signal);
+    process.stderr.write(
+      JSON.stringify({
+        diagnostic: 'cleanup-after-final-probe',
+        time: Date.now(),
+        operationId: intent.operationId,
+        lifetime,
+        proof,
+        exited: live?.exited,
+        workerPid: process.pid,
+      }) + '\n',
+    );
     return proof ? releasedOwned(intent, proof, signal) : uncertain();
   }
   async function cleanupBorrowed(
