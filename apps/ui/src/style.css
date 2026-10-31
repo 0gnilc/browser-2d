@@ -189,9 +189,6 @@ h2 {
 .device-field {
   flex: 1;
 }
-.duration-field {
-  width: 190px;
-}
 .field small {
   margin-left: 4px;
   color: #98a096;
@@ -215,9 +212,6 @@ h2 {
 .task-form > button {
   height: 40px;
   padding: 0 20px;
-}
-.task-form button span[aria-hidden] {
-  margin-left: 20px;
 }
 .form-note {
   color: #939d92;
@@ -380,9 +374,6 @@ td {
   .device-field {
     flex-basis: 100%;
   }
-  .duration-field {
-    flex: 1;
-  }
   .history-heading {
     padding: 22px 20px;
   }
@@ -493,4 +484,10 @@ td {
     overflow-x: auto;
     white-space: nowrap;
   }
+}
+.fixture-actions {
+  margin-top: 14px;
+}
+.resources-panel {
+  margin-top: 23px;
 }

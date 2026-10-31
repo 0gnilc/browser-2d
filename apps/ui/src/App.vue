@@ -14,7 +14,7 @@ import { RouterLink, RouterView } from 'vue-router';
     }"
   >
     <nav class="workspace business-nav" aria-label="页面导航">
-      <RouterLink to="/">基础验收</RouterLink>
+      <RouterLink to="/">调度验收</RouterLink>
       <RouterLink to="/devices" data-testid="nav-devices">设备</RouterLink>
       <RouterLink to="/materials" data-testid="nav-materials">材料</RouterLink>
       <RouterLink to="/history" data-testid="nav-history">历史</RouterLink>
