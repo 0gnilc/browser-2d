@@ -63,10 +63,13 @@ tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
     (out / 'trace.bt').write_text('\n'.join(blocks))
     def git(*args):
         return subprocess.check_output(['git', *args], text=True).strip()
-    expected = git('rev-parse', 'ee9a0e6:apps/worker/src')
+    expected = 'd9aec39f1859793b1258ac9139b7ac9bdd49504b'
     actual = git('rev-parse', 'HEAD:apps/worker/src')
     assert expected == actual, (expected, actual)
-    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with controlled-prefix paths and subsequent negative-group observers, captured paths capped at 128 bytes. Pathnames are sampled at entry and again at return after the syscall has accessed user memory. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
+    worker_tree = git('rev-parse', 'HEAD:apps/worker')
+    expected_worker_tree = 'cdfca40bf4251a801e831906f75a6b64b3178508'
+    assert worker_tree == expected_worker_tree, (worker_tree, expected_worker_tree)
+    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': 'beeaba0c9fae03192714dbe51be753a882c0c6e5', 'workerTreeDigest': worker_tree, 'workerTreeDigestExpected': expected_worker_tree, 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with controlled-prefix paths and subsequent negative-group observers, captured paths capped at 128 bytes. Pathnames are sampled at entry and again at return after the syscall has accessed user memory. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
     (out / 'context.json').write_text(json.dumps(metadata, indent=2))
 else:
     family = json.loads((out / 'chrome-family-linux-x64.json').read_text())

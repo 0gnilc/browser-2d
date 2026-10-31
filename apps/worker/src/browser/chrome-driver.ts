@@ -275,7 +275,7 @@ export function createChromeDriver({
       }
     }
     const proof = await awaitOwnedLifetime(lifetime, signal);
-    return proof ? releasedOwned(intent, proof, signal) : uncertain();
+    return releasedOwned(intent, proof, signal);
   }
   async function cleanupBorrowed(
     intent: Obligation,
