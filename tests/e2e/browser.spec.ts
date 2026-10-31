@@ -151,6 +151,9 @@ for (const phase of ['running', 'spawned', 'cancel-spawned'] as const) {
         );
       } else {
         await worker.evaluate((host) => host.kill());
+        expect(absent(browserPid), 'Chrome must remain available for verified recovery').toBe(
+          false,
+        );
         worker = await workerHarness(app, { dataDir, execution: 'chrome' });
         await worker.evaluate((host) => host.ready());
       }

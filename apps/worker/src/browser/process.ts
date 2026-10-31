@@ -42,7 +42,12 @@ export async function executablePath(configured: string): Promise<string> {
 }
 export type OwnedChild = { child: ChildProcess; exited: boolean; failedToSpawn: boolean };
 export function spawnOwned(executable: string, args: string[]): OwnedChild {
-  const child = spawn(executable, args, { stdio: 'ignore', windowsHide: true, shell: false });
+  const child = spawn(executable, args, {
+    stdio: 'ignore',
+    windowsHide: true,
+    shell: false,
+    detached: process.platform === 'win32',
+  });
   const owned: OwnedChild = { child, exited: false, failedToSpawn: false };
   child.once('exit', () => {
     owned.exited = true;

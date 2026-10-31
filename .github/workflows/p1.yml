@@ -6,6 +6,11 @@ on:
   pull_request:
     paths-ignore: ['docs/**', 'README.md', '.audit/**']
   workflow_dispatch:
+    inputs:
+      windows_only:
+        description: Run only the Windows native target
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -16,15 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: windows-2025
-            target: win-x64
-          - runner: macos-15-intel
-            target: mac-x64
-          - runner: macos-15
-            target: mac-arm64
-          - runner: ubuntu-24.04
-            target: linux-x64
+        include: ${{ fromJSON(inputs.windows_only && '[{"runner":"windows-2025","target":"win-x64"}]' || '[{"runner":"windows-2025","target":"win-x64"},{"runner":"macos-15-intel","target":"mac-x64"},{"runner":"macos-15","target":"mac-arm64"},{"runner":"ubuntu-24.04","target":"linux-x64"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:

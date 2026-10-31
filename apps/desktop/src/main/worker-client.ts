@@ -196,6 +196,7 @@ export function launchWorker(options: {
     if (exited) throw unavailable ?? new Error('Worker exited before shutdown');
     const deadline = Date.now() + 10_000;
     let forced = false;
+    let shutdownFailure: unknown;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const cooperative = (async () => {
@@ -217,8 +218,9 @@ export function launchWorker(options: {
           }),
         ]);
         return;
-      } catch {
+      } catch (error) {
         forced = true;
+        shutdownFailure = error;
       } finally {
         clearTimeout(timer);
       }
@@ -238,7 +240,7 @@ export function launchWorker(options: {
           }),
         ]);
       }
-      if (forced) throw new Error('Worker did not shut down cleanly');
+      if (forced) throw new Error('Worker did not shut down cleanly', { cause: shutdownFailure });
     } finally {
       clearTimeout(timer);
       clearInterval(heartbeat);

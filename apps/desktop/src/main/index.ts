@@ -105,9 +105,14 @@ async function closeApplication() {
   let exitCode = 0;
   try {
     await worker?.close();
-  } catch {
+  } catch (error) {
     exitCode = 1;
-    log.error('shutdown failed');
+    log.error('shutdown failed', {
+      reason: error instanceof Error ? error.message : 'Unknown shutdown error',
+      cause:
+        error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined,
+      resources: latestSnapshot?.resources,
+    });
   }
   if (reportPath && verification) {
     await writeFile(
