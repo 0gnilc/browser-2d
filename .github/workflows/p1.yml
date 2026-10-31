@@ -36,16 +36,7 @@ jobs:
         run: pnpm test:storage
       - name: Bounded native cold-recovery probes
         shell: bash
-        run: |
-          for attempt in $(seq 1 40); do
-            log="$PWD/artifacts/profile-probes/attempt-$attempt.log"
-            if pnpm --filter @browser-2d/worker-runtime exec vitest run tests/chrome.test.ts -t 'recovers a verified owned browser that exited before its release was journaled' > "$log" 2>&1; then
-              echo "Cold-recovery probe $attempt passed"
-            else
-              cat "$log"
-              exit 1
-            fi
-          done
+        run: bash scripts/run-profile-cleanup-probes.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
