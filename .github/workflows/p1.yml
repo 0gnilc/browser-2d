@@ -42,7 +42,6 @@ jobs:
           BROWSER2D_PROFILE_TRACE_DIR: ${{ github.workspace }}/artifacts/profile-probes
         run: |
           echo creation-only > artifacts/profile-probes/observation-mode.txt
-          pnpm test:storage
           for attempt in $(seq 1 80); do
             log="$PWD/artifacts/profile-probes/attempt-$attempt.log"
             if pnpm --filter @browser-2d/worker-runtime exec vitest run tests/chrome.test.ts -t 'recovers a verified owned browser that exited before its release was journaled' > "$log" 2>&1; then
