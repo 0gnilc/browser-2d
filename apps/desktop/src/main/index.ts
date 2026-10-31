@@ -15,9 +15,11 @@ import {
 } from '@browser-2d/contracts/host';
 import {
   failure,
-  runResultSchema,
-  snapshotResultSchema,
-  type Snapshot,
+  commandResultSchema,
+  commandLookupResultSchema,
+  workSnapshotResultSchema,
+  type WorkSnapshot,
+  type WorkState,
 } from '@browser-2d/contracts/public';
 import { launchWorker } from './worker-client';
 import { createCredentialVault } from '../platform/credentials';
@@ -35,7 +37,12 @@ const reportArgument = process.argv.find((value) => value.startsWith('--verify-p
 const reportPath = reportArgument?.slice('--verify-p1='.length);
 let worker: ReturnType<typeof launchWorker> | undefined;
 let window: BrowserWindow | undefined;
-let latestSnapshot: Snapshot | undefined;
+let latestSnapshot: WorkSnapshot | undefined;
+let workState: WorkState = { status: 'unavailable', generation: 0, reason: 'Worker is starting' };
+function publishWork(state: WorkState) {
+  workState = state;
+  if (window && !window.isDestroyed()) window.webContents.send(channels.changed, state);
+}
 let quitting = false;
 let coordinator: ReturnType<typeof createBusinessCoordinator> | undefined;
 let verification: Record<string, unknown> | undefined;
@@ -56,6 +63,7 @@ for (const [method, channel] of Object.entries(channels)) {
   if (method === 'changed') continue;
   ipcMain.handle(channel, async (event, input: unknown) => {
     if (!allowedFrame(event)) return failure('INVALID_INPUT', 'Untrusted application frame');
+    if (method === 'subscribe') return workState;
     const parsed = requestSchema.safeParse({
       type: 'request',
       requestId: randomUUID(),
@@ -67,8 +75,10 @@ for (const [method, channel] of Object.entries(channels)) {
     try {
       const result = await worker.request(parsed.data);
       return method === 'snapshot'
-        ? snapshotResultSchema.parse(result)
-        : runResultSchema.parse(result);
+        ? workSnapshotResultSchema.parse(result)
+        : method === 'getCommand'
+          ? commandLookupResultSchema.parse(result)
+          : commandResultSchema.parse(result);
     } catch {
       log.error('worker request failed');
       return failure('UNAVAILABLE', 'Worker is unavailable');
@@ -87,6 +97,11 @@ for (const method of businessMethods) {
 async function closeApplication() {
   if (quitting) return;
   quitting = true;
+  publishWork({
+    status: 'unavailable',
+    generation: workState.generation + 1,
+    reason: 'Worker is shutting down',
+  });
   let exitCode = 0;
   try {
     await worker?.close();
@@ -233,6 +248,7 @@ async function startApplication() {
       },
     },
   });
+  const generation = workState.generation + 1;
   worker = launchWorker({
     dataDir,
     businessPath:
@@ -270,9 +286,15 @@ async function startApplication() {
     nativeBinding: app.isPackaged ? undefined : process.env.BROWSER2D_NATIVE_BINDING,
     onSnapshot(snapshot) {
       latestSnapshot = snapshot;
-      if (window && !window.isDestroyed()) window.webContents.send(channels.changed, snapshot);
+      if (!quitting && workState.generation <= generation)
+        publishWork({ status: 'ready', generation, snapshot });
     },
     onUnavailable(message) {
+      publishWork({
+        status: 'unavailable',
+        generation: generation + 1,
+        reason: 'Worker is unavailable',
+      });
       log.error(message);
     },
   });
@@ -285,7 +307,7 @@ async function startApplication() {
   await worker.ready;
   if (quitting) return;
   if (process.argv.includes('--worker-only')) {
-    log.info('Synthetic worker ready', { pid: worker.pid });
+    log.info('Controlled worker ready', { pid: worker.pid });
     return;
   }
   window = new BrowserWindow({

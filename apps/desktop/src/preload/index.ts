@@ -8,9 +8,12 @@ import {
 import {
   cancelInputSchema,
   failure,
-  runResultSchema,
-  snapshotResultSchema,
-  snapshotSchema,
+  startResultSchema,
+  cancelResultSchema,
+  commandInputSchema,
+  commandLookupResultSchema,
+  workStateSchema,
+  type WorkState,
   startInputSchema,
   type Browser2dApi,
   type Failure,
@@ -28,6 +31,38 @@ async function business<T>(
     return parse(await ipcRenderer.invoke(businessChannel(method), parsed.data));
   } catch {
     return failure('UNAVAILABLE', 'Business storage is unavailable');
+  }
+}
+let current: WorkState = { status: 'unavailable', generation: 0, reason: 'Worker is starting' };
+const listeners = new Set<(state: WorkState) => void>();
+function receive(value: unknown) {
+  const parsed = workStateSchema.safeParse(value);
+  if (!parsed.success) return;
+  const next = parsed.data;
+  if (next.generation < current.generation) return;
+  if (next.generation === current.generation) {
+    if (current.status === 'unavailable' && next.status === 'ready') return;
+    if (
+      current.status === 'ready' &&
+      next.status === 'ready' &&
+      (next.snapshot.epoch !== current.snapshot.epoch ||
+        next.snapshot.revision < current.snapshot.revision)
+    )
+      return;
+  }
+  current = next;
+  for (const listener of listeners) listener(current);
+}
+ipcRenderer.on(channels.changed, (_event, value: unknown) => receive(value));
+async function refresh() {
+  try {
+    receive(await ipcRenderer.invoke(channels.subscribe));
+  } catch {
+    receive({
+      status: 'unavailable',
+      generation: current.generation,
+      reason: 'Worker is unavailable',
+    });
   }
 }
 const api: Browser2dApi = {
@@ -76,49 +111,50 @@ const api: Browser2dApi = {
     save: (input) =>
       business('settings.save', input, businessOperations['settings.save'].result.parse),
   },
-  async getSnapshot() {
-    try {
-      return snapshotResultSchema.parse(await ipcRenderer.invoke(channels.snapshot));
-    } catch {
-      return failure('UNAVAILABLE', '工作进程暂不可用');
-    }
-  },
-  async start(input) {
-    const parsed = startInputSchema.safeParse(input);
-    if (!parsed.success) return failure('INVALID_INPUT', '任务参数不合法');
-    try {
-      return runResultSchema.parse(await ipcRenderer.invoke(channels.start, parsed.data));
-    } catch {
-      return failure('UNAVAILABLE', '工作进程暂不可用');
-    }
-  },
-  async cancel(input) {
-    const parsed = cancelInputSchema.safeParse(input);
-    if (!parsed.success) return failure('INVALID_INPUT', '任务标识不合法');
-    try {
-      return runResultSchema.parse(await ipcRenderer.invoke(channels.cancel, parsed.data));
-    } catch {
-      return failure('UNAVAILABLE', '工作进程暂不可用');
-    }
-  },
-  subscribe(listener) {
-    let disposed = false;
-    let receivedEvent = false;
-    const receive = (_event: Electron.IpcRendererEvent, value: unknown) => {
-      const parsed = snapshotSchema.safeParse(value);
-      if (!disposed && parsed.success) {
-        receivedEvent = true;
-        listener(parsed.data);
+  work: {
+    async getSnapshot() {
+      await refresh();
+      return current.status === 'ready'
+        ? { ok: true, value: current.snapshot }
+        : failure('UNAVAILABLE', current.reason);
+    },
+    async start(input) {
+      const parsed = startInputSchema.safeParse(input);
+      if (!parsed.success) return failure('INVALID_INPUT', 'Invalid task input');
+      try {
+        return startResultSchema.parse(await ipcRenderer.invoke(channels.start, parsed.data));
+      } catch {
+        return failure('UNAVAILABLE', 'Worker is unavailable');
       }
-    };
-    ipcRenderer.on(channels.changed, receive);
-    void api.getSnapshot().then((result) => {
-      if (!disposed && !receivedEvent && result.ok) listener(result.value);
-    });
-    return () => {
-      disposed = true;
-      ipcRenderer.removeListener(channels.changed, receive);
-    };
+    },
+    async cancel(input) {
+      const parsed = cancelInputSchema.safeParse(input);
+      if (!parsed.success) return failure('INVALID_INPUT', 'Invalid cancellation input');
+      try {
+        return cancelResultSchema.parse(await ipcRenderer.invoke(channels.cancel, parsed.data));
+      } catch {
+        return failure('UNAVAILABLE', 'Worker is unavailable');
+      }
+    },
+    async getCommand(input) {
+      const parsed = commandInputSchema.safeParse(input);
+      if (!parsed.success) return failure('INVALID_INPUT', 'Invalid command input');
+      try {
+        return commandLookupResultSchema.parse(
+          await ipcRenderer.invoke(channels.getCommand, parsed.data),
+        );
+      } catch {
+        return failure('UNAVAILABLE', 'Worker is unavailable');
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      listener(current);
+      void refresh();
+      return () => {
+        listeners.delete(listener);
+      };
+    },
   },
 };
 contextBridge.exposeInMainWorld('browser2d', api);
