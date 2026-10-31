@@ -10,6 +10,7 @@ const puppeteer = workerRequire('puppeteer-core');
 export async function observeChrome(rootDirectory, signal, readyPath) {
   const pids = new Set();
   const versions = new Set();
+  const instances = new Set();
   let maximumPages = 0;
   let maximumBrowsers = 0;
   while (!signal.aborted) {
@@ -29,6 +30,7 @@ export async function observeChrome(rootDirectory, signal, readyPath) {
           browserWSEndpoint: `ws://127.0.0.1:${port}${path}`,
           protocolTimeout: 1000,
         });
+        instances.add(name);
         const session = await browser.target().createCDPSession();
         versions.add(await browser.version());
         const processes = await session.send('SystemInfo.getProcessInfo');
@@ -45,7 +47,15 @@ export async function observeChrome(rootDirectory, signal, readyPath) {
     maximumPages = Math.max(maximumPages, pages);
     maximumBrowsers = Math.max(maximumBrowsers, browsers);
     if (pages === 4 && readyPath) await writeFile(readyPath, '4', { mode: 0o600 });
+    if (pages === 2 && instances.size >= 3 && readyPath)
+      await writeFile(`${readyPath}.shutdown`, '2', { mode: 0o600 });
     await delay(100);
   }
-  return { maximumPages, maximumBrowsers, pids: [...pids], versions: [...versions] };
+  return {
+    maximumPages,
+    maximumBrowsers,
+    instances: instances.size,
+    pids: [...pids],
+    versions: [...versions],
+  };
 }

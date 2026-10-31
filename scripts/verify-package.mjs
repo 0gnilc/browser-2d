@@ -115,6 +115,7 @@ const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
   const readyPath = join(dataDir, 'chrome-pages-ready');
   await rm(readyPath, { force: true });
+  await rm(`${readyPath}.shutdown`, { force: true });
   const observationAbort = new AbortController();
   const observation = observeChrome(
     join(dataDir, 'chrome-sessions'),
@@ -185,6 +186,7 @@ for (let pass = 1; pass <= 2; pass++) {
   assert.equal(report.finalSnapshot.execution, 'chrome');
   assert.equal(chrome.maximumBrowsers, 2, 'Did not observe two actual Chrome instances');
   assert.equal(chrome.maximumPages, 4, 'Did not observe four actual isolated Chrome pages');
+  assert.equal(chrome.instances, 3, 'Shutdown did not exercise a third actual Chrome instance');
   assert(chrome.pids.length >= 2, 'Chrome process identities were not observed');
   for (const pid of chrome.pids) assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
   assert.deepEqual(await readdir(join(dataDir, 'chrome-sessions')), []);

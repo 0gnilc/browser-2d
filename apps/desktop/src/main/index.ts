@@ -151,9 +151,13 @@ async function verifyPackagedWindow() {
   )
     throw new Error('P1 verification requires its own temporary directory');
   const pageProof = setInterval(() => {
-    if (!existsSync(join(dataDir, 'chrome-pages-ready')) || !window || window.isDestroyed()) return;
+    if (!window || window.isDestroyed()) return;
+    const pages = existsSync(join(dataDir, 'chrome-pages-ready'));
+    const shutdown = existsSync(join(dataDir, 'chrome-pages-ready.shutdown'));
     void window.webContents
-      .executeJavaScript("document.documentElement.dataset.chromePagesVerified = 'true'")
+      .executeJavaScript(
+        `document.documentElement.dataset.chromePagesVerified = '${pages}'; document.documentElement.dataset.chromeShutdownVerified = '${shutdown}'`,
+      )
       .catch(() => undefined);
   }, 100);
   const result: unknown = await window.webContents
@@ -207,6 +211,7 @@ async function verifyPackagedWindow() {
     await waitFor(snapshot => snapshot.runs.some(run => run.id === starts[1].runId && run.state === 'completed') && snapshot.resources.length === 0);
     assert(observed > 0, 'Subscription received no events'); dispose();
     const active = await api.work.start({ commandId: crypto.randomUUID(), deviceId: devices[0].id }); assert(active.ok, 'Shutdown start failed');
+    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromeShutdownVerified === 'true');
     return { initialCount: initial.value.runs.length, completedId: starts[1].runId, cancelledId: starts[0].runId, queuedCancelledId: starts[2].runId, shutdownId: active.value.runId, workerPid: initial.value.workerPid, observed, nodeIsolation: true, capacity: { devices: 2, pages: 4, queuedObserved: true }, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
   })()`,
     )
