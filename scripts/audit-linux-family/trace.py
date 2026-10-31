@@ -51,8 +51,8 @@ tracepoint:syscalls:sys_exit_{name}
  printf("NS_RETURN\\t%llu\\t%llu\\t%d\\t%d\\t%lld\\n", @start[tid], nsecs, pid, tid, args->ret);
  delete(@start[tid]);
 }}''')
-    blocks.append(f'''tracepoint:syscalls:sys_enter_kill /args->pid < 0/ {{
- @killstart[tid] = nsecs; @target[tid] = args->pid; @signal[tid] = args->sig;
+    blocks.append(f'''tracepoint:syscalls:sys_enter_kill {{
+ @killstart[tid] = nsecs; @target[tid] = (int64)(int32)args->pid; @signal[tid] = args->sig;
  @killgroup[tid] = {group};
 }}
 tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
@@ -106,7 +106,7 @@ else:
     escaped = [e for e in native_writes if e['pgid'] != main]
     esrch = [e for e in groups if e['target'] == -main and e['signal'] == 0 and e['result'] == -3 and e['pid'] == family['workerPid']]
     removals = [e for e in events if e['path'] == profile and e['syscall'] == 'rmdir' and e['result'] == 0]
-    deletion_attempts = [e for e in events if (e['path'] == profile or e['path'].startswith(profile + '/')) and e['syscall'] in {'rmdir', 'unlink', 'unlinkat'}]
+    deletion_attempts = [e for e in events if (e['path'] == profile or e['path'].startswith(profile + '/')) and e['syscall'] in {'rmdir', 'unlink', 'unlinkat'} and e['pid'] == family['workerPid']]
     ordered = bool(esrch and removals and deletion_attempts and min(e['end'] for e in esrch) < min(e['start'] for e in deletion_attempts))
     report = {'family': family, 'context': context, 'nativeWriterCount': len(native_writes), 'nativeWriters': native_writes[:20], 'nativeHelperWriters': native_helpers[:20], 'nativeWriterGroups': sorted({e['pgid'] for e in native_writes}), 'escapedNativeWriters': escaped, 'helperPositiveWrites': controls, 'groupESRCH': esrch, 'profileRmdir': removals, 'firstProfileDeletionAttempt': min(deletion_attempts, key=lambda e: e['start']) if deletion_attempts else None, 'groupAbsentBeforeProfileRemoval': ordered, 'namespaceEventCount': len(events), 'groupEventCount': len(groups), 'unmatchedNamespaceEntries': list(pending.values()), 'traceStderr': (out / 'trace.stderr').read_text()}
     (out / 'analysis.json').write_text(json.dumps(report, indent=2))
