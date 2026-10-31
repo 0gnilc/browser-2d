@@ -14,6 +14,17 @@ import {
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
 
+type BatchItem = {
+  command: PendingCommand;
+  label: string;
+  status: 'not-sent' | 'sending' | 'accepted' | 'rejected' | 'unknown';
+  message: string;
+};
+
+export function cancellable(state: string) {
+  return ['queued', 'starting', 'running', 'stopping'].includes(state);
+}
+
 type PendingCommand = { kind: 'start'; input: StartInput } | { kind: 'cancel'; input: CancelInput };
 
 export const useRunsStore = defineStore('runs', () => {
@@ -23,6 +34,8 @@ export const useRunsStore = defineStore('runs', () => {
   const notice = ref('');
   const busy = ref(false);
   const pending = shallowRef<PendingCommand>();
+  const batch = shallowRef<BatchItem[]>([]);
+  const batching = ref(false);
   const runs = computed(() => snapshot.value?.runs ?? []);
   let api: Browser2dApi | undefined;
   let session = 0;
@@ -95,6 +108,7 @@ export const useRunsStore = defineStore('runs', () => {
   }
 
   function connect(bridge: Browser2dApi | undefined) {
+    abandonDispatch();
     const currentSession = ++session;
     api = bridge;
     connection.value = 'connecting';
@@ -124,9 +138,28 @@ export const useRunsStore = defineStore('runs', () => {
       if (currentSession === session) {
         session++;
         api = undefined;
+        abandonDispatch();
       }
       dispose();
     };
+  }
+
+  function abandonDispatch() {
+    busy.value = false;
+    batching.value = false;
+    batch.value = batch.value.map((item) =>
+      item.status === 'sending'
+        ? { ...item, status: 'unknown', message: '连接已断开，请查询或使用原指令重试。' }
+        : item.status === 'not-sent'
+          ? { ...item, message: '连接已断开，此项未发送。' }
+          : item,
+    );
+  }
+
+  function updateBatch(commandId: string, status: BatchItem['status'], message: string) {
+    batch.value = batch.value.map((item) =>
+      item.command.input.commandId === commandId ? { ...item, status, message } : item,
+    );
   }
 
   function received(result: CommandResult) {
@@ -139,8 +172,15 @@ export const useRunsStore = defineStore('runs', () => {
           (command.kind === 'cancel' && result.value.runId !== command.input.runId))
       ) {
         error.value = '指令回执与原指令不匹配。请查询原指令。';
+        updateBatch(command.input.commandId, 'unknown', error.value);
         return;
       }
+      if (command)
+        updateBatch(
+          command.input.commandId,
+          'accepted',
+          `任务 ${result.value.runId}，指令已受理。`,
+        );
       pending.value = undefined;
       notice.value =
         result.value.kind === 'start'
@@ -148,6 +188,14 @@ export const useRunsStore = defineStore('runs', () => {
           : `取消指令已受理，任务 ${result.value.runId}。请等待资源清理与最终状态。`;
       return;
     }
+    if (pending.value)
+      updateBatch(
+        pending.value.input.commandId,
+        result.error.code === 'UNAVAILABLE' || result.error.code === 'INTERNAL'
+          ? 'unknown'
+          : 'rejected',
+        `${result.error.code} · ${result.error.message}`,
+      );
     if (result.error.code !== 'UNAVAILABLE' && result.error.code !== 'INTERNAL') {
       pending.value = undefined;
     }
@@ -162,6 +210,7 @@ export const useRunsStore = defineStore('runs', () => {
     error.value = '';
     notice.value = '';
     pending.value = command;
+    updateBatch(command.input.commandId, 'sending', '正在发送指令。');
     try {
       const result =
         command.kind === 'start'
@@ -171,7 +220,10 @@ export const useRunsStore = defineStore('runs', () => {
       received(result);
       await refresh();
     } catch (reason) {
-      if (currentSession === session) reject(reason);
+      if (currentSession === session) {
+        reject(reason);
+        updateBatch(command.input.commandId, 'unknown', error.value);
+      }
     } finally {
       if (currentSession === session) busy.value = false;
     }
@@ -201,13 +253,51 @@ export const useRunsStore = defineStore('runs', () => {
   }
 
   function start(deviceId: number) {
-    if (pending.value || connection.value !== 'connected') return;
+    if (pending.value || batching.value || connection.value !== 'connected') return;
     return send({ kind: 'start', input: { commandId: crypto.randomUUID(), deviceId } });
   }
 
   function cancel(runId: string) {
-    if (pending.value || connection.value !== 'connected') return;
+    if (pending.value || batching.value || connection.value !== 'connected') return;
     return send({ kind: 'cancel', input: { commandId: crypto.randomUUID(), runId } });
+  }
+
+  async function sendBatch(commands: { command: PendingCommand; label: string }[]) {
+    if (busy.value || pending.value || batching.value || connection.value !== 'connected') return;
+    const currentSession = session;
+    batch.value = commands.map((item) => ({ ...item, status: 'not-sent', message: '尚未发送。' }));
+    batching.value = true;
+    try {
+      for (const item of batch.value) {
+        if (currentSession !== session || pending.value || connection.value !== 'connected') break;
+        await send(item.command);
+      }
+    } finally {
+      if (currentSession === session) {
+        batch.value = batch.value.map((item) =>
+          item.status === 'not-sent' ? { ...item, message: '批量操作已停止，此项未发送。' } : item,
+        );
+        batching.value = false;
+      }
+    }
+  }
+
+  function startMany(deviceIds: number[]) {
+    return sendBatch(
+      [...new Set(deviceIds)].map((deviceId) => ({
+        label: `设备 #${deviceId}`,
+        command: { kind: 'start', input: { commandId: crypto.randomUUID(), deviceId } },
+      })),
+    );
+  }
+
+  function cancelMany(runIds: string[]) {
+    return sendBatch(
+      [...new Set(runIds)].map((runId) => ({
+        label: `任务 ${runId}`,
+        command: { kind: 'cancel', input: { commandId: crypto.randomUUID(), runId } },
+      })),
+    );
   }
 
   function retryCommand() {
@@ -221,6 +311,10 @@ export const useRunsStore = defineStore('runs', () => {
     notice,
     busy,
     pending,
+    batch,
+    batching,
+    startMany,
+    cancelMany,
     runs,
     connect,
     refresh,

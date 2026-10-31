@@ -6,6 +6,8 @@ import type {
   SettingsView,
 } from '@browser-2d/contracts/public';
 import { flushPromises, mount } from '@vue/test-utils';
+import { NSelect, NCheckbox } from 'naive-ui';
+import { createPinia } from 'pinia';
 import { describe, expect, it, vi } from 'vitest';
 import Devices from '../src/business/Devices.vue';
 import Materials from '../src/business/Materials.vue';
@@ -102,10 +104,12 @@ function fixture(): Browser2dApi {
   return api;
 }
 
-describe('P2 business screens', () => {
+describe('business screens', () => {
   it('preserves zero, null and an existing empty string when editing a device', async () => {
     const api = fixture();
-    const wrapper = mount(Devices, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(Devices, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
     await wrapper.get('[data-testid="device-edit-1"]').trigger('click');
     expect(wrapper.get<HTMLInputElement>('[data-testid="device-amount"]').element.value).toBe('0');
@@ -142,7 +146,9 @@ describe('P2 business screens', () => {
         ],
       },
     }));
-    const wrapper = mount(Materials, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
     const text = 'test-card|01|2030|123\n\ninvalid\ntest-card|01|2030|123';
     await wrapper.get('[data-testid="material-import-text"]').setValue(text);
@@ -158,9 +164,13 @@ describe('P2 business screens', () => {
 
   it('filters status zero, changes pages, and preserves nullable material fields on edit', async () => {
     const api = fixture();
-    const wrapper = mount(Materials, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
-    await wrapper.get('[data-testid="material-filter-status"]').setValue('0');
+    wrapper
+      .getComponent<typeof NSelect>('[data-testid="material-filter-status"]')
+      .vm.$emit('update:value', 0);
     await wrapper.get('[data-testid="material-filter"]').trigger('submit');
     await flushPromises();
     expect(api.materials.page).toHaveBeenLastCalledWith({
@@ -201,7 +211,9 @@ describe('P2 business screens', () => {
       ok: false,
       error: { code: 'CONFLICT', message: '处理中材料不可重置。' },
     }));
-    const wrapper = mount(Materials, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
     await wrapper.get('[data-testid="material-reset-2"]').trigger('click');
     await flushPromises();
@@ -216,11 +228,15 @@ describe('P2 business screens', () => {
       ok: true,
       value: { text: 'test-card|01|17|123\nother-card|02|18|456\n', count: 2 },
     }));
-    const wrapper = mount(HistoryPage, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(HistoryPage, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
     expect(api.history.page).toHaveBeenCalledWith({ page: 1, pageSize: 20 });
     expect(wrapper.get('[data-testid="history-3"]').text()).toContain('01 / 17 / 2030');
-    await wrapper.get('[data-testid="history-filter-status"]').setValue('0');
+    wrapper
+      .getComponent<typeof NSelect>('[data-testid="history-filter-status"]')
+      .vm.$emit('update:value', 0);
     await wrapper.get('[data-testid="history-start-time"]').setValue('2026-10-01 00:00:00');
     await wrapper.get('[data-testid="history-end-time"]').setValue('2026-10-31 23:59:59');
     await wrapper.get('[data-testid="history-export"]').trigger('click');
@@ -239,13 +255,18 @@ describe('P2 business screens', () => {
 
   it('saves launch and connect settings with the current revision and no credential controls', async () => {
     const api = fixture();
-    const wrapper = mount(Settings, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(Settings, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
     expect(wrapper.html()).not.toMatch(/AdsPower|API Key|settings-secret/);
     expect(wrapper.get('[data-testid="settings-revision"]').text()).toContain('7');
     await wrapper.get('[data-testid="settings-width"]').setValue('1440');
+    await wrapper.get('[data-testid="settings-width"]').trigger('blur');
     await wrapper.get('[data-testid="settings-executable-path"]').setValue('/opt/chrome');
-    await wrapper.get('[data-testid="settings-headless"]').setValue(true);
+    wrapper
+      .getComponent<typeof NCheckbox>('[data-testid="settings-headless"]')
+      .vm.$emit('update:checked', true);
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
     await flushPromises();
     expect(api.settings.save).toHaveBeenCalledWith({
@@ -257,7 +278,10 @@ describe('P2 business screens', () => {
         pageCount: 1,
       },
     });
-    await wrapper.get('[data-testid="settings-browser-mode"]').setValue('connect');
+    wrapper
+      .getComponent<typeof NSelect>('[data-testid="settings-browser-mode"]')
+      .vm.$emit('update:value', 'connect');
+    await flushPromises();
     expect(wrapper.find('[data-testid="settings-executable-path"]').exists()).toBe(false);
     await wrapper.get('[data-testid="settings-endpoint"]').setValue('http://localhost:9333');
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
@@ -281,9 +305,12 @@ describe('P2 business screens', () => {
       ok: false,
       error: { code: 'CONFLICT', message: '设置已被其他请求更新。' },
     }));
-    const wrapper = mount(Settings, { global: { provide: { [bridgeKey]: api } } });
+    const wrapper = mount(Settings, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
     await flushPromises();
     await wrapper.get('[data-testid="settings-width"]').setValue('1440');
+    await wrapper.get('[data-testid="settings-width"]').trigger('blur');
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('CONFLICT');
@@ -295,11 +322,13 @@ describe('P2 business screens', () => {
   });
 
   it('reports an absent desktop API and an explicitly unavailable preview API', async () => {
-    const missing = mount(Devices);
+    const missing = mount(Devices, { global: { plugins: [createPinia()] } });
     await flushPromises();
     expect(missing.get('[role="alert"]').text()).toContain('桌面业务 API 不可用');
     missing.unmount();
-    const preview = mount(Devices, { global: { provide: { [bridgeKey]: createFixtureBridge() } } });
+    const preview = mount(Devices, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: createFixtureBridge() } },
+    });
     await flushPromises();
     expect(preview.get('[role="alert"]').text()).toContain('UNAVAILABLE');
     expect(preview.get('[role="alert"]').text()).toContain('界面预览不连接业务数据库');

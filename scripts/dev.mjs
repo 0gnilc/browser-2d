@@ -107,6 +107,7 @@ for (const path of [
   'apps/worker/migrations',
   'packages/contracts/src',
   'internal/build-config',
+  'internal/tsconfig',
   'apps/desktop/electron.vite.config.ts',
   'apps/worker/vite.config.ts',
   'apps/desktop/tsconfig.json',

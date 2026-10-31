@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
+  updateOperations,
+  updateChangedChannel,
   businessOperations,
   businessChannel,
   channels,
@@ -18,7 +20,23 @@ import {
   startInputSchema,
   type Browser2dApi,
   type Failure,
+  updateStateResultSchema,
 } from '@browser-2d/contracts/public';
+
+import { createUpdateSubscription } from './update-subscription';
+
+const updateSubscription = createUpdateSubscription();
+ipcRenderer.on(updateChangedChannel, (_event, value: unknown) => updateSubscription.receive(value));
+async function update<T>(
+  method: keyof typeof updateOperations,
+  parse: (value: unknown) => T,
+): Promise<T | Failure> {
+  try {
+    return parse(await ipcRenderer.invoke(updateOperations[method].channel));
+  } catch {
+    return failure('UNAVAILABLE', 'Updates are unavailable');
+  }
+}
 
 async function business<T>(
   method: BusinessMethod,
@@ -73,6 +91,19 @@ async function refresh() {
   }
 }
 const api: Browser2dApi = {
+  updates: {
+    getState: () => update('getState', updateStateResultSchema.parse),
+    check: () => update('check', updateStateResultSchema.parse),
+    download: () => update('download', updateStateResultSchema.parse),
+    install: () => update('install', updateOperations.install.result.parse),
+    subscribe(listener) {
+      const dispose = updateSubscription.subscribe(listener);
+      void update('getState', updateStateResultSchema.parse).then((result) => {
+        if (result.ok) updateSubscription.receive(result.value);
+      });
+      return dispose;
+    },
+  },
   devices: {
     list: () =>
       business('devices.list', undefined, businessOperations['devices.list'].result.parse),

@@ -1,4 +1,4 @@
-name: P0-P4 desktop and Chrome
+name: Desktop, UI and release engineering
 on:
   push:
     branches: [main, 'codex/**']
@@ -47,9 +47,14 @@ jobs:
         run: node scripts/prepare-test-chrome.mjs
       - run: pnpm check
       - run: pnpm test
+      - run: pnpm test:release
       - run: pnpm test:storage
       - run: pnpm test:observer
       - run: pnpm test:credentials
+      - name: Updater transport and lifecycle
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
       - name: Electron integration and UI
         shell: bash
         run: |
@@ -60,6 +65,10 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=${{ matrix.target }}; else pnpm verify:package -- --target=${{ matrix.target }}; fi
+      - name: Preview native install, reinstall and uninstall
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:installation; else pnpm verify:installation; fi
       - name: Install and run RPM in Fedora 44 userspace
         if: runner.os == 'Linux'
         shell: bash
@@ -73,7 +82,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p4-${{ matrix.target }}
+          name: p6-${{ matrix.target }}
           path: |
             artifacts/
             release/*/*.dmg
@@ -83,5 +92,6 @@ jobs:
             release/*/*.deb
             release/*/*.rpm
             release/*/*.blockmap
+            release/*/*.yml
             release/*/build-context.json
           retention-days: 7

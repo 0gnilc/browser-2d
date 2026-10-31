@@ -7,9 +7,9 @@ import {
   type MaterialQuery,
 } from '@browser-2d/contracts/public';
 import { onMounted, reactive, ref } from 'vue';
-import { NButton, NPagination, NPopconfirm } from 'naive-ui';
+import { NButton, NPagination, NPopconfirm, NInput, NSelect, NForm, NTable } from 'naive-ui';
 import BusinessPage from './BusinessPage.vue';
-import { nullableNumber, useBusinessRequest } from './request';
+import { fieldProps, nullableNumber, useBusinessRequest } from './request';
 
 const { busy, error, request } = useBusinessRequest();
 const rows = ref<Material[]>([]);
@@ -174,19 +174,19 @@ onMounted(load);
       <p class="description">
         card|month|year|cvv|name|address|city|state|zip|country|extra。可选项留空时保留分隔符。
       </p>
-      <form @submit.prevent="importLines" class="import-form">
+      <NForm @submit.prevent="importLines" class="import-form">
         <label class="field"
-          >导入内容<textarea
-            v-model="importText"
-            data-testid="material-import-text"
-            rows="4"
-            required
+          >导入内容<NInput
+            type="textarea"
+            v-model:value="importText"
+            :input-props="fieldProps('material-import-text', { required: true })"
+            :autosize="{ minRows: 4, maxRows: 10 }"
           />
         </label>
         <NButton type="primary" attr-type="submit" :disabled="busy" data-testid="material-import"
           >导入</NButton
         >
-      </form>
+      </NForm>
       <div v-if="report" data-testid="import-report" class="import-report" aria-live="polite">
         <strong>实际提交 {{ report.committed }} 条</strong>
         <ol>
@@ -202,57 +202,71 @@ onMounted(load);
     </section>
     <section class="task-panel">
       <h2>{{ editing === null ? '新增材料' : `编辑材料 #${editing}` }}</h2>
-      <form class="business-form" data-testid="material-form" @submit.prevent="save">
+      <NForm class="business-form" data-testid="material-form" @submit.prevent="save">
         <label v-for="field in textFields" :key="field.key" class="field"
           >{{ field.label
-          }}<input
-            v-model="form[field.key]"
-            :data-testid="`material-${field.key}`"
-            :required="
-              ['card', 'month', 'year'].includes(field.key) ||
-              (field.key === 'cvv' && editing === null)
+          }}<NInput
+            v-model:value="form[field.key]"
+            :input-props="
+              fieldProps(`material-${field.key}`, {
+                required:
+                  ['card', 'month', 'year'].includes(field.key) ||
+                  (field.key === 'cvv' && editing === null),
+              })
             "
         /></label>
         <label class="field"
-          >金额，留空表示未设置<input
-            v-model="form.amount"
-            data-testid="material-amount"
-            type="number"
-            step="any"
+          >金额，留空表示未设置<NInput
+            v-model:value="form.amount"
+            :input-props="fieldProps('material-amount')"
         /></label>
-        <label class="field"
-          >状态<select v-model="form.status" data-testid="material-status">
-            <option :value="null">未设置</option>
-            <option v-for="value in 7" :key="value" :value="value - 1">{{ value - 1 }}</option>
-          </select></label
-        >
+        <div class="field">
+          <span>状态</span
+          ><NSelect
+            aria-label="状态"
+            :value="form.status ?? null"
+            @update:value="form.status = $event"
+            clearable
+            placeholder="未设置"
+            data-testid="material-status"
+            :options="Array.from({ length: 7 }, (_, value) => ({ label: String(value), value }))"
+          />
+        </div>
         <div class="business-actions">
           <NButton type="primary" attr-type="submit" :disabled="busy" data-testid="material-save"
             >保存材料</NButton
           ><NButton :disabled="busy" @click="resetEditor">取消编辑</NButton>
         </div>
-      </form>
+      </NForm>
     </section>
     <section class="history-panel">
-      <form class="business-toolbar" data-testid="material-filter" @submit.prevent="filter">
-        <label class="field">卡号<input v-model="card" data-testid="material-filter-card" /></label>
+      <NForm class="business-toolbar" data-testid="material-filter" @submit.prevent="filter">
         <label class="field"
-          >状态<select v-model="status" data-testid="material-filter-status">
-            <option :value="undefined">全部</option>
-            <option v-for="value in 7" :key="value" :value="value - 1">{{ value - 1 }}</option>
-          </select></label
-        >
+          >卡号<NInput v-model:value="card" :input-props="fieldProps('material-filter-card')"
+        /></label>
+        <div class="field">
+          <span>状态</span
+          ><NSelect
+            aria-label="状态"
+            :value="status ?? null"
+            @update:value="status = $event ?? undefined"
+            clearable
+            placeholder="全部"
+            data-testid="material-filter-status"
+            :options="Array.from({ length: 7 }, (_, value) => ({ label: String(value), value }))"
+          />
+        </div>
         <NButton attr-type="submit" :disabled="busy" data-testid="material-filter-submit"
           >筛选</NButton
         ><NButton :disabled="busy" @click="resetFilter">重置筛选</NButton>
-        <NPopconfirm @positive-click="clear"
+        <NPopconfirm positive-text="确认" negative-text="取消" @positive-click="clear"
           ><template #trigger
             ><NButton :disabled="busy" data-testid="materials-clear">清空材料</NButton></template
           >清空全部材料？</NPopconfirm
         >
-      </form>
+      </NForm>
       <div class="table-scroll">
-        <table data-testid="materials-table">
+        <NTable :bordered="false" :single-line="false" data-testid="materials-table">
           <thead>
             <tr>
               <th>卡号</th>
@@ -283,7 +297,10 @@ onMounted(load);
                   :data-testid="`material-reset-${row.id}`"
                   @click="reset(row.id)"
                   >重置</NButton
-                ><NPopconfirm @positive-click="remove(row.id)"
+                ><NPopconfirm
+                  positive-text="确认"
+                  negative-text="取消"
+                  @positive-click="remove(row.id)"
                   ><template #trigger
                     ><NButton
                       size="small"
@@ -299,7 +316,7 @@ onMounted(load);
               <td colspan="6" class="empty-state">暂无匹配材料</td>
             </tr>
           </tbody>
-        </table>
+        </NTable>
       </div>
       <div class="business-toolbar">
         <span data-testid="material-total">共 {{ total }} 条</span

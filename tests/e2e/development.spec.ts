@@ -19,6 +19,8 @@ test('Vite development origin uses the real preload and updates CSS without rest
   });
   const stylesheet = resolve('apps/ui/src/style.css');
   const original = await readFile(stylesheet, 'utf8');
+  const component = resolve('apps/ui/src/App.vue');
+  const template = await readFile(component, 'utf8');
   await server.listen();
   const url = server.resolvedUrls?.local[0];
   if (!url) throw new Error('Vite URL missing');
@@ -44,6 +46,14 @@ test('Vite development origin uses the real preload and updates CSS without rest
       )
       .toBe('changed');
     await expect(page.getByTestId('worker-pid')).toHaveText(pid || '');
+    const end = template.lastIndexOf('</template>');
+    expect(end).toBeGreaterThan(0);
+    await writeFile(
+      component,
+      `${template.slice(0, end)}<span data-testid="template-hmr-proof">Template updated</span>${template.slice(end)}`,
+    );
+    await expect(page.getByTestId('template-hmr-proof')).toHaveText('Template updated');
+    await expect(page.getByTestId('worker-pid')).toHaveText(pid || '');
     await page.getByTestId('create-fixture-device').click();
     await expect(page.getByTestId('start-run')).toBeEnabled();
     await page.getByTestId('start-run').click();
@@ -51,6 +61,7 @@ test('Vite development origin uses the real preload and updates CSS without rest
     await page.screenshot({ path: testInfo.outputPath('development.png'), fullPage: true });
   } finally {
     await writeFile(stylesheet, original);
+    await writeFile(component, template);
     await application.context().tracing.stop({ path: testInfo.outputPath('electron-trace.zip') });
     await application.close();
     await server.close();

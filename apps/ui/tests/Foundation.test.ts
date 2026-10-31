@@ -10,6 +10,10 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { describe, expect, it, vi } from 'vitest';
 import Foundation from '../src/Foundation.vue';
+import App from '../src/App.vue';
+import Devices from '../src/business/Devices.vue';
+import { createRouter, createMemoryHistory } from 'vue-router';
+import { useRunsStore } from '../src/runs';
 import { bridgeKey } from '../src/bridge';
 import { createFixtureBridge } from '../src/fixture';
 
@@ -45,6 +49,11 @@ function fixture() {
   let value = initial;
   let listener: (state: WorkState) => void = () => {};
   const dispose = vi.fn();
+  const subscribe = vi.fn<Browser2dApi['work']['subscribe']>((callback) => {
+    listener = callback;
+    callback({ status: 'ready', generation: 0, snapshot: value });
+    return dispose;
+  });
   const api: Browser2dApi = {
     ...createFixtureBridge(),
     devices: {
@@ -88,11 +97,7 @@ function fixture() {
         ok: true,
         value: { status: 'unknown' },
       })),
-      subscribe(callback) {
-        listener = callback;
-        callback({ status: 'ready', generation: 0, snapshot: value });
-        return dispose;
-      },
+      subscribe,
     },
   };
   const emitState = (state: WorkState) => listener(state);
@@ -100,10 +105,20 @@ function fixture() {
     value = snapshot;
     emitState({ status: 'ready', generation, snapshot });
   };
-  const wrapper = mount(Foundation, {
-    global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: Foundation },
+      { path: '/devices', component: Devices },
+      { path: '/:pathMatch(.*)*', component: Foundation },
+    ],
   });
-  return { api, dispose, emit, emitState, wrapper };
+  void router.push('/');
+  const pinia = createPinia();
+  const wrapper = mount(App, {
+    global: { plugins: [pinia, router], provide: { [bridgeKey]: api } },
+  });
+  return { api, dispose, emit, emitState, wrapper, router, store: useRunsStore(pinia) };
 }
 
 describe('scheduling screen', () => {
@@ -129,7 +144,7 @@ describe('scheduling screen', () => {
     await flushPromises();
     expect(api.devices.create).toHaveBeenCalledWith({
       symbol: expect.stringMatching(/^local-test-/),
-      note: '本地受控验收设备，无真实账户。',
+      note: '本地验证测试设备，无真实账户。',
     });
     await wrapper.get('form').trigger('submit');
     await flushPromises();
@@ -360,9 +375,170 @@ describe('scheduling screen', () => {
     wrapper.unmount();
   });
 
+  it('keeps one subscription and pending command through repeated route navigation', async () => {
+    const { wrapper, api, router, dispose, store, emit } = fixture();
+    await flushPromises();
+    api.work.start = vi.fn(async () => {
+      throw new Error('response lost');
+    });
+    await store.start(7);
+    const commandId = store.pending?.input.commandId;
+    for (let index = 0; index < 4; index++) {
+      await router.push('/devices');
+      await flushPromises();
+      emit({ ...initial, revision: index + 1, runs: [run] });
+      await flushPromises();
+      expect(wrapper.find('[data-testid="device-stop-7"]').exists()).toBe(true);
+      expect(wrapper.get('[data-testid="device-start-7"]').attributes('disabled')).toBeDefined();
+      await router.push('/');
+      await flushPromises();
+      expect(wrapper.get('[data-testid="command-id"]').text()).toBe(commandId);
+      expect(wrapper.find(`[data-testid="run-${run.id}"]`).exists()).toBe(true);
+    }
+    expect(api.work.subscribe).toHaveBeenCalledOnce();
+    expect(dispose).not.toHaveBeenCalled();
+    wrapper.unmount();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it('reports per-device accepted and rejected outcomes and continues after a definite failure', async () => {
+    const { wrapper, api, store } = fixture();
+    await flushPromises();
+    api.work.start = vi.fn<Browser2dApi['work']['start']>(async (input) =>
+      input.deviceId === 8
+        ? { ok: false, error: { code: 'CONFLICT', message: '设备忙' } }
+        : {
+            ok: true,
+            value: {
+              kind: 'start',
+              commandId: input.commandId,
+              runId: run.id,
+              acceptedAt: run.createdAt,
+            },
+          },
+    );
+    await store.startMany([7, 8, 9, 7]);
+    await flushPromises();
+    expect(api.work.start).toHaveBeenCalledTimes(3);
+    expect(store.batch.map((item) => item.status)).toEqual(['accepted', 'rejected', 'accepted']);
+    expect(wrapper.get('[data-testid="batch-results"]').text()).toContain('CONFLICT · 设备忙');
+    wrapper.unmount();
+  });
+
+  it('stops bulk dispatch on unknown and resolves only that item using the same identity', async () => {
+    const { wrapper, api, store } = fixture();
+    await flushPromises();
+    api.work.start = vi.fn<Browser2dApi['work']['start']>(async (input) => {
+      if (input.deviceId === 8) throw new Error('响应丢失');
+      return {
+        ok: true,
+        value: {
+          kind: 'start',
+          commandId: input.commandId,
+          runId: run.id,
+          acceptedAt: run.createdAt,
+        },
+      };
+    });
+    await store.startMany([7, 8, 9]);
+    expect(api.work.start).toHaveBeenCalledTimes(2);
+    expect(store.batch.map((item) => item.status)).toEqual(['accepted', 'unknown', 'not-sent']);
+    const commandId = store.pending?.input.commandId;
+    if (!commandId) throw new Error('Expected pending command');
+    api.work.getCommand = async () => ({
+      ok: true,
+      value: {
+        status: 'recorded',
+        receipt: {
+          ok: true,
+          value: { kind: 'start', commandId, runId: run.id, acceptedAt: run.createdAt },
+        },
+      },
+    });
+    await store.queryCommand();
+    expect(store.batch.map((item) => item.status)).toEqual(['accepted', 'accepted', 'not-sent']);
+    expect(store.pending).toBeUndefined();
+    expect(api.work.start).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
+  });
+
+  it('reports bulk cancellation per run without optimistic terminal states', async () => {
+    const { wrapper, api, store, emit } = fixture();
+    await flushPromises();
+    const otherId = crypto.randomUUID();
+    emit({ ...initial, runs: [run, { ...run, id: otherId, deviceId: 8 }] });
+    api.work.cancel = vi.fn<Browser2dApi['work']['cancel']>(async (input) =>
+      input.runId === otherId
+        ? { ok: false, error: { code: 'CONFLICT', message: '状态已改变' } }
+        : {
+            ok: true,
+            value: {
+              kind: 'cancel',
+              commandId: input.commandId,
+              runId: input.runId,
+              acceptedAt: run.createdAt,
+              disposition: 'stop-requested',
+            },
+          },
+    );
+    await store.cancelMany([run.id, otherId]);
+    expect(store.batch.map((item) => item.status)).toEqual(['accepted', 'rejected']);
+    expect(store.runs.map((item) => item.state)).toEqual(['running', 'running']);
+    wrapper.unmount();
+  });
+
+  it('marks an interrupted batch response unknown and retains its command identity on reconnect', async () => {
+    const { api, wrapper, store } = fixture();
+    await flushPromises();
+    let resolveResponse:
+      ((value: Awaited<ReturnType<Browser2dApi['work']['start']>>) => void) | undefined;
+    const response = new Promise<Awaited<ReturnType<Browser2dApi['work']['start']>>>((resolve) => {
+      resolveResponse = resolve;
+    });
+    api.work.start = vi.fn(() => response);
+    const dispatch = store.startMany([7, 8]);
+    await flushPromises();
+    const commandId = store.pending?.input.commandId;
+    if (!commandId) throw new Error('Pending batch command missing');
+    wrapper.unmount();
+    const disconnect = store.connect(api);
+    await flushPromises();
+    expect(store.batch.map((item) => item.status)).toEqual(['unknown', 'not-sent']);
+    expect(store.batching).toBe(false);
+    expect(store.busy).toBe(false);
+    if (!resolveResponse) throw new Error('Deferred response missing');
+    resolveResponse({
+      ok: true,
+      value: { kind: 'start', commandId, runId: run.id, acceptedAt: run.createdAt },
+    });
+    await dispatch;
+    expect(store.pending?.input.commandId).toBe(commandId);
+    expect(store.batch.map((item) => item.status)).toEqual(['unknown', 'not-sent']);
+    api.work.getCommand = vi.fn<Browser2dApi['work']['getCommand']>(async () => ({
+      ok: true,
+      value: {
+        status: 'recorded',
+        receipt: {
+          ok: true,
+          value: { kind: 'start', commandId, runId: run.id, acceptedAt: run.createdAt },
+        },
+      },
+    }));
+    await store.queryCommand();
+    expect(store.pending).toBeUndefined();
+    expect(store.batch.map((item) => item.status)).toEqual(['accepted', 'not-sent']);
+    expect(api.work.start).toHaveBeenCalledOnce();
+    disconnect();
+  });
+
   it('keeps the development fixture explicitly unavailable', async () => {
-    const wrapper = mount(Foundation, {
-      global: { plugins: [createPinia()], provide: { [bridgeKey]: createFixtureBridge() } },
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: Foundation }],
+    });
+    void router.push('/');
+    const wrapper = mount(App, {
+      global: { plugins: [createPinia(), router], provide: { [bridgeKey]: createFixtureBridge() } },
     });
     await flushPromises();
     expect(wrapper.get('[data-testid="connection-status"]').attributes('data-state')).toBe(

@@ -26,8 +26,14 @@
     "package": "node scripts/package.mjs",
     "dist": "node scripts/package.mjs --dist",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:credentials && pnpm test:observer && pnpm test:electron",
-    "check:boundaries": "node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs"
+    "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:credentials && pnpm test:updates && pnpm test:release && pnpm test:observer && pnpm test:electron",
+    "check:boundaries": "node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs",
+    "test:updates": "pnpm --filter @browser-2d/desktop test:updates",
+    "test:release": "node --test scripts/release.test.mjs",
+    "verify:installation": "node scripts/verify-installation.mjs",
+    "release:verify": "node scripts/release-verify.mjs",
+    "release:prepare": "node scripts/release-prepare.mjs",
+    "release": "node scripts/release-publish.mjs"
   },
   "devDependencies": {
     "typescript": "catalog:",
@@ -45,6 +51,7 @@
     "jsdom": "catalog:",
     "@browser-2d/lint-config": "workspace:*",
     "@browser-2d/test-utils": "workspace:*",
-    "@electron/asar": "catalog:"
+    "@electron/asar": "catalog:",
+    "yaml": "catalog:"
   }
 }

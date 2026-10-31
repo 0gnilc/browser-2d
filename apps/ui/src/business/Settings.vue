@@ -1,22 +1,38 @@
 <script setup lang="ts">
 import type { SettingsSave, SettingsValues, SettingsView } from '@browser-2d/contracts/public';
 import { computed, onMounted, reactive, ref } from 'vue';
-import { NButton } from 'naive-ui';
+import { NButton, NInput, NInputNumber, NSelect, NCheckbox, NForm } from 'naive-ui';
 import BusinessPage from './BusinessPage.vue';
-import { useBusinessRequest } from './request';
+import Updates from './Updates.vue';
+import { fieldProps, useBusinessRequest } from './request';
 
 const { busy, error, request } = useBusinessRequest();
 const current = ref<SettingsView>();
-const values = reactive<SettingsValues>({
+const formValues = reactive<SettingsValues>({
   browser: { mode: 'launch', executablePath: '', headless: false },
   viewportWidth: 1280,
   viewportHeight: 720,
   pageCount: 1,
 });
 const saved = ref(false);
+const endpoint = computed({
+  get: () => (formValues.browser.mode === 'connect' ? formValues.browser.endpoint : ''),
+  set: (value: string) => {
+    if (formValues.browser.mode === 'connect') formValues.browser.endpoint = value;
+  },
+});
+function setWidth(value: number | null) {
+  formValues.viewportWidth = value ?? 0;
+}
+function setHeight(value: number | null) {
+  formValues.viewportHeight = value ?? 0;
+}
+function setPageCount(value: number | null) {
+  formValues.pageCount = value ?? 0;
+}
 function accept(view: SettingsView) {
   current.value = view;
-  Object.assign(values, {
+  Object.assign(formValues, {
     browser: { ...view.browser },
     viewportWidth: view.viewportWidth,
     viewportHeight: view.viewportHeight,
@@ -34,7 +50,7 @@ async function save() {
   if (!current.value) return;
   saved.value = false;
   const input: SettingsSave = {
-    values: { ...values, browser: { ...values.browser } },
+    values: { ...formValues, browser: { ...formValues.browser } },
     expectedRevision: current.value.revision,
   };
   const value = await request((api) => api.settings.save(input));
@@ -43,10 +59,13 @@ async function save() {
     saved.value = true;
   }
 }
+const viewportWidth = computed({ get: () => formValues.viewportWidth, set: setWidth });
+const viewportHeight = computed({ get: () => formValues.viewportHeight, set: setHeight });
+const pageCount = computed({ get: () => formValues.pageCount, set: setPageCount });
 const browserMode = computed({
-  get: () => values.browser.mode,
+  get: () => formValues.browser.mode,
   set(mode: SettingsValues['browser']['mode']) {
-    values.browser =
+    formValues.browser =
       mode === 'connect'
         ? { mode: 'connect', endpoint: 'http://127.0.0.1:9222' }
         : { mode: 'launch', executablePath: '', headless: false };
@@ -64,63 +83,61 @@ onMounted(load);
       </div>
       <p v-if="current" data-testid="settings-revision">版本 {{ current.revision }}</p>
       <p v-if="saved" role="status" data-testid="settings-saved">设置已保存。</p>
-      <form class="business-form" data-testid="settings-form" @submit.prevent="save">
-        <label class="field"
-          >Chrome 模式<select v-model="browserMode" data-testid="settings-browser-mode">
-            <option value="launch">启动新 Chrome</option>
-            <option value="connect">连接现有 Chrome</option>
-          </select></label
-        >
-        <template v-if="values.browser.mode === 'launch'">
+      <NForm class="business-form" data-testid="settings-form" @submit.prevent="save">
+        <div class="field">
+          <span>Chrome 模式</span
+          ><NSelect
+            aria-label="Chrome 模式"
+            v-model:value="browserMode"
+            data-testid="settings-browser-mode"
+            :options="[
+              { label: '启动新 Chrome', value: 'launch' },
+              { label: '连接现有 Chrome', value: 'connect' },
+            ]"
+          />
+        </div>
+        <template v-if="formValues.browser.mode === 'launch'">
           <label class="field"
-            >Chrome 路径<input
-              v-model="values.browser.executablePath"
-              data-testid="settings-executable-path"
-              maxlength="4096"
+            >Chrome 路径<NInput
+              v-model:value="formValues.browser.executablePath"
+              :input-props="fieldProps('settings-executable-path')"
               placeholder="留空自动查找"
+              :maxlength="4096"
           /></label>
           <label class="field"
             ><span>无头模式</span
-            ><input
-              v-model="values.browser.headless"
+            ><NCheckbox
+              v-model:checked="formValues.browser.headless"
               data-testid="settings-headless"
-              type="checkbox"
           /></label>
         </template>
         <label v-else class="field"
-          >本机调试地址<input
-            v-model="values.browser.endpoint"
-            data-testid="settings-endpoint"
-            maxlength="2048"
+          >本机调试地址<NInput
+            v-model:value="endpoint"
+            :input-props="fieldProps('settings-endpoint', { required: true })"
             placeholder="http://127.0.0.1:9222"
-            required
+            :maxlength="2048"
         /></label>
         <label class="field"
-          >窗口宽度<input
-            v-model.number="values.viewportWidth"
-            data-testid="settings-width"
-            type="number"
-            min="1"
-            max="16384"
-            required
+          >窗口宽度<NInputNumber
+            v-model:value="viewportWidth"
+            :input-props="fieldProps('settings-width', { required: true })"
+            :min="1"
+            :max="16384"
         /></label>
         <label class="field"
-          >窗口高度<input
-            v-model.number="values.viewportHeight"
-            data-testid="settings-height"
-            type="number"
-            min="1"
-            max="16384"
-            required
+          >窗口高度<NInputNumber
+            v-model:value="viewportHeight"
+            :input-props="fieldProps('settings-height', { required: true })"
+            :min="1"
+            :max="16384"
         /></label>
         <label class="field"
-          >页面数量<input
-            v-model.number="values.pageCount"
-            data-testid="settings-page-count"
-            type="number"
-            min="1"
-            max="10000"
-            required
+          >页面数量<NInputNumber
+            v-model:value="pageCount"
+            :input-props="fieldProps('settings-page-count', { required: true })"
+            :min="1"
+            :max="10000"
         /></label>
         <p class="business-note">
           启动模式使用独立浏览器。连接模式使用现有 Chrome 的独立会话，地址须为本机 HTTP
@@ -135,7 +152,8 @@ onMounted(load);
             >保存设置</NButton
           >
         </div>
-      </form>
+      </NForm>
     </section>
+    <Updates />
   </BusinessPage>
 </template>

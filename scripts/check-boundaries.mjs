@@ -150,6 +150,28 @@ async function resolveFile(path) {
 export async function checkBoundaries(workspaceRoot = root) {
   const errors = new Set();
   const fail = (message) => errors.add(message);
+  const retired = [
+    'forge.config.js',
+    'vite.config.js',
+    'index.html',
+    'jsconfig.json',
+    'auto-imports.d.ts',
+    'components.d.ts',
+    'package-lock.json',
+    'yarn.lock',
+  ];
+  const rootEntries = new Set(await readdir(workspaceRoot));
+  for (const entry of retired)
+    if (rootEntries.has(entry)) fail(`Retired root entry must not return: ${entry}`);
+  for (const directory of ['src', 'electron']) {
+    if (!rootEntries.has(directory)) continue;
+    if (
+      (await files(join(workspaceRoot, directory))).some((path) =>
+        sourceExtensions.has(extname(path)),
+      )
+    )
+      fail(`Retired root source must not return: ${directory}`);
+  }
   const units = [];
   for (const group of ['apps', 'packages', 'internal']) {
     for (const entry of await readdir(join(workspaceRoot, group), { withFileTypes: true })) {
@@ -170,6 +192,17 @@ export async function checkBoundaries(workspaceRoot = root) {
   const byName = new Map(units.map((unit) => [unit.manifest.name, unit]));
   if (byName.size !== units.length) fail('Duplicate workspace package names');
   const rootManifest = JSON.parse(await readFile(join(workspaceRoot, 'package.json'), 'utf8'));
+  for (const manifest of [rootManifest, ...units.map((unit) => unit.manifest)]) {
+    for (const field of dependencyFields) {
+      for (const dependency of Object.keys(manifest[field] ?? {})) {
+        if (
+          dependency.startsWith('@electron-forge/') ||
+          ['electron-forge', 'element-plus', 'sqlite3'].includes(dependency)
+        )
+          fail(`${manifest.name}: retired dependency ${dependency}`);
+      }
+    }
+  }
   if (
     ['dependencies', 'optionalDependencies'].some(
       (field) => Object.keys(rootManifest[field] ?? {}).length,

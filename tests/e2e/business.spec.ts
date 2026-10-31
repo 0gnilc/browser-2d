@@ -25,32 +25,37 @@ test('business screens save through the real bridge and display refreshed record
     await page.getByTestId('device-amount').fill('0');
     await page.getByTestId('device-save').click();
     await expect(page.getByTestId('devices-table')).toContainText('ui-fixture-device');
-    await page.screenshot({ path: testInfo.outputPath('p2-devices.png'), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('devices.png'), fullPage: true });
     await page.getByTestId('nav-materials').click();
     await expect(page.getByTestId('material-import')).toBeEnabled();
     await page.getByTestId('material-import-text').fill('0000000000000009|09|2030|000\ninvalid');
     await page.getByTestId('material-import').click();
     await expect(page.getByTestId('import-report')).toContainText('实际提交 1 条');
     await expect(page.getByTestId('import-line-2')).toContainText('无效');
-    await page.getByTestId('material-filter-status').selectOption('0');
+    await page.getByTestId('material-filter-status').click();
+    await page.locator('.n-base-select-option').getByText('0', { exact: true }).click();
     await page.getByTestId('material-filter-submit').click();
     await expect(page.getByTestId('materials-table')).toContainText('0000000000000009');
-    await page.screenshot({ path: testInfo.outputPath('p2-materials.png'), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('materials.png'), fullPage: true });
     await page.getByTestId('nav-history').click();
     await expect(page.getByTestId('history-export')).toBeEnabled();
     await page.getByTestId('history-export').click();
     await expect(page.getByTestId('history-export-result')).toContainText('0 条');
     await page.getByTestId('nav-settings').click();
     await expect(page.getByTestId('settings-save')).toBeEnabled();
-    await expect(page.getByTestId('settings-browser-mode')).toHaveValue('launch');
-    await page.getByTestId('settings-browser-mode').selectOption('connect');
+    await expect(page.getByTestId('settings-browser-mode')).toContainText('启动新 Chrome');
+    await page.getByTestId('settings-browser-mode').click();
+    await page
+      .locator('.n-base-select-option')
+      .getByText('连接现有 Chrome', { exact: true })
+      .click();
     await page.getByTestId('settings-endpoint').fill('http://127.0.0.1:9222');
     await page.getByTestId('settings-width').fill('900');
     await page.getByTestId('settings-save').click();
     await expect(page.getByTestId('settings-saved')).toBeVisible();
     await page.getByTestId('settings-reload').click();
     await expect(page.getByTestId('settings-width')).toHaveValue('900');
-    await page.screenshot({ path: testInfo.outputPath('p2-settings.png'), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('settings.png'), fullPage: true });
     await page.getByTestId('nav-devices').click();
     await expect(page.getByTestId('devices-table')).toContainText('ui-fixture-device');
   } finally {

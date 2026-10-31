@@ -54,8 +54,11 @@ const sourceExecutable = candidates[0];
 const appDirectory =
   process.platform === 'darwin' ? resolve(sourceExecutable, '../../..') : dirname(sourceExecutable);
 const installRoot = await mkdtemp(join(tmpdir(), 'browser-2d-install-'));
-const installedApp = join(installRoot, basename(appDirectory));
-await cp(appDirectory, installedApp, { recursive: true, verbatimSymlinks: true });
+const installedApp = process.argv.includes('--in-place')
+  ? appDirectory
+  : join(installRoot, basename(appDirectory));
+if (installedApp !== appDirectory)
+  await cp(appDirectory, installedApp, { recursive: true, verbatimSymlinks: true });
 directory = await realpath(installedApp);
 candidates.length = 0;
 await scan(directory);
@@ -66,6 +69,7 @@ const archive =
     : join(installedApp, 'resources/app.asar');
 const workerPrefix = '/node_modules/@browser-2d/worker-runtime';
 const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
+const packagedManifest = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
 assert(
   archiveFiles.includes(`${workerPrefix}/dist/entry.cjs`),
   'Compiled worker entry missing from archive',
@@ -108,9 +112,27 @@ for (const option of [
 assert.equal(fuses[FuseV1Options.OnlyLoadAppFromAsar], FuseState.ENABLE);
 if (process.platform !== 'linux')
   assert.equal(fuses[FuseV1Options.EnableEmbeddedAsarIntegrityValidation], FuseState.ENABLE);
-const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
+const dataArgument = process.argv.find((arg) => arg.startsWith('--data-dir='))?.slice(11);
+const dataDir = dataArgument
+  ? resolve(dataArgument)
+  : await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
+const tempData = relative(await realpath(tmpdir()), await realpath(dataDir));
+assert(
+  !isAbsolute(tempData) &&
+    tempData.split(/[\\/]/).length === 1 &&
+    tempData.startsWith('browser-2d-release-'),
+  'Verification data must be a dedicated temporary directory',
+);
+const initialPass = Number(
+  process.argv.find((arg) => arg.startsWith('--initial-pass='))?.slice(15) ?? 0,
+);
+assert(
+  Number.isSafeInteger(initialPass) && initialPass >= 0 && initialPass <= 10,
+  'Invalid verification pass offset',
+);
 const reportPath = join(dataDir, 'report.json');
-await mkdir(join(root, 'artifacts', target), { recursive: true });
+const evidenceDir = resolve(process.env.BROWSER2D_EVIDENCE_DIR || join(root, 'artifacts', target));
+await mkdir(evidenceDir, { recursive: true });
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
   const readyPath = join(dataDir, 'chrome-pages-ready');
@@ -149,17 +171,17 @@ for (let pass = 1; pass <= 2; pass++) {
     });
   }).finally(() => observationAbort.abort());
   const chrome = await observation;
-  await writeFile(
-    join(root, 'artifacts', target, `chrome-pass-${pass}.json`),
-    JSON.stringify(chrome, null, 2),
-  );
-  await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`)).catch(
-    (error) => {
-      if (error.code !== 'ENOENT') throw error;
-    },
-  );
+  await writeFile(join(evidenceDir, `chrome-pass-${pass}.json`), JSON.stringify(chrome, null, 2));
+  await copyFile(reportPath, join(evidenceDir, `package-pass-${pass}.json`)).catch((error) => {
+    if (error.code !== 'ENOENT') throw error;
+  });
   assert.equal(code, 0, 'Packaged process failed');
   const report = JSON.parse(await readFile(reportPath, 'utf8'));
+  assert.equal(
+    report.appVersion,
+    packagedManifest.version,
+    'Installed application version mismatch',
+  );
   assert.equal(report.arch, target.endsWith('-arm64') ? 'arm64' : 'x64');
   assert.equal(
     report.platform,
@@ -177,11 +199,11 @@ for (let pass = 1; pass <= 2; pass++) {
     'Worker did not load from packaged dependency graph',
   );
   assert(!report.workerEntry.includes(root), 'Worker still depends on source checkout');
-  assert.equal(report.result.initialCount, pass === 1 ? 0 : 4);
+  assert.equal(report.result.initialCount, (initialPass + pass - 1) * 4);
   assert.deepEqual(report.result.business, {
-    initialDeviceCount: (pass - 1) * 3,
-    initialMaterialCount: pass - 1,
-    settingsRevision: pass,
+    initialDeviceCount: (initialPass + pass - 1) * 3,
+    initialMaterialCount: initialPass + pass - 1,
+    settingsRevision: initialPass + pass,
   });
   const shutdown = report.finalSnapshot.runs.find((run) => run.id === report.result.shutdownId);
   assert.equal(shutdown?.state, 'cancelled', 'Close did not persist cancellation');
@@ -204,6 +226,22 @@ for (let pass = 1; pass <= 2; pass++) {
   assert.throws(() => process.kill(report.result.workerPid, 0), { code: 'ESRCH' });
   reports.push(report);
 }
+await writeFile(
+  join(evidenceDir, 'package-summary.json'),
+  JSON.stringify(
+    {
+      target,
+      executable,
+      database: dataDir,
+      fuses,
+      initialPass,
+      passes: reports.length,
+      result: 'VERIFIED',
+    },
+    null,
+    2,
+  ),
+);
 console.log(
   JSON.stringify(
     { target, executable, database: dataDir, fuses, passes: reports.length, result: 'VERIFIED' },

@@ -55,7 +55,7 @@ input {
 .page-footer {
   font-size: 11px;
   letter-spacing: 1.6px;
-  color: #77847c;
+  color: #526258;
 }
 .intro {
   margin: 42px 0 28px;
@@ -76,7 +76,7 @@ h1 {
 }
 .description {
   margin: 10px 0 0;
-  color: #738077;
+  color: #526258;
   font-size: 14px;
   line-height: 1.7;
 }
@@ -171,7 +171,7 @@ h2 {
 .section-heading p {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #899389;
+  color: #526258;
 }
 .task-form {
   display: flex;
@@ -191,30 +191,14 @@ h2 {
 }
 .field small {
   margin-left: 4px;
-  color: #98a096;
-}
-.field input {
-  padding: 10px 12px;
-  height: 40px;
-  min-width: 0;
-  width: 100%;
-  color: #35463b;
-  background: #fcfdfb;
-  border: 1px solid #dce2d9;
-  border-radius: 6px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.field input:focus {
-  border-color: #236b53;
-  box-shadow: 0 0 0 2px #236b5315;
+  color: #647266;
 }
 .task-form > button {
   height: 40px;
   padding: 0 20px;
 }
 .form-note {
-  color: #939d92;
+  color: #526258;
   font-size: 11px;
   margin: 12px 0 0;
 }
@@ -246,7 +230,7 @@ table {
 th {
   font-weight: 500;
   font-size: 11px;
-  color: #8b978b;
+  color: #526258;
   background: #f9faf7;
   padding: 12px 26px;
   border-top: 1px solid #edf0e9;
@@ -268,7 +252,7 @@ td {
 }
 .run-id {
   display: block;
-  color: #9ba49a;
+  color: #647266;
   font:
     10px ui-monospace,
     SFMono-Regular,
@@ -289,7 +273,7 @@ td {
 .empty-state {
   padding: 35px 20px 38px;
   text-align: center;
-  color: #9ca798;
+  color: #526258;
 }
 .empty-state strong,
 .empty-state > span {
@@ -320,7 +304,7 @@ td {
   justify-content: space-between;
   gap: 20px;
   padding: 12px 26px;
-  color: #a0aa9a;
+  color: #647266;
   font-size: 10px;
   background: #fdfefb;
 }
@@ -437,19 +421,6 @@ td {
 .task-panel > .business-toolbar {
   padding: 0;
 }
-.field textarea,
-.field select {
-  width: 100%;
-  padding: 10px 12px;
-  color: #35463b;
-  background: #fcfdfb;
-  border: 1px solid #dce2d9;
-  border-radius: 6px;
-  font: inherit;
-}
-.field textarea {
-  resize: vertical;
-}
 .import-form {
   display: grid;
   gap: 12px;
@@ -490,4 +461,120 @@ td {
 }
 .resources-panel {
   margin-top: 23px;
+}
+
+::selection {
+  background: #d5e8db;
+  color: #203d2c;
+}
+:focus-visible {
+  outline: 2px solid #236b53;
+  outline-offset: 3px;
+}
+input,
+textarea {
+  caret-color: #236b53;
+}
+.business-nav a {
+  padding: 6px 0;
+}
+.work-status {
+  margin-top: 8px;
+}
+.capacity-note {
+  margin-bottom: 18px;
+  line-height: 1.7;
+}
+.batch-results {
+  padding: 20px 0 0;
+}
+.batch-results > h2,
+.batch-results > p {
+  margin: 0 24px 12px;
+}
+.business-note,
+.description {
+  max-width: 75ch;
+  line-height: 1.7;
+}
+.field {
+  min-width: 0;
+  color: #526258;
+}
+.field .n-input,
+.field .n-input-number,
+.field .n-select {
+  width: 100%;
+}
+.n-table {
+  font-variant-numeric: tabular-nums;
+}
+.business-form .n-form-item {
+  margin: 0;
+}
+.task-panel .n-form {
+  min-width: 0;
+}
+.row-actions {
+  min-width: 230px;
+}
+.business-page .intro {
+  margin-top: 28px;
+}
+@media (max-width: 760px) {
+  .business-toolbar {
+    padding: 18px;
+  }
+  .business-toolbar .field {
+    flex: 1 1 180px;
+  }
+  .business-actions > .n-button {
+    max-width: 100%;
+  }
+  .connection-panel > button {
+    margin-left: 0;
+  }
+}
+
+.business-toolbar .field {
+  flex: 1 1 180px;
+  min-width: 150px;
+  max-width: 320px;
+}
+.verification-scope {
+  padding-top: 10px;
+}
+
+.business-nav {
+  align-items: center;
+}
+.business-nav .nav-brand {
+  margin-right: auto;
+  font-size: 17px;
+  color: #26352f;
+}
+@media (max-width: 760px) {
+  .business-nav .nav-brand {
+    font-size: 14px;
+  }
+  .business-nav .brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.batch-results {
+  padding: 0;
+}
+.batch-results summary {
+  padding: 16px 24px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.batch-summary-hint {
+  margin-left: 16px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #526258;
 }

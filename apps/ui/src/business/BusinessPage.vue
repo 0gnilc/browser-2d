@@ -6,7 +6,6 @@ defineProps<{ title: string; error: string }>();
 <template>
   <main class="workspace business-page">
     <header class="intro">
-      <p class="eyebrow">P2 · 业务数据</p>
       <h1>{{ title }}</h1>
     </header>
     <NAlert

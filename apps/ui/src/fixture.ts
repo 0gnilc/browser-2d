@@ -1,4 +1,4 @@
-import type { Browser2dApi, Failure } from '@browser-2d/contracts/public';
+import type { Browser2dApi, Failure, UpdateState } from '@browser-2d/contracts/public';
 
 const businessUnavailable = async (): Promise<Failure> => ({
   ok: false,
@@ -13,7 +13,30 @@ const workUnavailable = async (): Promise<Failure> => ({
 });
 
 export function createFixtureBridge(): Browser2dApi {
+  const updateState: UpdateState = {
+    status: 'unavailable',
+    reason: 'development',
+    revision: 0,
+    currentVersion: '0.1.0',
+  };
+  const updateView = async () =>
+    ({ ok: true, value: updateState }) satisfies Awaited<
+      ReturnType<Browser2dApi['updates']['getState']>
+    >;
   return {
+    updates: {
+      getState: updateView,
+      check: updateView,
+      download: updateView,
+      install: async () => ({
+        ok: false,
+        error: { code: 'UNAVAILABLE', message: '界面预览不提供应用更新。' },
+      }),
+      subscribe(listener) {
+        listener(updateState);
+        return () => {};
+      },
+    },
     devices: {
       list: businessUnavailable,
       create: businessUnavailable,

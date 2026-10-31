@@ -1,0 +1,80 @@
+name: Release candidates (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview remains unsigned and cannot pass release verification
+        type: choice
+        options: [preview, production]
+        default: preview
+      channel:
+        description: Production distribution audience
+        type: choice
+        options: [test, stable]
+        default: test
+      feed_base_url:
+        description: Production HTTPS feed base without channel or target suffix
+        type: string
+        required: false
+permissions:
+  contents: read
+jobs:
+  candidate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: windows-2025, target: win-x64 }
+          - { runner: macos-15-intel, target: mac-x64 }
+          - { runner: macos-15, target: mac-arm64 }
+          - { runner: ubuntu-24.04, target: linux-x64 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      RELEASE_MODE: ${{ inputs.mode }}
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      RELEASE_FEED: ${{ inputs.feed_base_url }}
+      RELEASE_TARGET: ${{ matrix.target }}
+      CSC_LINK: ${{ startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_LINK || secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_KEY_PASSWORD || secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      CSC_NAME: ${{ secrets.MAC_CSC_NAME }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      BROWSER2D_WINDOWS_PUBLISHER: ${{ secrets.WINDOWS_PUBLISHER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Fail closed before installing or building
+        shell: bash
+        run: node scripts/release-preflight.mjs --mode="$RELEASE_MODE" --target="$RELEASE_TARGET" --channel="$RELEASE_CHANNEL" --feed-base-url="$RELEASE_FEED"
+      - run: npm install --global pnpm@12.16.1
+      - name: Linux package tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm libfuse2t64
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:release
+      - name: Build final candidate without uploading
+        shell: bash
+        run: pnpm dist -- --mode="$RELEASE_MODE" --target="$RELEASE_TARGET" --channel="$RELEASE_CHANNEL" --feed-base-url="$RELEASE_FEED"
+      - name: Archive candidates, never release receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-${{ inputs.mode }}-${{ matrix.target }}
+          path: |
+            release/**/*.dmg
+            release/**/*.zip
+            release/**/*.exe
+            release/**/*.AppImage
+            release/**/*.deb
+            release/**/*.rpm
+            release/**/*.blockmap
+            release/**/*.yml
+            release/**/build-context.json
+            release/**/artifact-inventory.json
+            release/**/win-unpacked/**
+          retention-days: 7
+      - name: Explain remaining native acceptance
+        run: node -e "console.log('Candidate generation does not certify installation, N to N+1 update, data retention, uninstall, shutdown or legacy Squirrel migration. Native external acceptance is required by release:verify. No files were published.')"

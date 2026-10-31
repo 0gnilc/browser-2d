@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { deviceSchema, type Device, type Run } from '@browser-2d/contracts/public';
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
-import { NAlert, NButton, NTag } from 'naive-ui';
+import { NAlert, NButton, NForm, NSelect, NTable, NTag } from 'naive-ui';
 import { bridgeKey } from './bridge';
 import { useRunsStore } from './runs';
 
@@ -12,10 +12,6 @@ const deviceId = ref<number | null>(null);
 const devicesBusy = ref(false);
 const devicesError = ref('');
 const fixtureMode = import.meta.env.VITE_FIXTURE_MODE === '1';
-const connectionLabel = computed(
-  () =>
-    ({ connecting: '连接中', connected: '已连接', unavailable: '连接不可用' })[store.connection],
-);
 const valid = computed(() => devices.value.some((device) => device.id === deviceId.value));
 const stateLabels: Record<Run['state'], string> = {
   queued: '排队中',
@@ -30,7 +26,6 @@ const stateLabels: Record<Run['state'], string> = {
 function cancellable(state: Run['state']) {
   return state === 'queued' || state === 'starting' || state === 'running' || state === 'stopping';
 }
-let disconnect = () => {};
 let disposed = false;
 async function loadDevices() {
   if (!api || devicesBusy.value) return;
@@ -59,7 +54,7 @@ async function createFixtureDevice() {
   try {
     const result = await api.devices.create({
       symbol: `local-test-${globalThis.crypto.randomUUID()}`,
-      note: '本地受控验收设备，无真实账户。',
+      note: '本地验证测试设备，无真实账户。',
     });
     if (disposed) return;
     if (!result.ok) devicesError.value = `${result.error.code} · ${result.error.message}`;
@@ -70,7 +65,7 @@ async function createFixtureDevice() {
     }
   } catch (reason) {
     if (!disposed)
-      devicesError.value = reason instanceof Error ? reason.message : '验收设备创建失败。';
+      devicesError.value = reason instanceof Error ? reason.message : '测试设备创建失败。';
   } finally {
     if (!disposed) devicesBusy.value = false;
   }
@@ -79,12 +74,10 @@ function start() {
   if (valid.value && deviceId.value !== null) void store.start(deviceId.value);
 }
 onMounted(() => {
-  disconnect = store.connect(api);
   void loadDevices();
 });
 onUnmounted(() => {
   disposed = true;
-  disconnect();
 });
 function time(value: string) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false });
@@ -93,15 +86,8 @@ function time(value: string) {
 
 <template>
   <main class="workspace">
-    <header class="masthead">
-      <a class="brand" href="#/" aria-label="Browser 2D 首页"
-        ><span class="brand-mark">2D</span>Browser 2D</a
-      >
-      <span class="phase">P4 / CHROME</span>
-    </header>
     <section class="intro">
-      <p class="eyebrow">桌面运行时 · 验证工作台</p>
-      <h1>调度与恢复验收<span class="heading-dot">.</span></h1>
+      <h1>任务与运行记录<span class="heading-dot">.</span></h1>
       <p class="description">
         观察设备排队、容量限制、取消与资源清理。任务使用业务设备 ID 和受理时的设置。
       </p>
@@ -110,7 +96,7 @@ function time(value: string) {
       <span class="environment-label">{{
         store.snapshot?.execution === 'chrome'
           ? 'Google Chrome · 本地页面验证'
-          : '受控文件驱动 · 固定 3 秒策略'
+          : '本地文件验证 · 固定时长'
       }}</span>
       <span>{{
         fixtureMode
@@ -120,80 +106,48 @@ function time(value: string) {
             : '不启动真实浏览器，不消耗业务材料，不产生业务执行结果'
       }}</span>
     </div>
-    <section class="connection-panel" aria-label="运行时状态">
-      <div class="connection" data-testid="connection-status" :data-state="store.connection">
-        <span class="status-dot" :class="store.connection"></span
-        ><strong>{{ connectionLabel }}</strong>
-      </div>
-      <div class="runtime-stat">
-        <span>WORKER PID</span
-        ><strong data-testid="worker-pid">{{ store.snapshot?.workerPid ?? '—' }}</strong>
-      </div>
-      <div class="runtime-stat">
-        <span>快照版本</span><strong>{{ store.snapshot?.revision ?? '—' }}</strong>
-      </div>
-      <NButton secondary data-testid="refresh" :disabled="!api" @click="store.refresh"
-        >刷新快照</NButton
-      >
-    </section>
-    <p v-if="store.snapshot" data-testid="capacity-limits" class="business-note">
-      执行上限 {{ store.snapshot.policy.devices }} 台设备 /
-      {{ store.snapshot.policy.pages }} 页。排队任务保留设备，未清理资源继续占用容量。
-    </p>
-    <NAlert v-if="store.error" class="error-message" type="error" title="请求未完成" role="alert">{{
-      store.error
-    }}</NAlert>
-    <NAlert v-if="store.notice" class="error-message" type="info" data-testid="command-receipt">{{
-      store.notice
-    }}</NAlert>
-    <section v-if="store.pending" class="task-panel" data-testid="pending-command">
-      <h2>指令结果待确认</h2>
-      <p>
-        请先查询或用原指令重试。当前指令 ID
-        <code data-testid="command-id">{{ store.pending.input.commandId }}</code>
-      </p>
-      <div class="business-actions">
-        <NButton data-testid="query-command" :disabled="store.busy" @click="store.queryCommand"
-          >查询原指令</NButton
-        >
-        <NButton
-          data-testid="retry-command"
-          :disabled="store.busy || store.connection !== 'connected'"
-          @click="store.retryCommand"
-          >使用相同 ID 重试</NButton
-        >
-      </div>
-    </section>
     <section class="task-panel">
       <div class="section-heading">
-        <span class="section-number">01</span>
         <div>
-          <h2>启动受控任务</h2>
-          <p>选择已有设备，或创建无账户的验收设备。设备记录保存在业务数据库。</p>
+          <h2>启动本地验证任务</h2>
+          <p>选择已有设备，或创建无账户的测试设备。设备记录保存在业务数据库。</p>
         </div>
       </div>
       <NAlert v-if="devicesError" type="error" role="alert" data-testid="devices-error">{{
         devicesError
       }}</NAlert>
-      <form class="task-form" @submit.prevent="start">
-        <label class="field device-field"
-          ><span>业务设备</span>
-          <select v-model="deviceId" data-testid="device-id" :disabled="devicesBusy" required>
-            <option :value="null" disabled>请选择设备</option>
-            <option v-for="device in devices" :key="device.id" :value="device.id">
-              #{{ device.id }} · {{ device.symbol }}
-            </option>
-          </select>
-        </label>
+      <NForm class="task-form" @submit.prevent="start">
+        <div class="field device-field">
+          <span>业务设备</span>
+          <NSelect
+            v-model:value="deviceId"
+            aria-label="业务设备"
+            data-testid="device-id"
+            :disabled="devicesBusy"
+            placeholder="请选择设备"
+            :options="
+              devices.map((device) => ({
+                label: `#${device.id} · ${device.symbol}`,
+                value: device.id,
+              }))
+            "
+          />
+        </div>
         <NButton
           type="primary"
           attr-type="submit"
           data-testid="start-run"
           :loading="store.busy"
-          :disabled="!valid || store.connection !== 'connected' || store.busy || !!store.pending"
-          >启动受控任务 ↗</NButton
+          :disabled="
+            !valid ||
+            store.connection !== 'connected' ||
+            store.busy ||
+            store.batching ||
+            !!store.pending
+          "
+          >启动本地验证任务</NButton
         >
-      </form>
+      </NForm>
       <div class="business-actions fixture-actions">
         <NButton data-testid="devices-refresh" :disabled="!api || devicesBusy" @click="loadDevices"
           >刷新设备</NButton
@@ -202,7 +156,7 @@ function time(value: string) {
           data-testid="create-fixture-device"
           :disabled="!api || devicesBusy"
           @click="createFixtureDevice"
-          >创建验收设备</NButton
+          >创建测试设备</NButton
         >
       </div>
       <p class="form-note">
@@ -211,7 +165,6 @@ function time(value: string) {
     </section>
     <section class="history-panel">
       <div class="section-heading history-heading">
-        <span class="section-number">02</span>
         <div>
           <h2>
             运行记录 <span class="count">{{ store.runs.length }}</span>
@@ -220,7 +173,7 @@ function time(value: string) {
         </div>
       </div>
       <div class="table-scroll">
-        <table data-testid="run-table">
+        <NTable :bordered="false" :single-line="false" data-testid="run-table">
           <thead>
             <tr>
               <th>设备 / 任务 ID</th>
@@ -262,7 +215,12 @@ function time(value: string) {
                   v-if="cancellable(run.state)"
                   size="small"
                   :data-testid="`cancel-${run.id}`"
-                  :disabled="store.busy || !!store.pending || store.connection !== 'connected'"
+                  :disabled="
+                    store.busy ||
+                    store.batching ||
+                    !!store.pending ||
+                    store.connection !== 'connected'
+                  "
                   @click="store.cancel(run.id)"
                   >取消</NButton
                 ><span v-else class="muted">—</span>
@@ -270,11 +228,11 @@ function time(value: string) {
             </tr>
             <tr v-if="!store.runs.length">
               <td colspan="5" class="empty-state">
-                <strong>尚无运行记录</strong><span>选择验收设备，启动受控任务。</span>
+                <strong>尚无运行记录</strong><span>选择测试设备，启动本地验证任务。</span>
               </td>
             </tr>
           </tbody>
-        </table>
+        </NTable>
       </div>
       <footer class="table-footer">
         <span>当前工作进程会话</span><code>{{ store.snapshot?.epoch ?? '等待连接' }}</code>
@@ -282,7 +240,6 @@ function time(value: string) {
     </section>
     <section class="history-panel resources-panel">
       <div class="section-heading history-heading">
-        <span class="section-number">03</span>
         <div>
           <h2>
             未解决资源 <span class="count">{{ store.snapshot?.resources.length ?? 0 }}</span>
@@ -291,7 +248,7 @@ function time(value: string) {
         </div>
       </div>
       <div class="table-scroll">
-        <table data-testid="resources-table">
+        <NTable :bordered="false" :single-line="false" data-testid="resources-table">
           <thead>
             <tr>
               <th>设备 / 任务</th>
@@ -319,9 +276,9 @@ function time(value: string) {
               </td>
             </tr>
           </tbody>
-        </table>
+        </NTable>
       </div>
     </section>
-    <footer class="page-footer"><span>Browser 2D</span><span>浏览器与恢复验证 / P4</span></footer>
+    <footer class="page-footer"><span>Browser 2D</span><span>本地浏览器验证</span></footer>
   </main>
 </template>

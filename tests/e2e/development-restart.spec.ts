@@ -13,9 +13,12 @@ function absent(pid: number) {
     throw error;
   }
 }
-async function developer(testInfo: TestInfo) {
+async function developer(
+  testInfo: TestInfo,
+  sourcePath = 'apps/worker/src/work/controlled-driver.ts',
+) {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-dev-restart-'));
-  const source = resolve('apps/worker/src/work/controlled-driver.ts');
+  const source = resolve(sourcePath);
   const original = await readFile(source, 'utf8');
   const child = spawn(process.execPath, ['scripts/dev.mjs', '--inspect-ui'], {
     cwd: resolve('.'),
@@ -163,6 +166,28 @@ test('development restart refuses to replace an unresponsive predecessor after f
     closed = true;
   } finally {
     if (pid && !absent(pid)) process.kill(pid, 'SIGKILL');
+    if (!closed) await dev.close();
+  }
+});
+
+test('shared TypeScript preset changes restart only after the previous worker exits', async ({
+  browserName: _browserName,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const dev = await developer(testInfo, 'internal/tsconfig/base.json');
+  let closed = false;
+  try {
+    const first = await dev.page();
+    const previousPid = Number(await first.page.getByTestId('worker-pid').textContent());
+    await writeFile(dev.source, `${dev.original}\n`);
+    const replacement = await dev.page(first.port);
+    expect(absent(previousPid)).toBe(true);
+    expect(Number(await replacement.page.getByTestId('worker-pid').textContent())).not.toBe(
+      previousPid,
+    );
+    expect(await dev.close()).toBe(0);
+    closed = true;
+  } finally {
     if (!closed) await dev.close();
   }
 });

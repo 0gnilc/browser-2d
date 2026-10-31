@@ -10,11 +10,13 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit",
-    "test:credentials": "vitest run --config vitest.credentials.config.ts"
+    "test:credentials": "vitest run --config vitest.credentials.config.ts",
+    "test:updates": "vitest run --config vitest.updates.config.ts"
   },
   "dependencies": {
     "@browser-2d/worker-runtime": "workspace:*",
-    "electron-log": "catalog:"
+    "electron-log": "catalog:",
+    "electron-updater": "catalog:"
   },
   "devDependencies": {
     "@browser-2d/contracts": "workspace:*",

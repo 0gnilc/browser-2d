@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, watch } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, watch } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
@@ -7,6 +7,8 @@ import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, net, protocol, safeStorage, dialog } from 'electron';
 import log from 'electron-log/main';
 import {
+  updateOperations,
+  updateChangedChannel,
   businessChannel,
   businessMethods,
   channels,
@@ -21,6 +23,9 @@ import {
   type WorkSnapshot,
   type WorkState,
 } from '@browser-2d/contracts/public';
+import { createApplicationLifecycle } from './lifecycle';
+import { createUpdates, updatePolicy } from './updates';
+import { createUpdateDriver } from './update-driver';
 import { launchWorker } from './worker-client';
 import { createCredentialVault } from '../platform/credentials';
 import { createBusinessCoordinator } from '../bridge/business';
@@ -43,7 +48,6 @@ function publishWork(state: WorkState) {
   workState = state;
   if (window && !window.isDestroyed()) window.webContents.send(channels.changed, state);
 }
-let quitting = false;
 let coordinator: ReturnType<typeof createBusinessCoordinator> | undefined;
 let verification: Record<string, unknown> | undefined;
 
@@ -71,7 +75,7 @@ for (const [method, channel] of Object.entries(channels)) {
       input,
     });
     if (!parsed.success) return failure('INVALID_INPUT', 'Invalid task request');
-    if (!worker || quitting) return failure('UNAVAILABLE', 'Worker is unavailable');
+    if (!worker || !lifecycle.acceptingWork) return failure('UNAVAILABLE', 'Worker is unavailable');
     try {
       const result = await worker.request(parsed.data);
       return method === 'snapshot'
@@ -89,49 +93,103 @@ for (const [method, channel] of Object.entries(channels)) {
 for (const method of businessMethods) {
   ipcMain.handle(businessChannel(method), async (event, input: unknown) => {
     if (!allowedFrame(event)) return failure('INVALID_INPUT', 'Untrusted application frame');
-    if (!coordinator || quitting) return failure('UNAVAILABLE', 'Worker is unavailable');
+    if (!coordinator || !lifecycle.acceptingWork)
+      return failure('UNAVAILABLE', 'Worker is unavailable');
     return coordinator.invoke(method, input);
   });
 }
 
-async function closeApplication() {
-  if (quitting) return;
-  quitting = true;
-  publishWork({
-    status: 'unavailable',
-    generation: workState.generation + 1,
-    reason: 'Worker is shutting down',
-  });
-  let exitCode = 0;
-  try {
+const lifecycle = createApplicationLifecycle({
+  stopAcceptingWork() {
+    publishWork({
+      status: 'unavailable',
+      generation: workState.generation + 1,
+      reason: 'Worker is shutting down',
+    });
+  },
+  closeWorker: async () => {
     await worker?.close();
-  } catch (error) {
-    exitCode = 1;
+  },
+  async report(exitCode) {
+    if (reportPath && verification)
+      await writeFile(
+        reportPath,
+        JSON.stringify(
+          {
+            ...verification,
+            finalSnapshot: latestSnapshot,
+            exitCode,
+            workerExited: exitCode === 0,
+          },
+          null,
+          2,
+        ),
+      );
+  },
+  exit: (code) => app.exit(code),
+  logFailure(error) {
     log.error('shutdown failed', {
       reason: error instanceof Error ? error.message : 'Unknown shutdown error',
-      cause:
-        error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined,
       resources: latestSnapshot?.resources,
     });
-  }
-  if (reportPath && verification) {
-    await writeFile(
-      reportPath,
-      JSON.stringify(
-        { ...verification, finalSnapshot: latestSnapshot, exitCode, workerExited: exitCode === 0 },
-        null,
-        2,
-      ),
+  },
+});
+let releaseConfig: unknown;
+if (app.isPackaged) {
+  try {
+    releaseConfig = JSON.parse(
+      readFileSync(join(process.resourcesPath, 'release-config.json'), 'utf8'),
     );
+  } catch {
+    log.warn('Update configuration is unavailable');
   }
-  app.exit(exitCode);
+}
+let packageType: string | undefined;
+if (app.isPackaged && process.platform === 'linux') {
+  try {
+    packageType = readFileSync(join(process.resourcesPath, 'package-type'), 'utf8').trim();
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
+      packageType = 'unreadable';
+  }
+}
+const policy = updatePolicy({
+  packaged: app.isPackaged,
+  config: releaseConfig,
+  platform: process.platform,
+  arch: process.arch,
+  appImage: Boolean(process.env.APPIMAGE),
+  packageType,
+});
+const updates = createUpdates({
+  currentVersion: app.getVersion(),
+  policy,
+  lifecycle,
+  driver: policy.enabled ? createUpdateDriver(policy) : undefined,
+  publish(state) {
+    if (window && !window.isDestroyed()) window.webContents.send(updateChangedChannel, state);
+  },
+});
+for (const method of ['getState', 'check', 'download', 'install'] as const) {
+  const operation = updateOperations[method];
+  ipcMain.handle(operation.channel, async (event, input: unknown) => {
+    if (!allowedFrame(event)) return failure('INVALID_INPUT', 'Untrusted application frame');
+    if (!operation.input.safeParse(input).success)
+      return failure('INVALID_INPUT', 'Invalid update request');
+    return updates[method]();
+  });
+}
+function closeApplication() {
+  lifecycle.request({ kind: 'quit' });
+  return lifecycle.completion;
 }
 app.on('before-quit', (event) => {
+  if (lifecycle.nativeQuitAllowed) return;
   event.preventDefault();
   void closeApplication();
 });
 app.on('window-all-closed', () => {
-  void closeApplication();
+  if (!lifecycle.nativeQuitAllowed) void closeApplication();
 });
 process.on('SIGTERM', () => {
   void closeApplication();
@@ -247,6 +305,7 @@ async function verifyPackagedWindow() {
   }
   verification = {
     result,
+    appVersion: app.getVersion(),
     versions: process.versions,
     platform: process.platform,
     arch: process.arch,
@@ -360,7 +419,7 @@ async function startApplication() {
     nativeBinding: app.isPackaged ? undefined : process.env.BROWSER2D_NATIVE_BINDING,
     onSnapshot(snapshot) {
       latestSnapshot = snapshot;
-      if (!quitting && workState.generation <= generation)
+      if (lifecycle.acceptingWork && workState.generation <= generation)
         publishWork({ status: 'ready', generation, snapshot });
     },
     onUnavailable(message) {
@@ -373,12 +432,12 @@ async function startApplication() {
     },
   });
   coordinator = createBusinessCoordinator({
-    available: () => !!worker?.available && !quitting,
+    available: () => !!worker?.available && lifecycle.acceptingWork,
     request: (message) =>
       worker ? worker.request(message) : Promise.reject(new Error('Worker unavailable')),
   });
   await worker.ready;
-  if (quitting) return;
+  if (!lifecycle.acceptingWork) return;
   if (process.argv.includes('--worker-only')) {
     log.info('Worker ready', { pid: worker.pid });
     return;
@@ -399,7 +458,7 @@ async function startApplication() {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.on('close', (event) => {
-    if (!quitting) {
+    if (!lifecycle.nativeQuitAllowed) {
       event.preventDefault();
       void closeApplication();
     }
@@ -417,7 +476,7 @@ void app
     );
     const code = parsed.success ? parsed.data : 'INITIALIZATION_FAILED';
     log.error('startup failed', code);
-    if (!quitting && !reportPath && !process.argv.includes('--worker-only'))
+    if (lifecycle.acceptingWork && !reportPath && !process.argv.includes('--worker-only'))
       dialog.showErrorBox(
         'Business storage is unavailable',
         `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,
@@ -431,6 +490,6 @@ void app
           finalSnapshot: latestSnapshot,
         }),
       );
-    await worker?.close().catch(() => undefined);
-    app.exit(1);
+    lifecycle.request({ kind: 'quit', exitCode: 1 });
+    await lifecycle.completion;
   });

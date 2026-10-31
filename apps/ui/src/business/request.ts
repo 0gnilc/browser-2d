@@ -1,5 +1,5 @@
 import type { Browser2dApi, Result } from '@browser-2d/contracts/public';
-import { inject, ref } from 'vue';
+import { inject, ref, type InputHTMLAttributes } from 'vue';
 import { bridgeKey } from '../bridge';
 
 export function useBusinessRequest() {
@@ -28,4 +28,8 @@ export function useBusinessRequest() {
 
 export function nullableNumber(value: string) {
   return value === '' ? null : Number(value);
+}
+
+export function fieldProps(testId: string, attributes: InputHTMLAttributes = {}) {
+  return { ...attributes, 'data-testid': testId };
 }

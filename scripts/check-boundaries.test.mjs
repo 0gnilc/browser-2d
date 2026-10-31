@@ -37,6 +37,24 @@ test('the actual workspace graph allows build tooling and worker runtime resolut
   await checkBoundaries();
 });
 
+for (const name of ['forge.config.js', 'vite.config.js', 'package-lock.json']) {
+  test(`retired root ${name} cannot reintroduce a second toolchain`, async (t) => {
+    const directory = await workspace(t);
+    await writeFile(join(directory, name), '{}');
+    await assert.rejects(checkBoundaries(directory), /Retired root entry must not return/);
+  });
+}
+
+for (const dependency of ['@electron-forge/cli', 'element-plus', 'sqlite3']) {
+  test(`retired dependency ${dependency} cannot reenter a workspace manifest`, async (t) => {
+    const directory = await workspace(t);
+    await manifest(directory, 'apps/worker', (value) => {
+      value.devDependencies[dependency] = '1.0.0';
+    });
+    await assert.rejects(checkBoundaries(directory), /retired dependency/);
+  });
+}
+
 const violations = [
   [
     'public contracts cannot re-export host',
