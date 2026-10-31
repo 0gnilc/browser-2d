@@ -18,9 +18,10 @@ import {
   type StorageFailureCode,
 } from '@browser-2d/contracts/host';
 import { createBusinessStore } from './business-store';
+import { createWorkRepository } from '../work/repository';
 
 declare const __BUSINESS_MIGRATIONS__: string;
-const files = ['001-legacy.sql', '002-settings.sql'];
+const files = ['001-legacy.sql', '002-settings.sql', '003-work.sql'];
 export class StorageError extends Error {
   constructor(readonly code: StorageFailureCode) {
     super(code);
@@ -176,6 +177,18 @@ export async function openBusinessStore(options: StorageOptions) {
   mkdirSync(dirname(options.path), { recursive: true, mode: 0o700 });
   const nativeOptions = options.nativeBinding ? { nativeBinding: options.nativeBinding } : {};
   const db = new Database(options.path, { ...nativeOptions, timeout: 1000 });
+  function opened(backup: { path: string; containsLegacyPlaintext: boolean } | null) {
+    const store = createBusinessStore(db);
+    return {
+      store,
+      work: createWorkRepository(db, () => {
+        const result = store.settings.get();
+        if (!result.ok) throw new Error('Settings unavailable');
+        return result.value;
+      }),
+      backup,
+    };
+  }
   let stage: StorageFailureCode = 'INITIALIZATION_FAILED';
   const checkCancelled = () => {
     if (options.signal?.aborted) throw new StorageError('INITIALIZATION_FAILED');
@@ -193,7 +206,7 @@ export async function openBusinessStore(options: StorageOptions) {
     const version = db.pragma('user_version', { simple: true });
     if (typeof version !== 'number' || version > files.length)
       throw new StorageError('DATABASE_NEWER');
-    if (version !== 0 && version !== files.length) throw new StorageError('DATABASE_UNRECOGNIZED');
+    if (version !== 0 && version < 2) throw new StorageError('DATABASE_UNRECOGNIZED');
     const migrationsDir =
       options.migrationsDir ??
       (typeof __BUSINESS_MIGRATIONS__ === 'string'
@@ -215,21 +228,23 @@ export async function openBusinessStore(options: StorageOptions) {
       const expected = new Database(':memory:', nativeOptions);
       try {
         for (const migration of migrations)
-          if (migration.version === 1 || version === files.length) expected.exec(migration.sql);
+          if (migration.version <= Math.max(1, version)) expected.exec(migration.sql);
         if (schema(db) !== schema(expected)) throw new StorageError('DATABASE_UNRECOGNIZED');
       } finally {
         expected.close();
       }
       validateRows(db);
     }
-    if (version === files.length) {
+    if (version >= 2) {
       const ledger = db
         .prepare('SELECT version, name, checksum FROM business_migrations ORDER BY version')
         .all();
       if (
         JSON.stringify(ledger) !==
         JSON.stringify(
-          migrations.map(({ version, name, checksum }) => ({ version, name, checksum })),
+          migrations
+            .filter((migration) => migration.version <= version)
+            .map(({ version, name, checksum }) => ({ version, name, checksum })),
         )
       )
         throw new StorageError('MIGRATION_CHANGED');
@@ -251,15 +266,15 @@ export async function openBusinessStore(options: StorageOptions) {
       }
       if (db.prepare("SELECT 1 FROM config WHERE key = 'adsPowerApiKey'").get())
         throw new StorageError('DATABASE_UNRECOGNIZED');
-      const store = createBusinessStore(db);
-      store.settings.get();
-      return { store, backup: null };
+      createBusinessStore(db).settings.get();
+      if (version === files.length) return opened(null);
     }
-    if (!empty && !needsConsent) throw new StorageError('DATABASE_UNRECOGNIZED');
+    if (!empty && version === 0 && !needsConsent) throw new StorageError('DATABASE_UNRECOGNIZED');
     checkCancelled();
-    const legacyKey = empty
-      ? null
-      : db.prepare("SELECT value FROM config WHERE key = 'adsPowerApiKey'").pluck().get();
+    const legacyKey =
+      empty || version >= 2
+        ? null
+        : db.prepare("SELECT value FROM config WHERE key = 'adsPowerApiKey'").pluck().get();
     if (legacyKey !== undefined && legacyKey !== null && typeof legacyKey !== 'string')
       throw new StorageError('DATABASE_UNRECOGNIZED');
     let backup: { path: string; containsLegacyPlaintext: boolean } | null = null;
@@ -267,9 +282,17 @@ export async function openBusinessStore(options: StorageOptions) {
       stage = 'BACKUP_FAILED';
       const directory = join(dirname(options.path), 'backups');
       mkdirSync(directory, { recursive: true, mode: 0o700 });
-      const backupPath = join(directory, `data-before-p2-${randomUUID()}.sqlite3`);
+      const backupPath = join(directory, `data-before-v${files.length}-${randomUUID()}.sqlite3`);
       const temporary = `${backupPath}.tmp`;
-      const before = contents(db, ['device', 'material', 'history', 'config', 'sqlite_sequence']);
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .pluck()
+        .all()
+        .map((name) => {
+          if (typeof name !== 'string') throw new StorageError('BACKUP_FAILED');
+          return name;
+        });
+      const before = contents(db, tables);
       const sourceSchema = fingerprint(db);
       await db.backup(temporary);
       checkCancelled();
@@ -282,8 +305,7 @@ export async function openBusinessStore(options: StorageOptions) {
         if (
           copied.pragma('integrity_check', { simple: true }) !== 'ok' ||
           fingerprint(copied) !== sourceSchema ||
-          contents(copied, ['device', 'material', 'history', 'config', 'sqlite_sequence']) !==
-            before
+          contents(copied, tables) !== before
         )
           throw new StorageError('BACKUP_FAILED');
       } finally {
@@ -319,19 +341,21 @@ export async function openBusinessStore(options: StorageOptions) {
     stage = 'MIGRATION_FAILED';
     db.pragma('secure_delete = ON');
     db.transaction(() => {
-      for (const migration of migrations) db.exec(migration.sql);
+      for (const migration of migrations) if (migration.version > version) db.exec(migration.sql);
       const insert = db.prepare(
         'INSERT INTO business_migrations (version, name, checksum) VALUES (@version, @name, @checksum)',
       );
-      for (const migration of migrations) insert.run(migration);
-      db.prepare('UPDATE business_settings SET secret_ref = ? WHERE id = 1').run(secretRef);
-      db.prepare("DELETE FROM config WHERE key = 'adsPowerApiKey'").run();
+      for (const migration of migrations) if (migration.version > version) insert.run(migration);
+      if (version === 0) {
+        db.prepare('UPDATE business_settings SET secret_ref = ? WHERE id = 1').run(secretRef);
+        db.prepare("DELETE FROM config WHERE key = 'adsPowerApiKey'").run();
+      }
       createBusinessStore(db).settings.get();
       options.beforeCommit?.();
     })();
     db.pragma('wal_checkpoint(TRUNCATE)');
     checkCancelled();
-    return { store: createBusinessStore(db), backup };
+    return opened(backup);
   } catch (error) {
     if (db.open) db.close();
     if (error instanceof StorageError) throw error;
