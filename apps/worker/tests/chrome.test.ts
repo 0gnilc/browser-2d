@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { access, lstat, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { constants, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -11,7 +11,7 @@ import puppeteer, { Browser, Connection, type BrowserContext, type Target } from
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { secretRefSchema } from '@browser-2d/contracts/host';
-import type { Result, SettingsValues } from '@browser-2d/contracts/public';
+import type { Result, SettingsValues, WorkSnapshot } from '@browser-2d/contracts/public';
 import { createChromeDriver } from '../src/browser/chrome-driver';
 import { openBusinessStore } from '../src/storage/open-business-store';
 import { createWorkService } from '../src/work/service';
@@ -679,104 +679,172 @@ it('refuses to close an unrelated Chrome found through a forged owned discovery 
   }
 }, 30_000);
 
-it('recovers a verified owned browser that exited before its release was journaled', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'browser-2d-closed-recovery-'));
-  const database = await openBusinessStore({
-    path: join(directory, 'data.db'),
-    execution: 'chrome',
-    confirmLegacy: async () => true,
-    prepareLegacy: async () => secretRefSchema.parse(randomUUID()),
-  });
-  const settings = value(database.store.settings.get());
-  value(
-    database.store.settings.commit({
-      expectedRevision: settings.revision,
-      values: {
-        ...settings,
-        browser: { mode: 'launch', executablePath, headless: true },
-      },
-    }),
-  );
-  const deviceId = value(database.store.devices.create({ symbol: 'closed-before-journal' })).id;
-  value(database.work.start({ commandId: randomUUID(), deviceId }));
-  const admitted = database.work.admit();
-  if (!admitted) throw new Error('Missing admission');
-  const root = join(directory, 'chrome-sessions');
-  const driver = createChromeDriver({ root, journal: database.work.chrome });
-  cleanups.push(async () => {
-    await driver.cleanup(admitted.intent, AbortSignal.timeout(7000));
-    database.store.close();
-    await rm(directory, { recursive: true, force: true });
-  });
-  const resource = await driver.acquire(admitted.intent, AbortSignal.timeout(15_000));
-  database.work.acquired(admitted.intent, resource);
-  const observer = await ownedObserver(root);
-  await observer.browser.close();
-  await expect.poll(() => alive(observer.pid), poll).toBe(false);
-  database.work.recover();
-  const recovered = createChromeDriver({ root, journal: database.work.chrome });
-  expect(await recovered.cleanup(admitted.intent, AbortSignal.timeout(7000))).toEqual({
-    kind: 'resolved',
-  });
-  database.work.resolved(admitted.intent.operationId);
-  expect(database.work.snapshot().resources).toEqual([]);
-  const remaining = await readdir(root);
-  if (remaining.length > 0) {
-    const profile = join(root, admitted.intent.operationId);
-    const capturedAt = new Date().toISOString();
-    const journal = database.work.chrome.get(admitted.intent.operationId);
-    try {
-      let processes: string[] | { error: string };
+it.each([false, true])(
+  'recovers a verified owned browser that exited before its release was journaled (transient EPERM: %s)',
+  async (transientPermissionFailure) => {
+    const directory = await mkdtemp(join(tmpdir(), 'browser-2d-closed-recovery-'));
+    let database = await openBusinessStore({
+      path: join(directory, 'data.db'),
+      execution: 'chrome',
+      confirmLegacy: async () => true,
+      prepareLegacy: async () => secretRefSchema.parse(randomUUID()),
+    });
+    const settings = value(database.store.settings.get());
+    value(
+      database.store.settings.commit({
+        expectedRevision: settings.revision,
+        values: {
+          ...settings,
+          browser: { mode: 'launch', executablePath, headless: true },
+        },
+      }),
+    );
+    const deviceId = value(database.store.devices.create({ symbol: 'closed-before-journal' })).id;
+    value(database.work.start({ commandId: randomUUID(), deviceId }));
+    const admitted = database.work.admit();
+    if (!admitted) throw new Error('Missing admission');
+    const root = join(directory, 'chrome-sessions');
+    const driver = createChromeDriver({ root, journal: database.work.chrome });
+    let service: ReturnType<typeof createWorkService> | undefined;
+    cleanups.push(async () => {
       try {
-        processes = execFileSync('/bin/ps', ['-axww', '-o', 'pid=,ppid=,lstart=,command='], {
-          encoding: 'utf8',
-          timeout: 1000,
-        })
-          .split('\n')
-          .filter(
-            (line) => line.includes(profile) || line.trimStart().startsWith(`${observer.pid} `),
-          );
-      } catch (error) {
-        processes = { error: String(error) };
+        if (service) await service.stop();
+        else await driver.cleanup(admitted.intent, AbortSignal.timeout(7000));
+      } finally {
+        database.store.close();
+        await rm(directory, { recursive: true, force: true });
       }
-      const entries = await Promise.all(
-        (await readdir(root, { recursive: true })).map(async (path) => {
-          try {
-            const stat = await lstat(join(root, path));
-            return {
-              path,
-              size: stat.size,
-              mtime: stat.mtime.toISOString(),
-              mode: stat.mode,
-              directory: stat.isDirectory(),
-              symlink: stat.isSymbolicLink(),
-            };
-          } catch (error) {
-            return { path, error: String(error) };
-          }
-        }),
-      );
-      const diagnostic = JSON.stringify(
-        { capturedAt, root, remaining, journal, browserPid: observer.pid, processes, entries },
-        null,
-        2,
-      );
-      console.error(`Chrome profile cleanup failure\n${diagnostic}`);
-      const artifacts = fileURLToPath(new URL('../../../artifacts/', import.meta.url));
-      await mkdir(artifacts, { recursive: true });
-      await writeFile(
-        join(artifacts, `chrome-profile-${admitted.intent.operationId}.json`),
-        diagnostic,
-      );
-    } catch (error) {
-      console.error('Chrome profile cleanup diagnostic failed', {
-        capturedAt,
-        root,
-        remaining,
-        journal,
-        error,
+    });
+    const resource = await driver.acquire(admitted.intent, AbortSignal.timeout(15_000));
+    database.work.acquired(admitted.intent, resource);
+    const observer = await ownedObserver(root);
+    await observer.browser.close();
+    await expect.poll(() => alive(observer.pid), poll).toBe(false);
+    const recorded = database.work.chrome.get(admitted.intent.operationId);
+    if (!recorded || recorded.mode !== 'launch' || !('lifetime' in recorded))
+      throw new Error('Owned browser lifetime was not journaled');
+    const identifier =
+      recorded.lifetime.kind === 'posix-group' ? -recorded.lifetime.pgid : recorded.lifetime.pid;
+    const profile = join(root, admitted.intent.operationId);
+    expect(existsSync(profile)).toBe(true);
+    database.store.close();
+    database = await openBusinessStore({
+      path: join(directory, 'data.db'),
+      execution: 'chrome',
+      confirmLegacy: async () => true,
+      prepareLegacy: async () => secretRefSchema.parse(randomUUID()),
+    });
+    const publications: {
+      snapshot: WorkSnapshot;
+      profilePresent: boolean;
+      observedAbsence: boolean;
+    }[] = [];
+    let injected = false;
+    let observedAbsence = false;
+    const kill = process.kill.bind(process);
+    const observation = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid !== identifier || signal !== 0) return kill(pid, signal);
+      if (transientPermissionFailure && !injected) {
+        injected = true;
+        throw Object.assign(new Error('Transient ownership observation denied'), { code: 'EPERM' });
+      }
+      try {
+        return kill(pid, signal);
+      } catch (error) {
+        if (error instanceof Error && 'code' in error && error.code === 'ESRCH')
+          observedAbsence = true;
+        throw error;
+      }
+    });
+    try {
+      service = createWorkService({
+        repository: database.work,
+        driver: createChromeDriver({ root, journal: database.work.chrome }),
+        publish: (snapshot) => {
+          publications.push({ snapshot, profilePresent: existsSync(profile), observedAbsence });
+        },
       });
+      await expect.poll(() => service?.snapshot().resources, poll).toEqual([]);
+      if (transientPermissionFailure) {
+        expect(injected).toBe(true);
+        expect(publications[0]).toMatchObject({
+          snapshot: {
+            resources: [
+              { operationId: admitted.intent.operationId, failure: 'OWNERSHIP_UNCERTAIN' },
+            ],
+          },
+          profilePresent: true,
+          observedAbsence: false,
+        });
+      }
+      expect(publications.at(-1)).toMatchObject({
+        snapshot: { resources: [] },
+        profilePresent: false,
+        observedAbsence: true,
+      });
+      expect(database.work.obligations()).toEqual([]);
+    } finally {
+      observation.mockRestore();
     }
-  }
-  expect(remaining).toEqual([]);
-}, 30_000);
+    const remaining = await readdir(root);
+    if (remaining.length > 0) {
+      const profile = join(root, admitted.intent.operationId);
+      const capturedAt = new Date().toISOString();
+      const journal = database.work.chrome.get(admitted.intent.operationId);
+      try {
+        let processes: string[] | { error: string };
+        try {
+          processes = execFileSync('/bin/ps', ['-axww', '-o', 'pid=,ppid=,lstart=,command='], {
+            encoding: 'utf8',
+            timeout: 1000,
+          })
+            .split('\n')
+            .filter(
+              (line) => line.includes(profile) || line.trimStart().startsWith(`${observer.pid} `),
+            );
+        } catch (error) {
+          processes = { error: String(error) };
+        }
+        const entries = await Promise.all(
+          (await readdir(root, { recursive: true })).map(async (path) => {
+            try {
+              const stat = await lstat(join(root, path));
+              return {
+                path,
+                size: stat.size,
+                mtime: stat.mtime.toISOString(),
+                mode: stat.mode,
+                directory: stat.isDirectory(),
+                symlink: stat.isSymbolicLink(),
+              };
+            } catch (error) {
+              return { path, error: String(error) };
+            }
+          }),
+        );
+        const diagnostic = JSON.stringify(
+          { capturedAt, root, remaining, journal, browserPid: observer.pid, processes, entries },
+          null,
+          2,
+        );
+        console.error(`Chrome profile cleanup failure\n${diagnostic}`);
+        const artifacts = fileURLToPath(new URL('../../../artifacts/', import.meta.url));
+        await mkdir(artifacts, { recursive: true });
+        await writeFile(
+          join(artifacts, `chrome-profile-${admitted.intent.operationId}.json`),
+          diagnostic,
+        );
+      } catch (error) {
+        console.error('Chrome profile cleanup diagnostic failed', {
+          capturedAt,
+          root,
+          remaining,
+          journal,
+          error,
+        });
+      }
+    }
+    expect(remaining).toEqual([]);
+  },
+  30_000,
+);
