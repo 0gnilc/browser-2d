@@ -18,6 +18,7 @@ catalog:
   'vite': '8.3.5'
   'electron-builder': '26.18.0'
   'better-sqlite3': '13.0.3'
+  'puppeteer-core': '25.16.0'
   'vue': '3.5.44'
   'pinia': '3.0.4'
   'naive-ui': '2.45.3'

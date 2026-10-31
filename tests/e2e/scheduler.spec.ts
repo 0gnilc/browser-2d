@@ -207,8 +207,12 @@ test('cleanup refusal retains device and page reservations, and restart only rec
           method: 'settings.commit',
           input: {
             expectedRevision: revision,
-            values: { adsPowerUrl: '', viewportWidth: 1280, viewportHeight: 800, pageCount: 4 },
-            credential: { action: 'retain' },
+            values: {
+              browser: { mode: 'launch', executablePath: '', headless: true },
+              viewportWidth: 1280,
+              viewportHeight: 800,
+              pageCount: 4,
+            },
           },
         }),
       current.value.revision,

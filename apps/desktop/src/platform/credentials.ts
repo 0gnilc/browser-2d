@@ -20,7 +20,6 @@ export function createCredentialVault(options: {
   onStage?: (stage: VaultStage) => void;
 }) {
   let tail: Promise<unknown> = Promise.resolve();
-  const sessions = new Map<SecretRef, string>();
   function serialized<T>(action: () => Promise<T>): Promise<T> {
     const result = tail.then(action).catch(() => {
       throw new CredentialError();
@@ -93,11 +92,6 @@ export function createCredentialVault(options: {
       return serialized(async () => {
         await read(ref);
       });
-    },
-    prepareSession(value: string): SecretRef {
-      const ref = secretRefSchema.parse(randomUUID());
-      sessions.set(ref, value);
-      return ref;
     },
   };
 }

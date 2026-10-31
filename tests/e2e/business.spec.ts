@@ -42,7 +42,9 @@ test('business screens save through the real bridge and display refreshed record
     await expect(page.getByTestId('history-export-result')).toContainText('0 条');
     await page.getByTestId('nav-settings').click();
     await expect(page.getByTestId('settings-save')).toBeEnabled();
-    await page.getByTestId('settings-url').fill('http://127.0.0.1:50325');
+    await expect(page.getByTestId('settings-browser-mode')).toHaveValue('launch');
+    await page.getByTestId('settings-browser-mode').selectOption('connect');
+    await page.getByTestId('settings-endpoint').fill('http://127.0.0.1:9222');
     await page.getByTestId('settings-width').fill('900');
     await page.getByTestId('settings-save').click();
     await expect(page.getByTestId('settings-saved')).toBeVisible();
@@ -136,12 +138,11 @@ test('legacy CRUD crosses the public bridge, commits, refreshes and survives res
       const saved = await api.settings.save({
         expectedRevision: settings.value.revision,
         values: {
-          adsPowerUrl: 'http://127.0.0.1:50325',
+          browser: { mode: 'launch', executablePath: '', headless: false },
           viewportWidth: 1024,
           viewportHeight: 768,
           pageCount: 2,
         },
-        secret: { action: 'retain' },
       });
       return {
         devices,
@@ -184,7 +185,6 @@ test('legacy CRUD crosses the public bridge, commits, refreshes and survives res
     expect(first.deleted.ok && first.deleted.value.deleted).toBe(1);
     expect(first.saved.ok && first.saved.value).toMatchObject({
       pageCount: 2,
-      keyConfigured: false,
     });
     await application.close();
     application = await launch();
@@ -276,10 +276,10 @@ test('legacy plaintext migrates only after OS-encrypted persistence and remains 
     const page = await application.firstWindow();
     const settings = await page.evaluate(async () => window.browser2d?.settings.get());
     expect(settings?.ok && settings.value).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'persistent',
+      browser: { mode: 'launch', executablePath: '', headless: false },
     });
     expect(JSON.stringify(settings)).not.toContain(sentinel);
+    expect(JSON.stringify(settings)).not.toMatch(/keyConfigured|credentialMode|secretRef/);
     await application.close();
     const migrated = new Database(join(dataDir, 'data.db'), { readonly: true });
     try {
@@ -312,8 +312,7 @@ test('legacy plaintext migrates only after OS-encrypted persistence and remains 
     const reopened = await application.firstWindow();
     const again = await reopened.evaluate(async () => window.browser2d?.settings.get());
     expect(again?.ok && again.value).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'persistent',
+      browser: { mode: 'launch', executablePath: '', headless: false },
     });
     expect(
       (await readdir(join(dataDir, 'backups'))).filter((name) => name.endsWith('.sqlite3')),
@@ -324,105 +323,69 @@ test('legacy plaintext migrates only after OS-encrypted persistence and remains 
   }
 });
 
-test('OS-encrypted credentials persist, stale settings conflict and session replacement expires', async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-credentials-'));
-  const sentinel = 'p2-synthetic-secret-never-echo-825717';
+test('Chrome settings persist across modes, stale saves conflict and no credentials are required', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-chrome-settings-'));
   const launch = () =>
     electron.launch({
       executablePath: desktopRequire('electron'),
-      args: [
-        desktop,
-        ...(process.platform === 'linux' ? ['--password-store=gnome-libsecret'] : []),
-      ],
+      args: [desktop],
       env: { ...process.env, BROWSER2D_DATA_DIR: dataDir },
     });
   let application = await launch();
   try {
     const page = await application.firstWindow();
-    const saved = await page.evaluate(async (value) => {
+    const saved = await page.evaluate(async () => {
       const api = window.browser2d;
       if (!api) throw new Error('Public API missing');
       const current = await api.settings.get();
       if (!current.ok) throw new Error(current.error.code);
-      const input = {
-        expectedRevision: current.value.revision,
-        values: {
-          adsPowerUrl: 'http://127.0.0.1:50325',
-          viewportWidth: 1280,
-          viewportHeight: 800,
-          pageCount: 1,
-        },
-      };
-      const first = await api.settings.save({
-        ...input,
-        secret: { action: 'replace', value, persistence: 'persistent' },
-      });
-      const stale = await api.settings.save({ ...input, secret: { action: 'clear' } });
+      const values = {
+        browser: { mode: 'launch', executablePath: '/fixture/chrome', headless: true },
+        viewportWidth: 1280,
+        viewportHeight: 800,
+        pageCount: 1,
+      } satisfies Parameters<typeof api.settings.save>[0]['values'];
+      const first = await api.settings.save({ values, expectedRevision: current.value.revision });
+      const stale = await api.settings.save({ values, expectedRevision: current.value.revision });
       return { first, stale };
-    }, sentinel);
+    });
     expect(saved.first.ok && saved.first.value).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'persistent',
+      browser: { mode: 'launch', executablePath: '/fixture/chrome', headless: true },
     });
     expect(saved.stale).toMatchObject({ ok: false, error: { code: 'CONFLICT' } });
-    expect(JSON.stringify(saved)).not.toContain(sentinel);
-    expect(JSON.stringify(saved)).not.toContain('secretRef');
+    expect(JSON.stringify(saved)).not.toMatch(/keyConfigured|credentialMode|secretRef|adsPower/);
     await application.close();
-    const encrypted = await readFile(join(dataDir, 'credentials.enc'));
-    expect(encrypted.includes(Buffer.from(sentinel))).toBe(false);
-    expect((await readFile(join(dataDir, 'data.db'))).includes(Buffer.from(sentinel))).toBe(false);
     application = await launch();
     const reopened = await application.firstWindow();
-    const next = await reopened.evaluate(async () => {
+    const connected = await reopened.evaluate(async () => {
       const api = window.browser2d;
       if (!api) throw new Error('Public API missing');
       const before = await api.settings.get();
       if (!before.ok) throw new Error(before.error.code);
-      const values = {
-        adsPowerUrl: before.value.adsPowerUrl,
-        viewportWidth: before.value.viewportWidth,
-        viewportHeight: before.value.viewportHeight,
-        pageCount: before.value.pageCount,
-      };
-      const replaced = await api.settings.save({
-        expectedRevision: before.value.revision,
-        values,
-        secret: { action: 'replace', value: 'p2-session-fixture-only', persistence: 'session' },
+      const { revision, ...values } = before.value;
+      const after = await api.settings.save({
+        expectedRevision: revision,
+        values: { ...values, browser: { mode: 'connect', endpoint: 'http://localhost:9333' } },
       });
-      if (!replaced.ok) throw new Error(replaced.error.code);
-      const retained = await api.settings.save({
-        expectedRevision: replaced.value.revision,
-        values,
-        secret: { action: 'retain' },
-      });
-      return { before, replaced, retained };
+      return { before, after };
     });
-    expect(next.before.ok && next.before.value).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'persistent',
+    expect(connected.before.ok && connected.before.value).toMatchObject({
+      browser: { mode: 'launch', executablePath: '/fixture/chrome', headless: true },
     });
-    expect(next.replaced.ok && next.replaced.value).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'session',
-    });
-    expect(next.retained.ok && next.retained.value).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'session',
+    expect(connected.after.ok && connected.after.value).toMatchObject({
+      browser: { mode: 'connect', endpoint: 'http://localhost:9333' },
     });
     await application.close();
     application = await launch();
     const finalPage = await application.firstWindow();
     const final = await finalPage.evaluate(async () => window.browser2d?.settings.get());
     expect(final?.ok && final.value).toMatchObject({
-      keyConfigured: false,
-      credentialMode: 'none',
+      browser: { mode: 'connect', endpoint: 'http://localhost:9333' },
+      viewportWidth: 1280,
+      viewportHeight: 800,
+      pageCount: 1,
     });
-    const files = await readdir(dataDir);
-    for (const file of files.filter((name) => /credentials|data\.db/.test(name))) {
-      expect(
-        (await readFile(join(dataDir, file))).includes(Buffer.from('p2-session-fixture-only')),
-      ).toBe(false);
-    }
+    expect(await readdir(dataDir)).not.toContain('credentials.enc');
   } finally {
     await application.close().catch(() => undefined);
     await rm(dataDir, { recursive: true, force: true });

@@ -163,7 +163,7 @@ async function verifyPackagedWindow() {
     assert(material.ok, 'Business material write failed');
     const history = await api.history.exportText({}); assert(history.ok && history.value.count === 0, 'Business history read failed');
     const settings = await api.settings.get(); assert(settings.ok, 'Business settings read failed');
-    const saved = await api.settings.save({ expectedRevision: settings.value.revision, values: { adsPowerUrl: 'http://127.0.0.1:50325', viewportWidth: 1280, viewportHeight: 800, pageCount: 2 }, secret: { action: 'retain' } });
+    const saved = await api.settings.save({ expectedRevision: settings.value.revision, values: { browser: { mode: 'launch', executablePath: ${JSON.stringify(process.env.BROWSER2D_CHROME_EXECUTABLE || '')}, headless: true }, viewportWidth: 1280, viewportHeight: 800, pageCount: 2 } });
     assert(saved.ok && saved.value.revision === settings.value.revision + 1, 'Business settings commit failed');
     let observed = 0; const dispose = api.work.subscribe(state => { if (state.status === 'ready') observed++; });
     const inputs = devices.map(device => ({ commandId: crypto.randomUUID(), deviceId: device.id }));
@@ -266,6 +266,11 @@ async function startApplication() {
   const generation = workState.generation + 1;
   worker = launchWorker({
     dataDir,
+    execution:
+      (reportPath && process.env.BROWSER2D_VERIFY_CHROME !== '1') ||
+      (process.env.BROWSER2D_DATA_DIR && process.env.BROWSER2D_EXECUTION === 'controlled')
+        ? 'controlled'
+        : 'chrome',
     businessPath:
       process.env.BROWSER2D_DATA_DIR || !app.isPackaged
         ? join(dataDir, 'data.db')
@@ -314,7 +319,6 @@ async function startApplication() {
     },
   });
   coordinator = createBusinessCoordinator({
-    vault,
     available: () => !!worker?.available && !quitting,
     request: (message) =>
       worker ? worker.request(message) : Promise.reject(new Error('Worker unavailable')),
@@ -322,7 +326,7 @@ async function startApplication() {
   await worker.ready;
   if (quitting) return;
   if (process.argv.includes('--worker-only')) {
-    log.info('Controlled worker ready', { pid: worker.pid });
+    log.info('Worker ready', { pid: worker.pid });
     return;
   }
   window = new BrowserWindow({

@@ -58,8 +58,8 @@ async function createFixtureDevice() {
   devicesError.value = '';
   try {
     const result = await api.devices.create({
-      symbol: `p3-fixture-${globalThis.crypto.randomUUID()}`,
-      note: 'P3 受控调度验收设备，无真实账户。',
+      symbol: `local-test-${globalThis.crypto.randomUUID()}`,
+      note: '本地受控验收设备，无真实账户。',
     });
     if (disposed) return;
     if (!result.ok) devicesError.value = `${result.error.code} · ${result.error.message}`;
@@ -97,7 +97,7 @@ function time(value: string) {
       <a class="brand" href="#/" aria-label="Browser 2D 首页"
         ><span class="brand-mark">2D</span>Browser 2D</a
       >
-      <span class="phase">P3 / SCHEDULING &amp; RECOVERY</span>
+      <span class="phase">P4 / CHROME</span>
     </header>
     <section class="intro">
       <p class="eyebrow">桌面运行时 · 验证工作台</p>
@@ -107,11 +107,17 @@ function time(value: string) {
       </p>
     </section>
     <div class="environment" data-testid="controlled-mode">
-      <span class="environment-label">P3 受控执行 · 固定 3 秒策略</span>
+      <span class="environment-label">{{
+        store.snapshot?.execution === 'chrome'
+          ? 'Google Chrome · 本地页面验证'
+          : '受控文件驱动 · 固定 3 秒策略'
+      }}</span>
       <span>{{
         fixtureMode
           ? '界面预览 · 调度与业务功能不可用'
-          : '不启动真实浏览器，不消耗业务材料，不产生业务执行结果'
+          : store.snapshot?.execution === 'chrome'
+            ? '使用独立上下文，只运行本地验证页面，不消耗业务材料'
+            : '不启动真实浏览器，不消耗业务材料，不产生业务执行结果'
       }}</span>
     </div>
     <section class="connection-panel" aria-label="运行时状态">
@@ -316,6 +322,6 @@ function time(value: string) {
         </table>
       </div>
     </section>
-    <footer class="page-footer"><span>Browser 2D</span><span>调度与恢复验证 / P3</span></footer>
+    <footer class="page-footer"><span>Browser 2D</span><span>浏览器与恢复验证 / P4</span></footer>
   </main>
 </template>

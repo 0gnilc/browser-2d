@@ -21,7 +21,7 @@ import { createBusinessStore } from './business-store';
 import { createWorkRepository } from '../work/repository';
 
 declare const __BUSINESS_MIGRATIONS__: string;
-const files = ['001-legacy.sql', '002-settings.sql', '003-work.sql'];
+const files = ['001-legacy.sql', '002-settings.sql', '003-work.sql', '004-chrome.sql'];
 export class StorageError extends Error {
   constructor(readonly code: StorageFailureCode) {
     super(code);
@@ -29,10 +29,11 @@ export class StorageError extends Error {
 }
 export interface StorageOptions {
   path: string;
+  execution?: 'controlled' | 'chrome';
   nativeBinding?: string;
   confirmLegacy: () => Promise<boolean>;
   prepareLegacy: (value: string) => Promise<SecretRef>;
-  verifyCredential: (ref: SecretRef) => Promise<void>;
+  verifyCredential?: (ref: SecretRef) => Promise<void>;
   signal?: AbortSignal;
   migrationsDir?: string;
   beforeCommit?: () => void;
@@ -181,11 +182,15 @@ export async function openBusinessStore(options: StorageOptions) {
     const store = createBusinessStore(db);
     return {
       store,
-      work: createWorkRepository(db, () => {
-        const result = store.settings.get();
-        if (!result.ok) throw new Error('Settings unavailable');
-        return result.value;
-      }),
+      work: createWorkRepository(
+        db,
+        () => {
+          const result = store.settings.get();
+          if (!result.ok) throw new Error('Settings unavailable');
+          return result.value;
+        },
+        options.execution,
+      ),
       backup,
     };
   }
@@ -260,9 +265,7 @@ export async function openBusinessStore(options: StorageOptions) {
         throw new StorageError('DATABASE_UNRECOGNIZED');
       const ref = db.prepare('SELECT secret_ref FROM business_settings WHERE id = 1').pluck().get();
       if (ref !== null) {
-        stage = 'CREDENTIAL_UNAVAILABLE';
-        await options.verifyCredential(secretRefSchema.parse(ref));
-        checkCancelled();
+        secretRefSchema.parse(ref);
       }
       if (db.prepare("SELECT 1 FROM config WHERE key = 'adsPowerApiKey'").get())
         throw new StorageError('DATABASE_UNRECOGNIZED');

@@ -48,16 +48,9 @@ export const businessMethods = Object.keys(businessOperations).filter(
 export const businessChannel = (method: BusinessMethod) => `business:${method}`;
 export const secretRefSchema = z.uuid().brand<'SecretRef'>();
 export type SecretRef = z.infer<typeof secretRefSchema>;
-export const credentialCommitSchema = z.discriminatedUnion('action', [
-  z.strictObject({ action: z.literal('retain') }),
-  z.strictObject({ action: z.literal('clear') }),
-  z.strictObject({ action: z.literal('persistent'), secretRef: secretRefSchema }),
-  z.strictObject({ action: z.literal('session'), secretRef: secretRefSchema }),
-]);
 export const settingsCommitSchema = z.strictObject({
   values: settingsValuesSchema,
   expectedRevision: z.number().int().nonnegative(),
-  credential: credentialCommitSchema,
 });
 export type SettingsCommit = z.infer<typeof settingsCommitSchema>;
 const request = <M extends string, T extends z.ZodType>(method: M, input: T) =>

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { mkdir, access, writeFile } from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import { failure } from '@browser-2d/contracts/public';
 import {
   businessRequestSchema,
@@ -14,7 +16,8 @@ import {
   type WorkerEvent,
 } from '@browser-2d/contracts/host';
 import { createWorkService } from './work/service';
-import { createControlledDriver } from './work/controlled-driver';
+import { adaptControlledDriver, createControlledDriver } from './work/controlled-driver';
+import { createChromeDriver } from './browser/chrome-driver';
 import { openBusinessStore, StorageError } from './storage/open-business-store';
 import type { BusinessStore } from './storage/business-store';
 
@@ -67,6 +70,7 @@ async function initialize(data: unknown) {
   try {
     const result = await openBusinessStore({
       path: input.businessPath,
+      execution: input.execution ?? 'chrome',
       nativeBinding: input.nativeBinding,
       signal: cancellation.signal,
       async confirmLegacy() {
@@ -102,12 +106,44 @@ async function initialize(data: unknown) {
       business.close();
       return;
     }
-    service = createWorkService({
-      repository: result.work,
-      driver: createControlledDriver({
+    const controlled = adaptControlledDriver(
+      createControlledDriver({
         root: join(dirname(input.businessPath), 'controlled-resources'),
         fixture: input.fixture,
       }),
+    );
+    const chrome = createChromeDriver({
+      root: join(dirname(input.businessPath), 'chrome-sessions'),
+      journal: result.work.chrome,
+      probe: input.browserProbe,
+      checkpoint: input.browserFixture
+        ? async (stage, operationId, signal) => {
+            const fixture = input.browserFixture;
+            if (!fixture || stage !== fixture.hold) return;
+            await mkdir(fixture.directory, { recursive: true, mode: 0o700 });
+            await writeFile(join(fixture.directory, `${operationId}.${stage}`), '', {
+              mode: 0o600,
+            });
+            for (;;) {
+              signal.throwIfAborted();
+              try {
+                await access(join(fixture.directory, 'continue'));
+                return;
+              } catch {
+                await delay(25, undefined, { signal });
+              }
+            }
+          }
+        : undefined,
+    });
+    const driverFor = (runId: string) => (result.work.chrome.hasRun(runId) ? chrome : controlled);
+    service = createWorkService({
+      repository: result.work,
+      driver: {
+        acquire: (intent, signal) => driverFor(intent.runId).acquire(intent, signal),
+        execute: (resource, run, signal) => driverFor(run.id).execute(resource, run, signal),
+        cleanup: (intent, signal) => driverFor(intent.runId).cleanup(intent, signal),
+      },
       publish: (snapshot) => send({ type: 'snapshot', snapshot }),
     });
     phase = 'ready';

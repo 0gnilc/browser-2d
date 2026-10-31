@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import type { ControlledFixture } from '@browser-2d/contracts/host';
 import type { Obligation, Reconciliation } from './repository';
-import type { ControlledDriver } from './service';
+import type { ControlledDriver, WorkDriver } from './service';
 
 const markerSchema = z.strictObject({
   operationId: z.uuid(),
@@ -120,6 +120,23 @@ export function createControlledDriver({
         throw new Error('Ownership not verified');
       rmSync(resource.externalId, { recursive: true });
       intents.delete(intent.runId);
+    },
+  };
+}
+
+export function adaptControlledDriver(driver: ControlledDriver): WorkDriver {
+  return {
+    acquire: (intent, signal) => driver.acquire(intent, signal),
+    execute: (resource, run, signal) => driver.execute(resource, run, signal),
+    async cleanup(intent, signal) {
+      const observed = await driver.reconcile(intent, signal);
+      if (observed.kind === 'unknown') return { kind: 'blocked', reason: 'OWNERSHIP_UNCERTAIN' };
+      if (observed.kind === 'present') await driver.release(observed.resource, signal);
+      const after = await driver.reconcile(intent, signal);
+      return after.kind === 'absent-final' ||
+        (after.kind === 'present' && after.resource.ownership === 'borrowed')
+        ? { kind: 'resolved' }
+        : { kind: 'blocked', reason: 'CLEANUP_FAILED' };
     },
   };
 }

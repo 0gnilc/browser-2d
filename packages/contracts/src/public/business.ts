@@ -139,41 +139,42 @@ export const exportTextSchema = z.strictObject({
   text: z.string(),
   count: z.number().int().nonnegative(),
 });
+export const chromeSettingsSchema = z.discriminatedUnion('mode', [
+  z.strictObject({
+    mode: z.literal('launch'),
+    executablePath: z.string().max(4096),
+    headless: z.boolean(),
+  }),
+  z.strictObject({
+    mode: z.literal('connect'),
+    endpoint: z
+      .string()
+      .max(2048)
+      .refine((value) => {
+        if (!/^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):[0-9]+$/.test(value)) return false;
+        try {
+          const url = new URL(value);
+          const port = Number(value.slice(value.lastIndexOf(':') + 1));
+          return url.protocol === 'http:' && port > 0 && port <= 65_535;
+        } catch {
+          return false;
+        }
+      }),
+  }),
+]);
+export type ChromeSettings = z.infer<typeof chromeSettingsSchema>;
 export const settingsValuesSchema = z.strictObject({
-  adsPowerUrl: z
-    .string()
-    .max(2048)
-    .refine((value) => {
-      if (value === '') return true;
-      try {
-        const url = new URL(value);
-        return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
-      } catch {
-        return false;
-      }
-    }),
+  browser: chromeSettingsSchema,
   viewportWidth: z.number().int().min(1).max(16_384),
   viewportHeight: z.number().int().min(1).max(16_384),
   pageCount: z.number().int().min(1).max(10_000),
 });
-export const secretChangeSchema = z.discriminatedUnion('action', [
-  z.strictObject({ action: z.literal('retain') }),
-  z.strictObject({ action: z.literal('clear') }),
-  z.strictObject({
-    action: z.literal('replace'),
-    value: z.string().min(1).max(16_384),
-    persistence: z.enum(['persistent', 'session']),
-  }),
-]);
 export const settingsViewSchema = settingsValuesSchema.extend({
   revision: z.number().int().nonnegative(),
-  keyConfigured: z.boolean(),
-  credentialMode: z.enum(['none', 'persistent', 'session']),
 });
 export const settingsSaveSchema = z.strictObject({
   values: settingsValuesSchema,
   expectedRevision: z.number().int().nonnegative(),
-  secret: secretChangeSchema,
 });
 export type Device = z.infer<typeof deviceSchema>;
 export type DeviceCreate = z.infer<typeof deviceCreateSchema>;

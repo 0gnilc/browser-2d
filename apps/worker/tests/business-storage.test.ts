@@ -114,7 +114,6 @@ describe('business database ownership and migration', () => {
     expect(value(result.store.settings.get())).toMatchObject({
       revision: 19,
       pageCount: 3,
-      keyConfigured: true,
     });
     expect(value(result.store.materials.page()).items[0]?.status).toBe(1);
     expect(value(result.store.devices.list())[0]?.symbol).toBe('v2-wal');
@@ -148,7 +147,7 @@ describe('business database ownership and migration', () => {
         .prepare('SELECT * FROM business_migrations WHERE version <= 2 ORDER BY version')
         .all(),
     ).toEqual(ledger);
-    expect(upgraded.pragma('user_version', { simple: true })).toBe(3);
+    expect(upgraded.pragma('user_version', { simple: true })).toBe(4);
     upgraded.close();
     expect((await open()).backup).toBeNull();
     for (const candidate of stores) candidate.close();
@@ -170,6 +169,65 @@ describe('business database ownership and migration', () => {
       revision: 19,
       secret_ref: ref,
     });
+  });
+
+  it('upgrades v3 without rewriting old work obligations or dormant references', async () => {
+    const fixture = legacy();
+    const migrationDirectory = fileURLToPath(new URL('../migrations/business', import.meta.url));
+    const migrations = ['001-legacy.sql', '002-settings.sql', '003-work.sql'];
+    for (const name of migrations.slice(1))
+      fixture.exec(readFileSync(join(migrationDirectory, name), 'utf8'));
+    for (const [index, name] of migrations.entries())
+      fixture.prepare('INSERT INTO business_migrations VALUES (?, ?, ?)').run(
+        index + 1,
+        name,
+        createHash('sha256')
+          .update(readFileSync(join(migrationDirectory, name)))
+          .digest('hex'),
+      );
+    const ref = secretRefSchema.parse(randomUUID());
+    fixture.prepare('UPDATE business_settings SET secret_ref = ?, revision = 9').run(ref);
+    fixture.prepare("INSERT INTO device(id,symbol) VALUES (1,'old-work')").run();
+    const runId = randomUUID();
+    const operationId = randomUUID();
+    const config = JSON.stringify({
+      revision: 9,
+      pageCount: 2,
+      viewportWidth: 1280,
+      viewportHeight: 800,
+    });
+    const timestamp = new Date().toISOString();
+    fixture
+      .prepare("INSERT INTO work_runs VALUES (?,1,'stopping',?,'cancelled',?,?)")
+      .run(runId, config, timestamp, timestamp);
+    fixture
+      .prepare(
+        "INSERT INTO work_resources VALUES (?,?,1,?,2,'release-pending','unknown',NULL,'OWNERSHIP_UNCERTAIN')",
+      )
+      .run(operationId, runId, randomUUID());
+    const before = fixture.prepare('SELECT * FROM work_resources').all();
+    const ledger = fixture.prepare('SELECT * FROM business_migrations ORDER BY version').all();
+    fixture.close();
+    const upgraded = await open({
+      execution: 'chrome',
+      verifyCredential: async () => {
+        throw new Error('Dormant reference must remain unopened');
+      },
+    });
+    expect(upgraded.work.chrome.hasRun(runId)).toBe(false);
+    expect(upgraded.work.obligations()).toMatchObject([
+      { operationId, runId, pages: 2, failure: 'OWNERSHIP_UNCERTAIN' },
+    ]);
+    upgraded.store.close();
+    const inspect = database();
+    expect(inspect.prepare('SELECT * FROM work_resources').all()).toEqual(before);
+    expect(
+      inspect
+        .prepare('SELECT * FROM business_migrations WHERE version <= 3 ORDER BY version')
+        .all(),
+    ).toEqual(ledger);
+    expect(inspect.prepare('SELECT secret_ref FROM business_settings').pluck().get()).toBe(ref);
+    expect(inspect.pragma('user_version', { simple: true })).toBe(4);
   });
 
   it('waits for migration consent before excluding the old connection', async () => {
@@ -410,10 +468,7 @@ describe('business database ownership and migration', () => {
     inspect.close();
     const migrated = await open({ prepareLegacy: async () => ref });
     expect(migrated.backup?.containsLegacyPlaintext).toBe(true);
-    expect(value(migrated.store.settings.get())).toMatchObject({
-      keyConfigured: true,
-      credentialMode: 'persistent',
-    });
+    expect(value(migrated.store.settings.get())).toMatchObject({});
     migrated.store.close();
     expect(readFileSync(path).includes(Buffer.from('legacy-only'))).toBe(false);
     inspect = database();
@@ -422,24 +477,16 @@ describe('business database ownership and migration', () => {
     ).toBeUndefined();
     expect(inspect.prepare('SELECT secret_ref FROM business_settings').pluck().get()).toBe(ref);
     inspect.close();
-    await expect(
-      open({
-        verifyCredential: async () => {
-          throw new Error('missing ciphertext');
-        },
-      }),
-    ).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' });
-    expect(
-      value(
-        (
-          await open({
-            verifyCredential: async (found) => {
-              expect(found).toBe(ref);
-            },
-          })
-        ).store.settings.get(),
-      ).keyConfigured,
-    ).toBe(true);
+    const reopened = await open({
+      verifyCredential: async () => {
+        throw new Error('Dormant credentials must not be decrypted');
+      },
+    });
+    expect(value(reopened.store.settings.get()).browser).toEqual({
+      mode: 'launch',
+      executablePath: '',
+      headless: false,
+    });
   });
   it('cancels initialization while credential preparation is pending without committing or retaining ownership', async () => {
     const fixture = legacy();
@@ -599,53 +646,27 @@ describe('business transactions', () => {
     expect(value(store.history.delete({ id: 1 })).deleted).toBe(1);
     expect(value(store.history.clear()).deleted).toBe(25);
   });
-  it('commits settings with revision CAS and persistent/session replacement without writing session refs', async () => {
+  it('commits Chrome settings with revision CAS and preserves dormant legacy references', async () => {
     const { store } = await open();
     const initial = value(store.settings.get());
-    const ref = secretRefSchema.parse(randomUUID());
-    const persistent = value(
-      store.settings.commit({
-        values: initial,
-        expectedRevision: 0,
-        credential: { action: 'persistent', secretRef: ref },
-      }),
-    );
-    expect(persistent).toMatchObject({
-      revision: 1,
-      keyConfigured: true,
-      credentialMode: 'persistent',
-    });
-    expect(
-      store.settings.commit({
-        values: initial,
-        expectedRevision: 0,
-        credential: { action: 'clear' },
-      }),
-    ).toMatchObject({ ok: false, error: { code: 'CONFLICT' } });
-    const sessionRef = secretRefSchema.parse(randomUUID());
-    const session = value(
-      store.settings.commit({
-        values: initial,
-        expectedRevision: 1,
-        credential: { action: 'session', secretRef: sessionRef },
-      }),
-    );
-    expect(session).toMatchObject({ revision: 2, credentialMode: 'session' });
-    expect(
-      value(
-        store.settings.commit({
-          values: initial,
-          expectedRevision: 2,
-          credential: { action: 'retain' },
-        }),
-      ).credentialMode,
-    ).toBe('session');
     store.close();
-    expect(readFileSync(path).includes(Buffer.from(sessionRef))).toBe(false);
-    expect(value((await open()).store.settings.get())).toMatchObject({
-      revision: 3,
-      keyConfigured: false,
-      credentialMode: 'none',
+    const ref = secretRefSchema.parse(randomUUID());
+    const legacy = database();
+    legacy.prepare('UPDATE business_settings SET secret_ref = ?').run(ref);
+    legacy.close();
+    const reopened = (await open()).store;
+    const browser = { mode: 'connect' as const, endpoint: 'http://127.0.0.1:9222' };
+    expect(
+      value(reopened.settings.commit({ values: { ...initial, browser }, expectedRevision: 0 })),
+    ).toMatchObject({ browser, revision: 1 });
+    expect(reopened.settings.commit({ values: initial, expectedRevision: 0 })).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT' },
     });
+    reopened.close();
+    const inspect = database();
+    expect(inspect.prepare('SELECT secret_ref FROM business_settings').pluck().get()).toBe(ref);
+    inspect.close();
+    expect(value((await open()).store.settings.get())).toMatchObject({ browser, revision: 1 });
   });
 });

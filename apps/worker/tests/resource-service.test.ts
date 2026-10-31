@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { secretRefSchema } from '@browser-2d/contracts/host';
 import type { Result, Run } from '@browser-2d/contracts/public';
 import { openBusinessStore } from '../src/storage/open-business-store';
+import { adaptControlledDriver } from '../src/work/controlled-driver';
 import type { Acquisition, Obligation } from '../src/work/repository';
 import { createWorkService, type ControlledDriver } from '../src/work/service';
 
@@ -124,7 +125,6 @@ beforeEach(async () => {
     database.store.settings.commit({
       values: { ...settings, pageCount: 4 },
       expectedRevision: settings.revision,
-      credential: { action: 'retain' },
     }),
   );
   deviceId = value(database.store.devices.create({ symbol: 'external-fixture' })).id;
@@ -152,7 +152,7 @@ function start(mode: Mode) {
   const driver = serviceDriver(remote);
   service = createWorkService({
     repository: database.work,
-    driver:
+    driver: adaptControlledDriver(
       mode === 'late-success'
         ? {
             ...driver,
@@ -160,6 +160,7 @@ function start(mode: Mode) {
               acquisitionSchema.parse(await remote.request('acquire', intent)),
           }
         : driver,
+    ),
     publish: () => undefined,
   });
   activeService = true;

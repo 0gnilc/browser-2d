@@ -41,7 +41,7 @@ export const workSnapshotSchema = z.strictObject({
   epoch: z.uuid(),
   revision: z.number().int().nonnegative(),
   workerPid: z.number().int().positive(),
-  execution: z.literal('controlled'),
+  execution: z.enum(['controlled', 'chrome']),
   policy: z.strictObject({
     devices: z.number().int().positive(),
     pages: z.number().int().positive(),

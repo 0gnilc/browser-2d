@@ -49,6 +49,19 @@ export const initializeSchema = z.strictObject({
   businessPath: z.string().min(1),
   nativeBinding: z.string().min(1).optional(),
   fixture: controlledFixtureSchema.optional(),
+  execution: z.enum(['controlled', 'chrome']).optional(),
+  browserProbe: z
+    .strictObject({
+      url: z.string().optional(),
+      durationMs: z.number().int().min(0).max(60_000).optional(),
+    })
+    .optional(),
+  browserFixture: z
+    .strictObject({
+      directory: z.string().min(1),
+      hold: z.enum(['spawned', 'context-created', 'cleanup']),
+    })
+    .optional(),
 });
 export const heartbeatSchema = z.strictObject({
   type: z.literal('heartbeat'),

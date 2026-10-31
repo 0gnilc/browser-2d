@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict';
 import asar from '@electron/asar';
 import { spawn } from 'node:child_process';
-import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, realpath } from 'node:fs/promises';
+import {
+  copyFile,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from './process.mjs';
 import { desktopRequire } from './native.mjs';
+import { observeChrome } from './chrome-observer.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
   pathToFileURL(desktopRequire.resolve('@electron/fuses')).href
@@ -60,6 +70,10 @@ assert(
   'Compiled worker entry missing from archive',
 );
 assert(
+  archiveFiles.some((entry) => entry.endsWith('/puppeteer-core/package.json')),
+  'Puppeteer production dependency missing from archive',
+);
+assert(
   archiveFiles.some(
     (entry) =>
       entry.startsWith(`${workerPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
@@ -98,12 +112,16 @@ const reportPath = join(dataDir, 'report.json');
 await mkdir(join(root, 'artifacts', target), { recursive: true });
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
+  const observationAbort = new AbortController();
+  const observation = observeChrome(join(dataDir, 'chrome-sessions'), observationAbort.signal);
   const child = spawn(executable, [`--verify-p1=${reportPath}`], {
     cwd: tmpdir(),
     stdio: 'inherit',
     env: {
       ...process.env,
       BROWSER2D_DATA_DIR: dataDir,
+      BROWSER2D_VERIFY_CHROME: '1',
+      BROWSER2D_EXECUTION: 'chrome',
       BROWSER2D_NATIVE_BINDING: join(dataDir, 'must-not-load.node'),
       ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/must-not-load',
     },
@@ -121,7 +139,8 @@ for (let pass = 1; pass <= 2; pass++) {
       clearTimeout(timer);
       resolve(code);
     });
-  });
+  }).finally(() => observationAbort.abort());
+  const chrome = await observation;
   assert.equal(code, 0, 'Packaged process failed');
   const report = JSON.parse(await readFile(reportPath, 'utf8'));
   assert.equal(report.arch, target.endsWith('-arm64') ? 'arm64' : 'x64');
@@ -156,11 +175,21 @@ for (let pass = 1; pass <= 2; pass++) {
   );
   assert.deepEqual(report.result.capacity, { devices: 2, pages: 4, queuedObserved: true });
   assert.deepEqual(report.finalSnapshot.resources, []);
+  assert.equal(report.finalSnapshot.execution, 'chrome');
+  assert.equal(chrome.maximumBrowsers, 2, 'Did not observe two actual Chrome instances');
+  assert.equal(chrome.maximumPages, 4, 'Did not observe four actual isolated Chrome pages');
+  assert(chrome.pids.length >= 2, 'Chrome process identities were not observed');
+  for (const pid of chrome.pids) assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+  assert.deepEqual(await readdir(join(dataDir, 'chrome-sessions')), []);
   assert.deepEqual(await readdir(join(dataDir, 'controlled-resources')), []);
   assert(Number.isSafeInteger(report.result.workerPid) && report.result.workerPid > 0);
   assert.throws(() => process.kill(report.result.workerPid, 0), { code: 'ESRCH' });
   reports.push(report);
   await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`));
+  await writeFile(
+    join(root, 'artifacts', target, `chrome-pass-${pass}.json`),
+    JSON.stringify(chrome, null, 2),
+  );
 }
 console.log(
   JSON.stringify(

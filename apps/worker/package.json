@@ -15,7 +15,8 @@
     "test:storage": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "better-sqlite3": "catalog:"
+    "better-sqlite3": "catalog:",
+    "puppeteer-core": "catalog:"
   },
   "devDependencies": {
     "@browser-2d/contracts": "workspace:*",

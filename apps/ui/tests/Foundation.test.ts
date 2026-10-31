@@ -106,7 +106,7 @@ function fixture() {
   return { api, dispose, emit, emitState, wrapper };
 }
 
-describe('P3 scheduling screen', () => {
+describe('scheduling screen', () => {
   it('starts with a numeric business device and treats the receipt as acceptance', async () => {
     const { wrapper, api, dispose } = fixture();
     await flushPromises();
@@ -128,8 +128,8 @@ describe('P3 scheduling screen', () => {
     await wrapper.get('[data-testid="create-fixture-device"]').trigger('click');
     await flushPromises();
     expect(api.devices.create).toHaveBeenCalledWith({
-      symbol: expect.stringMatching(/^p3-fixture-/),
-      note: 'P3 受控调度验收设备，无真实账户。',
+      symbol: expect.stringMatching(/^local-test-/),
+      note: '本地受控验收设备，无真实账户。',
     });
     await wrapper.get('form').trigger('submit');
     await flushPromises();

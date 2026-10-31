@@ -4,43 +4,21 @@ import {
   businessRequestSchema,
   type BusinessMethod,
   type BusinessRequest,
-  type SettingsCommit,
 } from '@browser-2d/contracts/host';
 import { failure, type SettingsSave } from '@browser-2d/contracts/public';
-import type { CredentialVault } from '../platform/credentials';
 
 export function createBusinessCoordinator(options: {
-  vault: CredentialVault;
   request: (message: BusinessRequest) => Promise<unknown>;
   available: () => boolean;
 }) {
   let settingsTail: Promise<unknown> = Promise.resolve();
   async function save(input: SettingsSave) {
     if (!options.available()) return failure('UNAVAILABLE', 'Worker is unavailable');
-    let credential: SettingsCommit['credential'];
-    switch (input.secret.action) {
-      case 'retain':
-        credential = { action: 'retain' };
-        break;
-      case 'clear':
-        credential = { action: 'clear' };
-        break;
-      case 'replace':
-        credential =
-          input.secret.persistence === 'persistent'
-            ? {
-                action: 'persistent',
-                secretRef: await options.vault.preparePersistent(input.secret.value),
-              }
-            : { action: 'session', secretRef: options.vault.prepareSession(input.secret.value) };
-        break;
-    }
-    if (!options.available()) return failure('UNAVAILABLE', 'Worker is unavailable');
     return options.request({
       type: 'business',
       requestId: randomUUID(),
       method: 'settings.commit',
-      input: { values: input.values, expectedRevision: input.expectedRevision, credential },
+      input,
     });
   }
   return {

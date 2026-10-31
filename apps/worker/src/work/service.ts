@@ -3,6 +3,7 @@ import {
   type CancelInput,
   type CancelResult,
   type Run,
+  type Resource,
   type StartInput,
   type StartResult,
   type WorkSnapshot,
@@ -15,14 +16,21 @@ export interface ControlledDriver {
   reconcile(intent: Obligation, signal: AbortSignal): Promise<Reconciliation>;
   release(resource: Acquisition, signal: AbortSignal): Promise<void>;
 }
+export type CleanupResult =
+  { kind: 'resolved' } | { kind: 'blocked'; reason: NonNullable<Resource['failure']> };
+export interface WorkDriver {
+  acquire(intent: Obligation, signal: AbortSignal): Promise<Acquisition>;
+  execute(resource: Acquisition, run: Run, signal: AbortSignal): Promise<void>;
+  cleanup(intent: Obligation, signal: AbortSignal): Promise<CleanupResult>;
+}
 export function createWorkService({
   repository,
   driver,
   publish,
-  policy = { executionTimeoutMs: 30_000, cleanupTimeoutMs: 1000, cleanupAttempts: 3 },
+  policy = { executionTimeoutMs: 30_000, cleanupTimeoutMs: 7000, cleanupAttempts: 3 },
 }: {
   repository: WorkRepository;
-  driver: ControlledDriver;
+  driver: WorkDriver;
   publish: (snapshot: WorkSnapshot) => void;
   policy?: { executionTimeoutMs: number; cleanupTimeoutMs: number; cleanupAttempts: number };
 }) {
@@ -44,19 +52,10 @@ export function createWorkService({
     }, policy.cleanupTimeoutMs);
     try {
       const signal = abort.signal;
-      const observed = await driver.reconcile(intent, signal);
-      if (observed.kind === 'unknown') {
-        repository.cleanupFailure(intent.operationId, 'OWNERSHIP_UNCERTAIN');
-        return false;
-      }
-      if (observed.kind === 'present') await driver.release(observed.resource, signal);
-      const after = await driver.reconcile(intent, signal);
-      if (
-        after.kind === 'absent-final' ||
-        (after.kind === 'present' && after.resource.ownership === 'borrowed')
-      )
-        repository.resolved(intent.operationId);
-      else repository.cleanupFailure(intent.operationId, 'CLEANUP_FAILED');
+      const result = await driver.cleanup(intent, signal);
+      signal.throwIfAborted();
+      if (result.kind === 'resolved') repository.resolved(intent.operationId);
+      else repository.cleanupFailure(intent.operationId, result.reason);
     } catch {
       repository.cleanupFailure(intent.operationId, 'CLEANUP_FAILED');
     } finally {

@@ -6,7 +6,7 @@ import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type Result } from '@browser-2d/contracts/public';
 import { openBusinessStore } from '../src/storage/open-business-store';
-import { createControlledDriver } from '../src/work/controlled-driver';
+import { adaptControlledDriver, createControlledDriver } from '../src/work/controlled-driver';
 import { createWorkService, type ControlledDriver } from '../src/work/service';
 import type { Acquisition } from '../src/work/repository';
 
@@ -49,7 +49,7 @@ function runtime(
   };
   const service = createWorkService({
     repository: storage.work,
-    driver: actual,
+    driver: adaptControlledDriver(actual),
     publish() {},
     policy,
   });
@@ -118,7 +118,6 @@ describe('durable work commands and resource lifecycle', () => {
       storage.store.settings.commit({
         expectedRevision: 0,
         values: { ...settings, pageCount: 3 },
-        credential: { action: 'retain' },
       }),
     );
     const barrier = gate();
@@ -149,7 +148,6 @@ describe('durable work commands and resource lifecycle', () => {
       storage.store.settings.commit({
         expectedRevision: 1,
         values: { ...settings, pageCount: 1 },
-        credential: { action: 'retain' },
       }),
     );
     expect(
@@ -187,7 +185,6 @@ describe('durable work commands and resource lifecycle', () => {
       storage.store.settings.commit({
         expectedRevision: 0,
         values: { ...settings, pageCount: 5 },
-        credential: { action: 'retain' },
       }),
     );
     const input = { commandId: randomUUID(), deviceId: device(storage) };
@@ -197,7 +194,6 @@ describe('durable work commands and resource lifecycle', () => {
       storage.store.settings.commit({
         expectedRevision: 1,
         values: settings,
-        credential: { action: 'retain' },
       }),
     );
     expect(service.start(input)).toEqual(refusal);

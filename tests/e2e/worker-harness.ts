@@ -11,6 +11,9 @@ export async function workerHarness(
     dataDir: string;
     fixture?: ControlledFixture;
     initialize?: boolean;
+    execution?: 'controlled' | 'chrome';
+    browserProbe?: { url?: string; durationMs?: number };
+    browserFixture?: { directory: string; hold: 'spawned' | 'context-created' | 'cleanup' };
   },
 ) {
   return application.evaluateHandle(
@@ -47,6 +50,9 @@ export async function workerHarness(
           dataDir: input.dataDir,
           businessPath: input.businessPath,
           fixture: input.fixture,
+          execution: input.execution ?? 'controlled',
+          browserProbe: input.browserProbe,
+          browserFixture: input.browserFixture,
         });
         heartbeat = setInterval(() => {
           if (!exited) child.postMessage({ type: 'heartbeat', ownerNonce: input.ownerNonce });

@@ -8,7 +8,7 @@ const workUnavailable = async (): Promise<Failure> => ({
   ok: false,
   error: {
     code: 'UNAVAILABLE',
-    message: '界面预览未连接调度器。请在桌面应用中验证 P3 调度与恢复。',
+    message: '界面预览未连接调度器。请在桌面应用中验证浏览器与恢复。',
   },
 });
 

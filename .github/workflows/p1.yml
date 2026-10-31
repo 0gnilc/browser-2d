@@ -1,4 +1,4 @@
-name: P0-P3 desktop and scheduler
+name: P0-P4 desktop and Chrome
 on:
   push:
     branches: [main, 'codex/**']
@@ -40,6 +40,13 @@ jobs:
           sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 rpm libfuse2t64 dbus-x11 gnome-keyring libglib2.0-bin
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: pnpm install --frozen-lockfile
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          chrome-version: stable
+      - name: Export test Chrome path
+        shell: bash
+        run: echo "BROWSER2D_CHROME_EXECUTABLE=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
       - run: pnpm check
       - run: pnpm test
       - run: pnpm test:storage
@@ -67,7 +74,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p3-${{ matrix.target }}
+          name: p4-${{ matrix.target }}
           path: |
             artifacts/
             release/*/*.dmg

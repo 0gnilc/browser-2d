@@ -14,13 +14,14 @@ import {
   type HistoryQuery,
   type HistoryFilter,
   type SettingsView,
+  type SettingsValues,
   type ImportReport,
   type Result,
   type Device,
   type Material,
   type History,
 } from '@browser-2d/contracts/public';
-import { secretRefSchema, type SettingsCommit } from '@browser-2d/contracts/host';
+import type { SettingsCommit } from '@browser-2d/contracts/host';
 
 const deviceColumns = 'id, create_time AS createTime, symbol, account, amount, count, status, note';
 const materialColumns =
@@ -28,14 +29,13 @@ const materialColumns =
 const historyColumns =
   'id, create_time AS createTime, card, month, day, year, cvv, extra, amount, status, device, note';
 export const settingsDefaults = {
-  adsPowerUrl: 'http://local.adspower.net:50325',
+  browser: { mode: 'launch', executablePath: '', headless: false },
   viewportWidth: 1280,
   viewportHeight: 900,
   pageCount: 1,
-};
+} satisfies SettingsValues;
 
 export function createBusinessStore(db: Database.Database) {
-  let sessionCredential: import('@browser-2d/contracts/host').SecretRef | null = null;
   const deviceById = (id: number) =>
     deviceSchema.parse(db.prepare(`SELECT ${deviceColumns} FROM device WHERE id = ?`).get(id));
   const materialById = (id: number) =>
@@ -141,7 +141,7 @@ export function createBusinessStore(db: Database.Database) {
     const entries = Object.fromEntries(
       db
         .prepare(
-          "SELECT key, value FROM config WHERE key IN ('adsPowerUrl', 'viewportWidth', 'viewportHeight', 'pageCount')",
+          "SELECT key, value FROM config WHERE key IN ('browser', 'viewportWidth', 'viewportHeight', 'pageCount')",
         )
         .all()
         .map((raw) => {
@@ -157,7 +157,10 @@ export function createBusinessStore(db: Database.Database) {
         }),
     );
     const values = settingsValuesSchema.parse({
-      adsPowerUrl: entries.adsPowerUrl ?? settingsDefaults.adsPowerUrl,
+      browser:
+        entries.browser == null
+          ? settingsDefaults.browser
+          : JSON.parse(typeof entries.browser === 'string' ? entries.browser : ''),
       viewportWidth:
         entries.viewportWidth == null || entries.viewportWidth === ''
           ? settingsDefaults.viewportWidth
@@ -176,17 +179,7 @@ export function createBusinessStore(db: Database.Database) {
       .pluck()
       .get();
     if (typeof revision !== 'number') throw new Error('Missing settings revision');
-    const persistent = db
-      .prepare('SELECT secret_ref FROM business_settings WHERE id = 1')
-      .pluck()
-      .get();
-    if (persistent !== null) secretRefSchema.parse(persistent);
-    return {
-      ...values,
-      revision,
-      keyConfigured: sessionCredential !== null || persistent !== null,
-      credentialMode: sessionCredential ? 'session' : persistent !== null ? 'persistent' : 'none',
-    };
+    return { ...values, revision };
   }
   const commitSettings = db.transaction((input: SettingsCommit): Result<SettingsView> => {
     const current = settings();
@@ -195,14 +188,10 @@ export function createBusinessStore(db: Database.Database) {
     const set = db.prepare(
       'INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
     );
-    for (const [key, value] of Object.entries(input.values)) set.run(key, String(value));
-    if (input.credential.action !== 'retain') {
-      db.prepare('UPDATE business_settings SET secret_ref = ? WHERE id = 1').run(
-        input.credential.action === 'persistent' ? input.credential.secretRef : null,
-      );
-    }
+    for (const [key, value] of Object.entries(input.values))
+      set.run(key, key === 'browser' ? JSON.stringify(value) : String(value));
     db.prepare('UPDATE business_settings SET revision = revision + 1 WHERE id = 1').run();
-    return { ok: true, value: current };
+    return { ok: true, value: settings() };
   });
   return {
     devices: {
@@ -343,14 +332,7 @@ export function createBusinessStore(db: Database.Database) {
     },
     settings: {
       get: (): Result<SettingsView> => ({ ok: true, value: settings() }),
-      commit(input: SettingsCommit): Result<SettingsView> {
-        const result = commitSettings(input);
-        if (!result.ok) return result;
-        if (input.credential.action !== 'retain')
-          sessionCredential =
-            input.credential.action === 'session' ? input.credential.secretRef : null;
-        return { ok: true, value: settings() };
-      },
+      commit: commitSettings,
     },
     claimNextMaterial(device: string): Material | null {
       const row = db

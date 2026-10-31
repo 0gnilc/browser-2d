@@ -16,6 +16,7 @@ import type { WorkSnapshot } from '@browser-2d/contracts/public';
 export function launchWorker(options: {
   dataDir: string;
   businessPath: string;
+  execution: 'controlled' | 'chrome';
   onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
   nativeBinding?: string;
   onSnapshot: (snapshot: WorkSnapshot) => void;
@@ -91,6 +92,7 @@ export function launchWorker(options: {
         ownerNonce: ownership.ownerNonce,
         dataDir: options.dataDir,
         businessPath: options.businessPath,
+        execution: options.execution,
         nativeBinding: options.nativeBinding,
       });
       heartbeat = setInterval(() => {

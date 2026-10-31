@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type Database from 'better-sqlite3';
+import { createChromeJournal } from '../browser/journal';
 import {
+  chromeSettingsSchema,
   cancelResultSchema,
   commandResultSchema,
   failure,
@@ -38,7 +40,12 @@ const storedRunSchema = runSchema
   .omit({ config: true })
   .extend({ config: z.string().transform((value) => runConfigSchema.parse(JSON.parse(value))) });
 
-export function createWorkRepository(db: Database.Database, settings: () => SettingsView) {
+export function createWorkRepository(
+  db: Database.Database,
+  settings: () => SettingsView,
+  execution: 'controlled' | 'chrome' = 'controlled',
+) {
+  const chrome = createChromeJournal(db);
   const epoch = randomUUID();
   let revision = 0;
   const touch = () => {
@@ -92,16 +99,22 @@ export function createWorkRepository(db: Database.Database, settings: () => Sett
     )
       result = failure('CONFLICT', 'Device has active work or unresolved cleanup');
     else {
-      const { revision, pageCount, viewportWidth, viewportHeight } = settings();
+      const current = settings();
+      const { revision, pageCount, viewportWidth, viewportHeight } = current;
       const config = runConfigSchema.parse({ revision, pageCount, viewportWidth, viewportHeight });
       if (config.pageCount > capacityPolicy.pages)
-        result = failure('CONFLICT', 'Page demand exceeds controlled capacity');
+        result = failure('CONFLICT', 'Page demand exceeds worker capacity');
       else {
         const id = randomUUID();
         const acceptedAt = now();
         db.prepare(
           "INSERT INTO work_runs (id, device_id, state, config, outcome, created_at, updated_at) VALUES (?, ?, 'queued', ?, NULL, ?, ?)",
         ).run(id, input.deviceId, JSON.stringify(config), acceptedAt, acceptedAt);
+        if (execution === 'chrome')
+          db.prepare('INSERT INTO chrome_run_configs (run_id, config) VALUES (?, ?)').run(
+            id,
+            JSON.stringify(chromeSettingsSchema.parse(current.browser)),
+          );
         result = {
           ok: true,
           value: { kind: 'start', commandId: input.commandId, runId: id, acceptedAt },
@@ -217,6 +230,7 @@ export function createWorkRepository(db: Database.Database, settings: () => Sett
     touch();
   });
   return {
+    chrome,
     start,
     cancel,
     admit,
@@ -278,7 +292,7 @@ export function createWorkRepository(db: Database.Database, settings: () => Sett
         epoch,
         revision,
         workerPid: process.pid,
-        execution: 'controlled',
+        execution,
         policy: { ...capacityPolicy },
         runs,
         resources: obligations().map((item) =>

@@ -12,7 +12,7 @@ export default defineConfig({
     ssr: 'src/entry.ts',
     outDir: 'dist',
     rollupOptions: {
-      external: ['better-sqlite3'],
+      external: ['better-sqlite3', 'puppeteer-core'],
       output: { format: 'cjs', entryFileNames: 'entry.cjs', inlineDynamicImports: true },
     },
   },

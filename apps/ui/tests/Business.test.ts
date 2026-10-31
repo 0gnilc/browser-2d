@@ -59,12 +59,10 @@ const history: History = {
 };
 const settings: SettingsView = {
   revision: 7,
-  adsPowerUrl: 'http://localhost:50325',
+  browser: { mode: 'launch', executablePath: '', headless: false },
   viewportWidth: 1280,
   viewportHeight: 720,
   pageCount: 1,
-  keyConfigured: true,
-  credentialMode: 'persistent',
 };
 function fixture(): Browser2dApi {
   const api = createFixtureBridge();
@@ -239,44 +237,41 @@ describe('P2 business screens', () => {
     wrapper.unmount();
   });
 
-  it('saves typed settings with explicit retain, session replacement and clear without echoing a key', async () => {
+  it('saves launch and connect settings with the current revision and no credential controls', async () => {
     const api = fixture();
     const wrapper = mount(Settings, { global: { provide: { [bridgeKey]: api } } });
     await flushPromises();
-    expect(wrapper.find('[data-testid="settings-secret"]').exists()).toBe(false);
-    expect(wrapper.get('[data-testid="settings-credential-state"]').text()).toContain('凭据已配置');
+    expect(wrapper.html()).not.toMatch(/AdsPower|API Key|settings-secret/);
+    expect(wrapper.get('[data-testid="settings-revision"]').text()).toContain('7');
     await wrapper.get('[data-testid="settings-width"]').setValue('1440');
+    await wrapper.get('[data-testid="settings-executable-path"]').setValue('/opt/chrome');
+    await wrapper.get('[data-testid="settings-headless"]').setValue(true);
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
     await flushPromises();
     expect(api.settings.save).toHaveBeenCalledWith({
       expectedRevision: 7,
       values: {
-        adsPowerUrl: settings.adsPowerUrl,
+        browser: { mode: 'launch', executablePath: '/opt/chrome', headless: true },
         viewportWidth: 1440,
         viewportHeight: 720,
         pageCount: 1,
       },
-      secret: { action: 'retain' },
     });
-    await wrapper.get('[data-testid="settings-secret-action"]').setValue('replace');
-    await wrapper.get('[data-testid="settings-persistence"]').setValue('session');
-    await wrapper.get('[data-testid="settings-secret"]').setValue('fixture-only-secret');
+    await wrapper.get('[data-testid="settings-browser-mode"]').setValue('connect');
+    expect(wrapper.find('[data-testid="settings-executable-path"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="settings-endpoint"]').setValue('http://localhost:9333');
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
     await flushPromises();
-    expect(api.settings.save).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        expectedRevision: 8,
-        secret: { action: 'replace', value: 'fixture-only-secret', persistence: 'session' },
-      }),
-    );
-    expect(wrapper.html()).not.toContain('fixture-only-secret');
-    expect(wrapper.find('[data-testid="settings-secret"]').exists()).toBe(false);
-    await wrapper.get('[data-testid="settings-secret-action"]').setValue('clear');
-    await wrapper.get('[data-testid="settings-form"]').trigger('submit');
-    await flushPromises();
-    expect(api.settings.save).toHaveBeenLastCalledWith(
-      expect.objectContaining({ secret: { action: 'clear' } }),
-    );
+    expect(api.settings.save).toHaveBeenLastCalledWith({
+      expectedRevision: 8,
+      values: {
+        browser: { mode: 'connect', endpoint: 'http://localhost:9333' },
+        viewportWidth: 1280,
+        viewportHeight: 720,
+        pageCount: 1,
+      },
+    });
+    expect(settings.browser).toEqual({ mode: 'launch', executablePath: '', headless: false });
     wrapper.unmount();
   });
 

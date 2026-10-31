@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { secretRefSchema, type BusinessRequest } from '@browser-2d/contracts/host';
-import { failure, settingsValuesSchema, type SettingsView } from '@browser-2d/contracts/public';
+import {
+  failure,
+  settingsValuesSchema,
+  type SettingsValues,
+  type SettingsView,
+} from '@browser-2d/contracts/public';
 import {
   createCredentialVault,
   type EncryptionAdapter,
@@ -107,116 +112,139 @@ describe('credential persistence with an injected encryption adapter', () => {
     );
     expect(decrypts).toBe(2);
   });
-  it('keeps explicit session credentials in memory only', async () => {
-    const vault = createCredentialVault({ path, encryption: encryption() });
-    const ref = vault.prepareSession('session-only');
-    expect(await readdir(directory)).toEqual([]);
-    await expect(
-      createCredentialVault({ path, encryption: encryption() }).verify(ref),
-    ).rejects.toThrow('Credential storage is unavailable');
-  });
 });
-describe('settings credential coordination', () => {
-  const values = { adsPowerUrl: '', viewportWidth: 1280, viewportHeight: 900, pageCount: 1 };
-  it('serializes whole saves, strips plaintext and allows only one expected revision commit', async () => {
+describe('Chrome settings coordination', () => {
+  const values: SettingsValues = {
+    browser: { mode: 'launch', executablePath: '', headless: false },
+    viewportWidth: 1280,
+    viewportHeight: 900,
+    pageCount: 1,
+  };
+  it('serializes saves and allows only one commit for an expected revision', async () => {
     const requests: BusinessRequest[] = [];
-    let state: SettingsView = {
-      ...values,
-      revision: 0,
-      keyConfigured: false,
-      credentialMode: 'none',
-    };
-    const vault = createCredentialVault({ path, encryption: encryption() });
+    let state: SettingsView = { ...values, revision: 0 };
+    let active = 0;
+    let maxActive = 0;
     const coordinator = createBusinessCoordinator({
-      vault,
       available: () => true,
       async request(request) {
         requests.push(request);
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await Promise.resolve();
+        active -= 1;
         if (request.method !== 'settings.commit')
           return failure('INVALID_INPUT', 'Unexpected request');
         if (state.revision !== request.input.expectedRevision)
           return failure('CONFLICT', 'Settings changed');
-        state = {
-          ...request.input.values,
-          revision: state.revision + 1,
-          keyConfigured: request.input.credential.action === 'persistent',
-          credentialMode: request.input.credential.action === 'persistent' ? 'persistent' : 'none',
-        };
+        state = { ...request.input.values, revision: state.revision + 1 };
         return { ok: true, value: state };
       },
     });
     const results = await Promise.all(
-      ['first-key', 'second-key'].map((value) =>
+      [1440, 1920].map((viewportWidth) =>
         coordinator.invoke('settings.save', {
-          values,
+          values: { ...values, viewportWidth },
           expectedRevision: 0,
-          secret: { action: 'replace', value, persistence: 'persistent' },
         }),
       ),
     );
     expect(results.filter((result) => result.ok)).toHaveLength(1);
-    expect(JSON.stringify(requests)).not.toMatch(/first-key|second-key/);
-    for (const request of requests)
-      if (request.method === 'settings.commit' && request.input.credential.action === 'persistent')
-        await vault.verify(request.input.credential.secretRef);
+    expect(results).toContainEqual(
+      expect.objectContaining({ ok: false, error: expect.objectContaining({ code: 'CONFLICT' }) }),
+    );
     expect(state.revision).toBe(1);
+    expect(maxActive).toBe(1);
+    expect(requests).toHaveLength(2);
+    expect(JSON.stringify(requests)).not.toMatch(/credential|secret/);
+    expect(await readdir(directory)).toEqual([]);
   });
-  it('does not contact the worker after it exits during encrypted preparation', async () => {
+  it('does not contact the worker if it exits while a save is queued', async () => {
     let available = true;
     const requests: BusinessRequest[] = [];
     const coordinator = createBusinessCoordinator({
-      vault: createCredentialVault({
-        path,
-        encryption: encryption(),
-        onStage(stage) {
-          if (stage === 'verified') available = false;
-        },
-      }),
       available: () => available,
       async request(request) {
         requests.push(request);
+        available = false;
         return failure('UNAVAILABLE', 'Worker exited');
       },
     });
-    expect(
-      await coordinator.invoke('settings.save', {
-        values,
-        expectedRevision: 0,
-        secret: { action: 'replace', value: 'will-be-orphan', persistence: 'persistent' },
+    const results = await Promise.all(
+      [0, 1].map((expectedRevision) =>
+        coordinator.invoke('settings.save', { values, expectedRevision }),
+      ),
+    );
+    expect(results).toEqual([
+      expect.objectContaining({
+        ok: false,
+        error: expect.objectContaining({ code: 'UNAVAILABLE' }),
       }),
-    ).toMatchObject({ ok: false, error: { code: 'UNAVAILABLE' } });
-    expect(requests).toEqual([]);
+      expect.objectContaining({
+        ok: false,
+        error: expect.objectContaining({ code: 'UNAVAILABLE' }),
+      }),
+    ]);
+    expect(requests).toHaveLength(1);
   });
-  it('requires explicit session persistence and leaves old ciphertext readable on SQL failure', async () => {
+  it('preserves dormant vault data on failed settings saves and rejects the removed secret API', async () => {
     const vault = createCredentialVault({ path, encryption: encryption() });
     const oldRef = await vault.preparePersistent('previous');
+    const bytes = await readFile(path);
     const coordinator = createBusinessCoordinator({
-      vault,
       available: () => true,
       async request() {
         return failure('INTERNAL', 'Commit failed');
       },
     });
     expect(
-      await coordinator.invoke('settings.save', {
-        values,
-        expectedRevision: 0,
-        secret: { action: 'replace', value: 'replacement', persistence: 'persistent' },
-      }),
+      await coordinator.invoke('settings.save', { values, expectedRevision: 0 }),
     ).toMatchObject({ ok: false });
-    await vault.verify(oldRef);
     expect(
       await coordinator.invoke('settings.save', {
         values,
         expectedRevision: 0,
-        secret: { action: 'replace', value: 'missing-mode' },
+        secret: { action: 'clear' },
       }),
     ).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+    expect(await readFile(path)).toEqual(bytes);
+    await vault.verify(oldRef);
+  });
+  it.each(['http://127.0.0.1:9222', 'http://localhost:80', 'http://[::1]:9333'])(
+    'accepts a local Chrome endpoint %s',
+    (endpoint) => {
+      expect(
+        settingsValuesSchema.safeParse({ ...values, browser: { mode: 'connect', endpoint } })
+          .success,
+      ).toBe(true);
+    },
+  );
+  it.each([
+    'https://127.0.0.1:9222',
+    'http://example.com:9222',
+    'http://127.0.0.2:9222',
+    'http://localhost',
+    'http://localhost:0',
+    'http://localhost:65536',
+    'http://user:pass@localhost:9222',
+    'http://localhost:9222/json',
+    'http://localhost:9222/',
+    'http://localhost:9222?query',
+    'http://localhost:9222#hash',
+  ])('rejects an unsafe or ambiguous Chrome endpoint %s', (endpoint) => {
+    expect(
+      settingsValuesSchema.safeParse({ ...values, browser: { mode: 'connect', endpoint } }).success,
+    ).toBe(false);
+  });
+  it('rejects mixed browser variants and legacy AdsPower fields', () => {
     expect(
       settingsValuesSchema.safeParse({
         ...values,
-        adsPowerUrl: 'https://user:password@example.com',
+        browser: { ...values.browser, endpoint: 'http://localhost:9222' },
       }).success,
+    ).toBe(false);
+    expect(
+      settingsValuesSchema.safeParse({ ...values, adsPowerUrl: 'http://localhost:50325' }).success,
     ).toBe(false);
   });
 });
