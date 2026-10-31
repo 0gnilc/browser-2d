@@ -40,18 +40,19 @@ if sys.argv[1] == 'prepare':
     for name, path, arg in calls:
         argument = '0' if arg == '0' else 'args->' + arg
         blocks.append(f'''tracepoint:syscalls:sys_enter_{name}
-/strncmp(str(args->{path}), "/tmp/b2d-family-", 16) == 0 || strncmp(str(args->{path}), "/tmp/closed-recovery-", 21) == 0/
+/strncmp(str(args->{path}), "/tmp/b2d-family-", 16) == 0 || strncmp(str(args->{path}), "/tmp/closed-recovery-", 21) == 0 || @observer[pid]/
 {{
- @start[tid] = nsecs;
+ @start[tid] = nsecs; @pathname[tid] = (uint64)args->{path};
  printf("NS_ENTRY\\t%llu\\t%d\\t%d\\t%d\\t%d\\t%s\\t{name}\\t%lld\\t%s\\n", @start[tid], pid, tid, curtask->real_parent->tgid, {group}, comm, {argument}, str(args->{path}, 128));
 }}
 tracepoint:syscalls:sys_exit_{name}
 /@start[tid]/
 {{
- printf("NS_RETURN\\t%llu\\t%llu\\t%d\\t%d\\t%lld\\n", @start[tid], nsecs, pid, tid, args->ret);
- delete(@start[tid]);
+ printf("NS_RETURN\\t%llu\\t%llu\\t%d\\t%d\\t%lld\\t%s\\n", @start[tid], nsecs, pid, tid, args->ret, str(@pathname[tid], 128));
+ delete(@start[tid]); delete(@pathname[tid]);
 }}''')
     blocks.append(f'''tracepoint:syscalls:sys_enter_kill {{
+ if ((int32)args->pid < 0) {{ @observer[pid] = 1; }}
  @killstart[tid] = nsecs; @target[tid] = (int64)(int32)args->pid; @signal[tid] = args->sig;
  @killgroup[tid] = {group};
 }}
@@ -65,7 +66,7 @@ tracepoint:syscalls:sys_exit_kill /@killstart[tid]/ {{
     expected = git('rev-parse', 'ee9a0e6:apps/worker/src')
     actual = git('rev-parse', 'HEAD:apps/worker/src')
     assert expected == actual, (expected, actual)
-    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with absolute controlled-prefix paths only, captured paths capped at 128 bytes. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
+    metadata = {'source': git('rev-parse', 'HEAD'), 'productSource': git('rev-parse', 'ee9a0e6'), 'workerSourceTreeDigest': actual, 'workerSourceTreeDigestExpected': expected, 'lockDigest': subprocess.check_output(['sha256sum', 'pnpm-lock.yaml'], text=True).split()[0], 'node': subprocess.check_output(['node', '--version'], text=True).strip(), 'kernel': subprocess.check_output(['uname', '-a'], text=True).strip(), 'pgidEnum': enum, 'pgidBtfIndex': int(pgid), 'pidNumbersBtfByteOffset': numbers_offset, 'upidNrBtfByteOffset': nr_offset, 'sourceDirty': bool(git('status', '--porcelain')), 'traceCoverage': 'Completed syscalls with controlled-prefix paths and subsequent negative-group observers, captured paths capped at 128 bytes. Pathnames are sampled at entry and again at return after the syscall has accessed user memory. Relative paths and unlisted syscalls are outside coverage. Positive events do not prove exhaustive absence.'}
     (out / 'context.json').write_text(json.dumps(metadata, indent=2))
 else:
     family = json.loads((out / 'chrome-family-linux-x64.json').read_text())
@@ -83,17 +84,17 @@ else:
                 event[key] = int(event[key])
             pending[(event['tid'], event['start'])] = event
         elif cols[0] == 'NS_RETURN':
-            returns.append(tuple(map(int, cols[1:])))
+            returns.append((*map(int, cols[1:6]), cols[6]))
         elif cols[0] == 'GROUP':
             keys = ['kind', 'start', 'end', 'pid', 'tid', 'pgid', 'target', 'signal', 'result']
             event = dict(zip(keys, cols))
             for key in keys[1:]:
                 event[key] = int(event[key])
             groups.append(event)
-    for start, end, pid, tid, result in returns:
+    for start, end, pid, tid, result, return_path in returns:
         event = pending.pop((tid, start))
         assert event['pid'] == pid
-        event.update(end=end, result=result)
+        event.update(end=end, result=result, entryPath=event['path'], path=return_path or event['path'])
         events.append(event)
     profile = family['profile']
     main = family['mainPid']
