@@ -416,6 +416,63 @@ describe('business database ownership and migration', () => {
     wrong.close();
     await expect(open()).rejects.toMatchObject({ code: 'DATABASE_UNRECOGNIZED' });
   });
+  describe.each(['count', 'status'])('legacy device.%s integer bounds', (column) => {
+    it.each([
+      -9_223_372_036_854_775_808n,
+      -9_007_199_254_740_992n,
+      9_007_199_254_740_992n,
+      9_223_372_036_854_775_807n,
+    ])('rejects %s before migration writes', async (integer) => {
+      const fixture = legacy();
+      fixture.prepare(`INSERT INTO device (symbol, ${column}) VALUES ('bounds', ?)`).run(integer);
+      fixture.close();
+      const before = readFileSync(path);
+
+      await expect(open()).rejects.toMatchObject({ code: 'DATABASE_UNRECOGNIZED' });
+
+      expect(readFileSync(path)).toEqual(before);
+      expect(readdirSync(directory)).toEqual(['data.db']);
+      const inspect = database();
+      expect(inspect.pragma('user_version', { simple: true })).toBe(0);
+      expect(
+        inspect.prepare("SELECT 1 FROM sqlite_master WHERE name = 'business_migrations'").get(),
+      ).toBeUndefined();
+      expect(inspect.prepare(`SELECT ${column} FROM device`).safeIntegers().pluck().get()).toBe(
+        integer,
+      );
+    });
+  });
+  it.each([Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])(
+    'preserves the public integer boundary %s through migration and reopen',
+    async (integer) => {
+      const fixture = legacy();
+      fixture
+        .prepare('INSERT INTO device (symbol, count, status) VALUES (?, ?, ?)')
+        .run('bounds', integer, integer);
+      fixture
+        .prepare('INSERT INTO material (card, month, year, status) VALUES (?, ?, ?, ?)')
+        .run('bounds', '01', '2030', integer);
+      fixture.prepare('INSERT INTO history (card, status) VALUES (?, ?)').run('bounds', integer);
+      fixture.close();
+
+      const migrated = await open();
+      expect(migrated.backup).not.toBeNull();
+      expect(value(migrated.store.devices.list())[0]).toMatchObject({
+        count: integer,
+        status: integer,
+      });
+      expect(value(migrated.store.materials.page()).items[0]?.status).toBe(integer);
+      expect(value(migrated.store.history.page()).items[0]?.status).toBe(integer);
+      migrated.store.close();
+
+      const reopened = await open();
+      expect(reopened.backup).toBeNull();
+      expect(value(reopened.store.devices.list())[0]).toMatchObject({
+        count: integer,
+        status: integer,
+      });
+    },
+  );
   it('rejects a changed migration checksum and preserves the current database', async () => {
     (await open()).store.close();
     const migrationsDir = join(directory, 'migrations');
