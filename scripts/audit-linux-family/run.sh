@@ -1,8 +1,9 @@
-set -eu
+set -eux
 out="$PWD/artifacts/linux-family"
 mkdir -p "$out"
 sudo bpftrace --version > "$out/bpftrace-version.txt"
 python3 scripts/audit-linux-family/trace.py prepare
+sudo env BPFTRACE_MAX_STRLEN=128 bpftrace -B line -e 'BEGIN { printf("CAPABILITY\n"); exit(); }' > "$out/capability.stdout" 2> "$out/capability.stderr"
 sudo env BPFTRACE_MAX_STRLEN=128 timeout --signal=TERM --kill-after=5s 150s bpftrace -B line -q "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
 trace_sudo=$!
 cleanup() {
@@ -12,7 +13,13 @@ cleanup() {
 trap cleanup EXIT
 for attempt in $(seq 1 30); do
   if grep -q '^READY' "$out/trace.tsv"; then break; fi
-  if ! kill -0 "$trace_sudo" 2>/dev/null; then cat "$out/trace.stderr"; exit 1; fi
+  if ! kill -0 "$trace_sudo" 2>/dev/null; then
+    cat "$out/trace.stderr"
+    status=0
+    wait "$trace_sudo" || status=$?
+    printf "Tracer exited with status %s\n" "$status"
+    exit 1
+  fi
   sleep 1
 done
 grep -q '^READY' "$out/trace.tsv"
