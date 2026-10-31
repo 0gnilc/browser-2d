@@ -80,15 +80,19 @@ export function createWorkService({
     }
   }
   async function execute(run: Run, intent: Obligation, signal: AbortSignal) {
+    let stage = 'acquire';
     try {
       const resource = await driver.acquire(intent, signal);
       const mayExecute = repository.acquired(intent, resource);
       changed();
       if (mayExecute) {
+        stage = 'execute';
         await driver.execute(resource, run, signal);
         repository.finish(run.id, 'completed');
       }
-    } catch {
+    } catch (error) {
+      const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+      process.stderr.write(JSON.stringify({ stage, runId: run.id, error: detail.replace(/wss?:\/\/[^\s)]+/g, '[redacted-cdp]') }) + '\n');
       repository.finish(run.id, 'failed');
     } finally {
       changed();
