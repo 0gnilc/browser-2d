@@ -118,5 +118,5 @@ else:
     assert native_helpers, 'No actual Chrome helper profile writer traced'
     assert not escaped, 'BLOCKING: actual Chrome profile writer escaped minted group'
     assert ordered, 'Missing signal-zero ESRCH before successful profile rmdir'
-    assert all(e['signal'] == 0 for e in groups if e['pid'] == family['workerPid']), 'Unexpected group termination authority'
+    assert all(e['signal'] == 0 for e in groups if e['pid'] == family['workerPid'] and e['target'] < 0), 'Unexpected group termination authority'
     print(json.dumps({'source': context['source'], 'nativeWriterCount': len(native_writes), 'nativeHelperWriterCount': len(native_helpers), 'writerGroups': report['nativeWriterGroups'], 'main': main, 'helperPositiveControl': len(controls), 'groupAbsentBeforeProfileRemoval': ordered, 'namespaceAbsentBeforeTeardown': True}, indent=2))
