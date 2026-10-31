@@ -26,7 +26,10 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
       - run: pnpm package -- --target=linux-x64
-      - run: dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=linux-x64
+      - run: |
+          for attempt in 1 2 3 4 5; do
+            dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=linux-x64
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
