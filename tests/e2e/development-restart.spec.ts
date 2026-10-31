@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { chromium, expect, test, type Browser } from '@playwright/test';
+import { chromium, expect, test, type Browser, type TestInfo } from '@playwright/test';
 
 function absent(pid: number) {
   try {
@@ -13,7 +13,7 @@ function absent(pid: number) {
     throw error;
   }
 }
-async function developer() {
+async function developer(testInfo: TestInfo) {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-dev-restart-'));
   const source = resolve('apps/worker/src/work/controlled-driver.ts');
   const original = await readFile(source, 'utf8');
@@ -30,7 +30,10 @@ async function developer() {
     output += data.toString();
   });
   const exit = new Promise<number | null>((done, reject) => {
-    child.once('exit', done);
+    child.once('exit', (code, signal) => {
+      output += `\nCoordinator exited ${code ?? signal}\n`;
+      done(code);
+    });
     child.once('error', reject);
   });
   const browsers: Browser[] = [];
@@ -91,16 +94,19 @@ async function developer() {
       } finally {
         clearTimeout(timer);
         for (const browser of browsers) await browser.close().catch(() => undefined);
-        await writeFile(source, original);
+        if ((await readFile(source, 'utf8')) !== original) await writeFile(source, original);
+        await testInfo.attach('development-output', { body: output, contentType: 'text/plain' });
         await rm(directory, { recursive: true, force: true });
       }
     },
   };
 }
 
-test('real source rebuild preserves the old worker on build failure and replaces only after clean exit', async () => {
+test('real source rebuild preserves the old worker on build failure and replaces only after clean exit', async ({
+  browserName: _browserName,
+}, testInfo) => {
   test.setTimeout(120_000);
-  const dev = await developer();
+  const dev = await developer(testInfo);
   let closed = false;
   try {
     const first = await dev.page();
@@ -130,13 +136,15 @@ test('real source rebuild preserves the old worker on build failure and replaces
   }
 });
 
-test('development restart refuses to replace an unresponsive predecessor after forced shutdown', async () => {
+test('development restart refuses to replace an unresponsive predecessor after forced shutdown', async ({
+  browserName: _browserName,
+}, testInfo) => {
   test.skip(
     process.platform === 'win32',
     'Portable uncooperative execution is covered in scheduler.spec; this case suspends the entire POSIX worker',
   );
   test.setTimeout(120_000);
-  const dev = await developer();
+  const dev = await developer(testInfo);
   let pid: number | undefined;
   let closed = false;
   try {

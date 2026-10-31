@@ -242,38 +242,42 @@ test('cleanup refusal retains device and page reservations, and restart only rec
   }
 });
 
-test('portable uncooperative execution cannot produce a clean shutdown acknowledgment', async () => {
-  const context = await setup();
-  let worker: Harness | undefined;
-  try {
-    const dataDir = join(context.directory, 'work');
-    const fixture = join(context.directory, 'fixture');
-    worker = await opened(context.application, dataDir, {
-      directory: fixture,
-      scenario: 'hold-execute',
-    });
-    await start(worker, (await createDevice(worker)).id);
-    await expect.poll(() => files(fixture, '.execute')).toHaveLength(1);
-    const pid = (await snapshot(worker)).workerPid;
-    let deadline: ReturnType<typeof setTimeout> | undefined;
-    const result = await Promise.race([
-      worker.evaluate((host) => host.close()),
-      new Promise<never>((_, reject) => {
-        deadline = setTimeout(
-          () => reject(new Error('Shutdown exceeded the cooperative and confirmation budgets')),
-          16_000,
-        );
-      }),
-    ]).finally(() => clearTimeout(deadline));
-    expect(result.code).toBe(1);
-    expect(result.response).toBeNull();
-    await expect.poll(() => absent(pid)).toBe(true);
-    expect(await files(join(dataDir, 'controlled-resources'))).toHaveLength(1);
-  } finally {
-    await worker?.evaluate((host) => host.kill()).catch(() => undefined);
-    await context.close();
-  }
-});
+for (const phase of ['acquire', 'execute', 'release'] as const) {
+  test(`portable uncooperative ${phase} cannot produce a clean shutdown acknowledgment`, async () => {
+    const context = await setup();
+    let worker: Harness | undefined;
+    try {
+      const dataDir = join(context.directory, 'work');
+      const fixture = join(context.directory, 'fixture');
+      worker = await opened(context.application, dataDir, {
+        directory: fixture,
+        scenario: `hold-${phase}`,
+      });
+      await start(worker, (await createDevice(worker)).id);
+      await expect.poll(() => files(fixture, `.${phase}`), { timeout: 10_000 }).toHaveLength(1);
+      const pid = (await snapshot(worker)).workerPid;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      const result = await Promise.race([
+        worker.evaluate((host) => host.close()),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(
+            () => reject(new Error('Shutdown exceeded the cooperative and confirmation budgets')),
+            16_000,
+          );
+        }),
+      ]).finally(() => clearTimeout(deadline));
+      expect(result.code).toBe(1);
+      expect(result.response).toBeNull();
+      await expect.poll(() => absent(pid)).toBe(true);
+      expect(await files(join(dataDir, 'controlled-resources'))).toHaveLength(
+        phase === 'acquire' ? 0 : 1,
+      );
+    } finally {
+      await worker?.evaluate((host) => host.kill()).catch(() => undefined);
+      await context.close();
+    }
+  });
+}
 
 test('host death leaves interrupted work that a new application cleans without replay', async () => {
   const context = await setup();

@@ -391,17 +391,44 @@ describe('durable work commands and resource lifecycle', () => {
     const id = device(storage);
     const firstInput = { commandId: randomUUID(), deviceId: id };
     const first = storage.work.start(firstInput);
-    storage.work.cancel({ commandId: randomUUID(), runId: value(first).runId });
-    for (let index = 0; index < 105; index++) {
-      const receipt = value(storage.work.start({ commandId: randomUUID(), deviceId: id }));
-      storage.work.cancel({ commandId: randomUUID(), runId: receipt.runId });
+    storage.work.admit();
+    storage.work.recover();
+    storage.store.close();
+    const fixture = new Database(join(directory, 'data.db'));
+    try {
+      const insert = fixture.prepare(
+        'INSERT INTO work_runs(id,device_id,state,config,outcome,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+      );
+      const config = JSON.stringify({
+        revision: 0,
+        pageCount: 1,
+        viewportWidth: 1280,
+        viewportHeight: 800,
+      });
+      const time = new Date().toISOString();
+      fixture.transaction(() => {
+        for (let index = 0; index < 105; index++)
+          insert.run(randomUUID(), id, 'cancelled', config, 'cancelled', time, time);
+        for (let index = 0; index < 105; index++) {
+          const deviceId = 1000 + index;
+          fixture
+            .prepare('INSERT INTO device(id,symbol,status) VALUES(?,?,2)')
+            .run(deviceId, `queued-${index}`);
+          insert.run(randomUUID(), deviceId, 'queued', config, null, time, time);
+        }
+      })();
+    } finally {
+      fixture.close();
     }
-    for (let index = 0; index < 105; index++)
-      storage.work.start({ commandId: randomUUID(), deviceId: device(storage) });
-    expect(storage.work.snapshot().runs.filter((run) => run.state === 'queued')).toHaveLength(105);
-    expect(storage.work.snapshot().runs.filter((run) => run.state === 'cancelled')).toHaveLength(
+    const restored = await open();
+    expect(restored.work.snapshot().runs.filter((run) => run.state === 'queued')).toHaveLength(105);
+    expect(restored.work.snapshot().runs.filter((run) => run.state === 'cancelled')).toHaveLength(
       100,
     );
-    expect(storage.work.start(firstInput)).toEqual(first);
+    expect(restored.work.snapshot().runs.find((run) => run.id === value(first).runId)?.state).toBe(
+      'interrupted',
+    );
+    expect(restored.work.snapshot().resources[0]?.runId).toBe(value(first).runId);
+    expect(restored.work.start(firstInput)).toEqual(first);
   });
 });
