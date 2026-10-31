@@ -75,8 +75,9 @@ else:
     escaped = [e for e in native_writes if e['pgid'] != main]
     esrch = [e for e in groups if e['target'] == -main and e['signal'] == 0 and e['result'] == -3 and e['pid'] == family['workerPid']]
     removals = [e for e in events if e['path'] == profile and e['syscall'] == 'rmdir' and e['result'] == 0]
-    ordered = bool(esrch and removals and min(e['end'] for e in esrch) < min(e['start'] for e in removals))
-    report = {'family': family, 'context': context, 'nativeWriterCount': len(native_writes), 'nativeWriters': native_writes[:20], 'nativeHelperWriters': native_helpers[:20], 'nativeWriterGroups': sorted({e['pgid'] for e in native_writes}), 'escapedNativeWriters': escaped, 'helperPositiveWrites': controls, 'groupESRCH': esrch, 'profileRmdir': removals, 'groupAbsentBeforeProfileRemoval': ordered, 'namespaceEventCount': len(events), 'groupEventCount': len(groups), 'traceStderr': (out / 'trace.stderr').read_text()}
+    deletion_attempts = [e for e in events if (e['path'] == profile or e['path'].startswith(profile + '/')) and e['syscall'] in {'rmdir', 'unlink', 'unlinkat'}]
+    ordered = bool(esrch and removals and deletion_attempts and min(e['end'] for e in esrch) < min(e['start'] for e in deletion_attempts))
+    report = {'family': family, 'context': context, 'nativeWriterCount': len(native_writes), 'nativeWriters': native_writes[:20], 'nativeHelperWriters': native_helpers[:20], 'nativeWriterGroups': sorted({e['pgid'] for e in native_writes}), 'escapedNativeWriters': escaped, 'helperPositiveWrites': controls, 'groupESRCH': esrch, 'profileRmdir': removals, 'firstProfileDeletionAttempt': min(deletion_attempts, key=lambda e: e['start']) if deletion_attempts else None, 'groupAbsentBeforeProfileRemoval': ordered, 'namespaceEventCount': len(events), 'groupEventCount': len(groups), 'traceStderr': (out / 'trace.stderr').read_text()}
     (out / 'analysis.json').write_text(json.dumps(report, indent=2))
     assert family['source'] == context['source']
     assert family['namespaceAbsentBeforeTeardown'] and family['preTeardownRootEntries'] == []
