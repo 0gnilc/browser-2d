@@ -1,12 +1,14 @@
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { chromium, expect, test, type Browser } from '@playwright/test';
+import { runnerImport } from 'vite';
 import { workerOwnerSchema } from '../../packages/contracts/src/host';
+import type { Device } from '../../packages/contracts/src/public';
 
 function absent(pid: number) {
   try {
@@ -169,7 +171,11 @@ test('dev:worker starts without a window, drains on stdin stop and cold restarts
   const owners = join(directory, 'worker-owners');
   let previousPid: number | undefined;
   let previousHash: string | undefined;
+  let retainedDevice: Device | undefined;
   try {
+    const { module: storage } = await runnerImport<
+      typeof import('../../apps/worker/src/storage/open-business-store')
+    >(resolve('apps/worker/src/storage/open-business-store.ts'), { configFile: false });
     for (let attempt = 1; attempt <= 2; attempt++) {
       const dev = development(['scripts/dev.mjs', '--worker-only', '--inspect-ui'], directory);
       let stopped = false;
@@ -217,6 +223,33 @@ test('dev:worker starts without a window, drains on stdin stop and cold restarts
         expect(absent(dev.child.pid)).toBe(true);
         expect(await readdir(owners)).toEqual([]);
         await expect.poll(() => reachable(`${endpoint}/json/version`)).toBe(false);
+        const { store } = await storage.openBusinessStore({
+          path: join(directory, 'data.db'),
+          nativeBinding: process.env.BROWSER2D_NATIVE_BINDING,
+          confirmLegacy: async () => false,
+          prepareLegacy: async () => {
+            throw new Error('The development database must not contain legacy credentials');
+          },
+        });
+        try {
+          if (attempt === 1) {
+            expect(store.devices.list()).toEqual({ ok: true, value: [] });
+            const created = store.devices.create({
+              symbol: `retention-${randomUUID()}`,
+              account: 'synthetic-retention-account',
+              amount: 123.45,
+              count: 7,
+              status: 2,
+              note: 'Must survive the real dev:worker cold restart',
+            });
+            expect(created.ok).toBe(true);
+            if (!created.ok) throw new Error(created.error.message);
+            retainedDevice = created.value;
+          }
+          expect(store.devices.list()).toEqual({ ok: true, value: [retainedDevice] });
+        } finally {
+          store.close();
+        }
         const database = await readFile(join(directory, 'data.db'));
         expect(database.subarray(0, 16).toString()).toBe('SQLite format 3\0');
         const hash = createHash('sha256').update(database).digest('hex');
