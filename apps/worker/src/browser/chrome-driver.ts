@@ -1,12 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import puppeteer, {
-  type Browser,
-  type BrowserContext,
-  type CDPSession,
-  type Page,
-} from 'puppeteer-core';
+import puppeteer, { type Browser, type BrowserContext, type Page } from 'puppeteer-core';
 import type { Obligation } from '../work/repository';
 import type { WorkDriver, CleanupResult } from '../work/service';
 import type { ChromeJournal, ChromeState } from './journal';
@@ -14,6 +9,7 @@ import {
   abortable,
   borrowedEndpoint,
   browserHash,
+  browserConnection,
   connect,
   disconnectOnAbort,
   loopbackUrl,
@@ -33,11 +29,10 @@ type Attached = {
   browser: Browser;
   context: BrowserContext;
   owner?: Browser;
-  session?: CDPSession;
 };
 const uncertain = (): CleanupResult => ({ kind: 'blocked', reason: 'OWNERSHIP_UNCERTAIN' });
 
-export type ChromeCheckpoint = 'spawned' | 'context-created' | 'cleanup';
+export type ChromeCheckpoint = 'spawned' | 'context-created' | 'pages-ready' | 'cleanup';
 
 export function createChromeDriver({
   root,
@@ -66,38 +61,34 @@ export function createChromeDriver({
     if (active) await Promise.allSettled([active.browser.disconnect(), active.owner?.disconnect()]);
   }
   async function verifyOwned(browser: Browser, intent: Obligation, state: ChromeState) {
-    const session = await browser.target().createCDPSession();
-    try {
-      const { arguments: args } = await session.send('Browser.getBrowserCommandLine');
-      const owners = args.filter((arg) => arg.startsWith('--browser-2d-owner='));
-      const profiles = args.filter((arg) => arg.startsWith('--user-data-dir='));
-      if (
-        owners.length !== 1 ||
-        owners[0] !== marker(intent) ||
-        profiles.length !== 1 ||
-        profiles[0] !== `--user-data-dir=${directory(intent)}`
-      )
-        throw new Error('Chrome ownership mismatch');
-      const hash = browserHash(browser.wsEndpoint());
-      if (state.mode !== 'launch' || (state.phase === 'attached' && state.browserHash !== hash))
-        throw new Error('Chrome instance mismatch');
-      const { processInfo } = await session.send('SystemInfo.getProcessInfo');
-      const info = processInfo.find((process) => process.type === 'browser');
-      if (!info || !Number.isSafeInteger(info.id) || info.id < 1)
-        throw new Error('Browser process unavailable');
-      const identity = await processIdentity(info.id);
-      const live = children.get(intent.operationId);
-      if (live && live.child.pid !== info.id) throw new Error('Browser process mismatch');
-      if (
-        state.phase === 'attached' &&
-        (state.pid !== info.id ||
-          (state.processIdentity !== null && state.processIdentity !== identity))
-      )
-        throw new Error('Browser process identity mismatch');
-      return { hash, pid: info.id, identity };
-    } finally {
-      await session.detach().catch(() => {});
-    }
+    const connection = browserConnection(browser);
+    const { arguments: args } = await connection.send('Browser.getBrowserCommandLine');
+    const owners = args.filter((arg) => arg.startsWith('--browser-2d-owner='));
+    const profiles = args.filter((arg) => arg.startsWith('--user-data-dir='));
+    if (
+      owners.length !== 1 ||
+      owners[0] !== marker(intent) ||
+      profiles.length !== 1 ||
+      profiles[0] !== `--user-data-dir=${directory(intent)}`
+    )
+      throw new Error('Chrome ownership mismatch');
+    const hash = browserHash(browser.wsEndpoint());
+    if (state.mode !== 'launch' || (state.phase === 'attached' && state.browserHash !== hash))
+      throw new Error('Chrome instance mismatch');
+    const { processInfo } = await connection.send('SystemInfo.getProcessInfo');
+    const info = processInfo.find((process) => process.type === 'browser');
+    if (!info || !Number.isSafeInteger(info.id) || info.id < 1)
+      throw new Error('Browser process unavailable');
+    const identity = await processIdentity(info.id);
+    const live = children.get(intent.operationId);
+    if (live && live.child.pid !== info.id) throw new Error('Browser process mismatch');
+    if (
+      state.phase === 'attached' &&
+      (state.pid !== info.id ||
+        (state.processIdentity !== null && state.processIdentity !== identity))
+    )
+      throw new Error('Browser process identity mismatch');
+    return { hash, pid: info.id, identity };
   }
   async function launch(intent: Obligation, signal: AbortSignal) {
     const config = journal.config(intent.runId);
@@ -157,10 +148,10 @@ export function createChromeDriver({
     const removeAbort = disconnectOnAbort(owner, signal);
     let browser: Browser | undefined;
     try {
-      const session = await owner.target().createCDPSession();
+      const connection = browserConnection(owner);
       const hash = browserHash(owner.wsEndpoint());
       journal.save(intent.operationId, { mode: 'connect', phase: 'creating', browserHash: hash });
-      const { browserContextId } = await session.send('Target.createBrowserContext', {
+      const { browserContextId } = await connection.send('Target.createBrowserContext', {
         disposeOnDetach: true,
       });
       await checkpoint?.('context-created', intent.operationId, signal);
@@ -177,7 +168,7 @@ export function createChromeDriver({
         .browserContexts()
         .find((candidate) => candidate.id === browserContextId);
       if (!context) throw new Error('Isolated Chrome context unavailable');
-      attached.set(intent.operationId, { browser, owner, session, context });
+      attached.set(intent.operationId, { browser, owner, context });
     } catch (error) {
       await Promise.allSettled([owner.disconnect(), browser?.disconnect()]);
       throw error;
@@ -223,8 +214,8 @@ export function createChromeDriver({
           pid: identity.pid,
           processIdentity: identity.identity,
         });
-      const session = await browser.target().createCDPSession();
-      await session.send('Browser.close').catch(() => {});
+      const connection = browserConnection(browser);
+      await connection.send('Browser.close').catch(() => {});
       if (live) await awaitChildExit(live, signal);
       else {
         while (!processAbsent(identity.pid)) {
@@ -255,12 +246,14 @@ export function createChromeDriver({
     const removeAbort = disconnectOnAbort(browser, signal);
     try {
       if (browserHash(browser.wsEndpoint()) !== state.browserHash) return uncertain();
-      const session = await browser.target().createCDPSession();
-      const before = await session.send('Target.getBrowserContexts');
+      const connection = browserConnection(browser);
+      const before = await connection.send('Target.getBrowserContexts');
       if (before.browserContextIds.includes(state.contextId))
-        await session.send('Target.disposeBrowserContext', { browserContextId: state.contextId });
+        await connection.send('Target.disposeBrowserContext', {
+          browserContextId: state.contextId,
+        });
       await disconnect(intent.operationId);
-      const after = await session.send('Target.getBrowserContexts');
+      const after = await connection.send('Target.getBrowserContexts');
       signal.throwIfAborted();
       return after.browserContextIds.includes(state.contextId)
         ? uncertain()
@@ -329,6 +322,7 @@ export function createChromeDriver({
               operation,
             );
         }
+        await checkpoint?.('pages-ready', resource.externalId, operation);
         await delay(durationMs, undefined, { signal: operation });
         if (!active.browser.connected || (active.owner && !active.owner.connected))
           throw new Error('Chrome disconnected during execution');

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import puppeteer, { type Browser } from 'puppeteer-core';
+import puppeteer, { Connection, type Browser } from 'puppeteer-core';
 import { z } from 'zod';
 
 export function loopbackUrl(value: string, protocol: 'http:' | 'ws:'): URL {
@@ -62,6 +62,13 @@ export async function connect(endpoint: string, signal: AbortSignal): Promise<Br
     () => {},
   );
   return abortable(pending, signal);
+}
+export function browserConnection(browser: Browser): Connection {
+  // Puppeteer can cache another client's browser target after that client disconnects.
+  // Use the existing root connection instead of attaching to that transient target.
+  if (!('_connection' in browser) || !(browser._connection instanceof Connection))
+    throw new Error('Chrome requires a CDP connection');
+  return browser._connection;
 }
 export function disconnectOnAbort(browser: Browser, signal: AbortSignal): () => void {
   const abort = () => {

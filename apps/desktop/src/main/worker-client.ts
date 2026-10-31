@@ -10,6 +10,7 @@ import {
   type BusinessRequest,
   type CredentialChallenge,
   type CredentialReceipt,
+  type BrowserFixture,
 } from '@browser-2d/contracts/host';
 import type { WorkSnapshot } from '@browser-2d/contracts/public';
 
@@ -19,6 +20,7 @@ export function launchWorker(options: {
   execution: 'controlled' | 'chrome';
   onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
   nativeBinding?: string;
+  browserFixture?: BrowserFixture;
   onSnapshot: (snapshot: WorkSnapshot) => void;
   onUnavailable: (message: string) => void;
 }) {
@@ -94,6 +96,7 @@ export function launchWorker(options: {
         businessPath: options.businessPath,
         execution: options.execution,
         nativeBinding: options.nativeBinding,
+        browserFixture: options.browserFixture,
       });
       heartbeat = setInterval(() => {
         if (!exited) child.postMessage({ type: 'heartbeat', ownerNonce: ownership.ownerNonce });

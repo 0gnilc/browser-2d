@@ -28,12 +28,15 @@ export async function observeChrome(rootDirectory, signal, readyPath) {
         if (!/^\d+$/.test(port) || !/^\/devtools\/browser\/[\w-]+$/.test(path)) continue;
         browser = await puppeteer.connect({
           browserWSEndpoint: `ws://127.0.0.1:${port}${path}`,
+          defaultViewport: null,
           protocolTimeout: 1000,
         });
         instances.add(name);
-        const session = await browser.target().createCDPSession();
+        if (!(browser._connection instanceof puppeteer.Connection))
+          throw new Error('Chrome requires a CDP connection');
+        const connection = browser._connection;
         versions.add(await browser.version());
-        const processes = await session.send('SystemInfo.getProcessInfo');
+        const processes = await connection.send('SystemInfo.getProcessInfo');
         for (const item of processes.processInfo) if (item.type === 'browser') pids.add(item.id);
         const contexts = browser.browserContexts().filter((context) => context.id);
         pages += (await Promise.all(contexts.map((context) => context.pages()))).flat().length;

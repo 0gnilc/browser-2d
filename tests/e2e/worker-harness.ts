@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import type { ElectronApplication } from '@playwright/test';
-import type { ControlledFixture } from '../../packages/contracts/src/host';
+import type { BrowserFixture, ControlledFixture } from '../../packages/contracts/src/host';
 
 const desktopRequire = createRequire(resolve('apps/desktop/package.json'));
 export async function workerHarness(
@@ -13,7 +13,7 @@ export async function workerHarness(
     initialize?: boolean;
     execution?: 'controlled' | 'chrome';
     browserProbe?: { url?: string; durationMs?: number };
-    browserFixture?: { directory: string; hold: 'spawned' | 'context-created' | 'cleanup' };
+    browserFixture?: BrowserFixture;
   },
 ) {
   return application.evaluateHandle(

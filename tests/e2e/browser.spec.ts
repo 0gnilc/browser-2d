@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron, chromium, expect, test } from '@playwright/test';
@@ -266,3 +266,67 @@ for (const phase of ['running', 'context-created', 'cleanup'] as const) {
     }
   });
 }
+
+test('page checkpoint releases only its operation and shutdown cancels the next held run', async () => {
+  const { directory, app } = await setup();
+  const dataDir = join(directory, 'worker');
+  const checkpointDir = join(directory, 'checkpoint');
+  let worker: Harness | undefined;
+  try {
+    worker = await workerHarness(app, {
+      dataDir,
+      execution: 'chrome',
+      browserProbe: { durationMs: 0 },
+      browserFixture: { directory: checkpointDir, hold: 'pages-ready' },
+    });
+    await worker.evaluate((host) => host.ready());
+    const runId = await configure(worker, { mode: 'launch', executablePath, headless: true });
+    await expect
+      .poll(
+        async () =>
+          (await readdir(checkpointDir).catch(() => [])).filter((name) =>
+            name.endsWith('.pages-ready'),
+          ).length,
+      )
+      .toBe(1);
+    const firstSnapshot = await snapshot(worker);
+    const [operation] = firstSnapshot.resources;
+    const firstRun = firstSnapshot.runs.find((run) => run.id === runId);
+    if (!operation || !firstRun) throw new Error('Held Chrome workload missing');
+    expect(firstRun.state).toBe('running');
+    await writeFile(join(checkpointDir, `${operation.operationId}.continue`), '');
+    await expect
+      .poll(async () => (await snapshot(worker!)).runs.find((run) => run.id === runId)?.state)
+      .toBe('completed');
+    const next = startResultSchema.parse(
+      await worker.evaluate(
+        (host, input) => host.request({ type: 'request', method: 'start', input }),
+        { commandId: randomUUID(), deviceId: firstRun.deviceId },
+      ),
+    );
+    if (!next.ok) throw new Error(next.error.code);
+    await expect
+      .poll(
+        async () =>
+          (await readdir(checkpointDir)).filter((name) => name.endsWith('.pages-ready')).length,
+      )
+      .toBe(2);
+    expect((await snapshot(worker)).runs.find((run) => run.id === next.value.runId)?.state).toBe(
+      'running',
+    );
+    expect(await worker.evaluate((host) => host.close())).toMatchObject({ code: 0 });
+    worker = await workerHarness(app, { dataDir, execution: 'chrome' });
+    await worker.evaluate((host) => host.ready());
+    expect((await snapshot(worker)).runs.find((run) => run.id === next.value.runId)?.state).toBe(
+      'cancelled',
+    );
+    expect((await snapshot(worker)).resources).toEqual([]);
+    expect(await readdir(join(dataDir, 'chrome-sessions'))).toEqual([]);
+    expect(await worker.evaluate((host) => host.close())).toMatchObject({ code: 0 });
+    worker = undefined;
+  } finally {
+    await worker?.evaluate((host) => host.close()).catch(() => undefined);
+    await app.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

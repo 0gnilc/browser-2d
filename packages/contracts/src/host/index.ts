@@ -59,10 +59,11 @@ export const initializeSchema = z.strictObject({
   browserFixture: z
     .strictObject({
       directory: z.string().min(1),
-      hold: z.enum(['spawned', 'context-created', 'cleanup']),
+      hold: z.enum(['spawned', 'context-created', 'pages-ready', 'cleanup']),
     })
     .optional(),
 });
+export type BrowserFixture = NonNullable<z.infer<typeof initializeSchema>['browserFixture']>;
 export const heartbeatSchema = z.strictObject({
   type: z.literal('heartbeat'),
   ownerNonce: z.uuid(),

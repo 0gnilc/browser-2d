@@ -27,3 +27,11 @@ Final runtime matrix 41168987583 passed both macOS targets. Windows and Linux pa
 Diagnostic run 41170041659 never started a job. GitHub reported failed account payments or a spending-limit requirement. The user explicitly chose not to address it now and to retain unfinished acceptance items. No further remote runs are authorized in this handback. Issue #5 remains open.
 
 The final cold-recovery follow-up was independently reviewed by gpt-6.1-sol. Its real-Chrome regression proved that an already exited, previously verified browser can be resolved by PID absence without a live child handle. Attempted launches and live/reused PIDs remain protected. Three related ownership regressions passed.
+
+## Acceptance closure after repository became public
+
+The resumed native diagnostic identified `Target.attachToTarget: No target with given id found` in owned-browser verification. Real Chrome confirmed that a client can cache another client's transient browser target. Disconnecting that owner breaks target attachment while commands on the original root connection still succeed. The runtime and observer now use a guarded root Connection. The exact Puppeteer version remains pinned; its internal getter is confined to the adapter. Independent review confirmed all ownership checks remain intact and two real Chrome identity/disposal tests pass.
+
+Two separately reproduced verifier defects were corrected. Observer attachment changed real page dimensions; defaultViewport:null now preserves them. A four-second staggered Chrome launch caused the three-second workload to finish before concurrent observation; a private pages-ready checkpoint now holds each operation until the verifier releases the sole survivor. Shutdown work remains held until desktop close. Production duration and public IPC are unchanged. Independent verifier review approved the change and reran the real viewport regression.
+
+Root integration passed 59 worker tests, one observer test, all static/boundary checks, and 27 Electron tests. Corrected Linux diagnostic run 41174187218 passed five complete dual-launch package verifications. Final all-platform acceptance remains separately recorded in p4-ci.json.

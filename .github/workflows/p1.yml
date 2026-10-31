@@ -48,6 +48,7 @@ jobs:
       - run: pnpm check
       - run: pnpm test
       - run: pnpm test:storage
+      - run: pnpm test:observer
       - run: pnpm test:credentials
       - name: Electron integration and UI
         shell: bash

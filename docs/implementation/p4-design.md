@@ -21,3 +21,7 @@
 参考 [Puppeteer 启动选项](https://pptr.dev/api/puppeteer.launchoptions)、[隔离上下文](https://pptr.dev/api/puppeteer.browser.createbrowsercontext)及 [CDP Target 协议](https://chromedevtools.github.io/devtools-protocol/tot/Target/)。
 
 Windows 上的自有 Chrome 使用 detached 启动，保留当前 ChildProcess 句柄进行正常关闭。这样 worker 意外退出时，Chrome 不会被 Node 的父进程终止作业提前杀掉，新的 worker 可以核验浏览器身份后完成清理。测试在 worker 死亡后、启动恢复进程前检查 Chrome 仍存活。此差异依据 [Node/libuv 的 Windows 子进程实现](https://github.com/nodejs/node/blob/v24.5.0/deps/uv/src/win/process.c#L1016-L1035)，不改变从磁盘 PID 不得授予终止权限的规则。
+
+P4 验收收尾将成品验证任务停在私有的 pages-ready 检查点。验证器先观察四个真实页面，再确认排队取消和活动取消，随后只放行剩余任务。退出任务使用不同的操作标识，保持活动直到窗口关闭。该检查点仅用于明确的成品验收模式，不改变正常任务的三秒执行策略，也不增加公共 IPC。
+
+观察器使用空默认视口，避免读取页面时改变其大小。浏览器级命令通过当前 CDP 根连接发送，避免选择其他客户端断开后失效的 browser target。Puppeteer 25.16.0 的内部连接入口集中在适配器中，并核对 Connection 实例类型。依赖升级需要重跑其他客户端目标消失和上下文断连清理测试；所有权标记、用户目录、实例和进程核验保持不变。
