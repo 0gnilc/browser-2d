@@ -7,10 +7,12 @@ import {
 } from './business';
 import {
   cancelInputSchema,
+  commandInputSchema,
+  commandResultSchema,
+  commandLookupResultSchema,
   failureSchema,
-  runResultSchema,
-  snapshotResultSchema,
-  snapshotSchema,
+  workSnapshotResultSchema,
+  workSnapshotSchema,
   startInputSchema,
 } from '../public/index';
 
@@ -18,34 +20,67 @@ export const channels = {
   snapshot: 'work:snapshot',
   start: 'work:start',
   cancel: 'work:cancel',
+  getCommand: 'work:get-command',
+  subscribe: 'work:subscribe',
   changed: 'work:changed',
 } as const;
-
-export const initializeSchema = z.object({
+export const controlledFixtureSchema = z.strictObject({
+  directory: z.string().min(1),
+  scenario: z.enum([
+    'hold-acquire',
+    'hold-execute',
+    'hold-release',
+    'acquire-result-lost',
+    'cleanup-fails',
+    'borrowed',
+  ]),
+});
+export type ControlledFixture = z.infer<typeof controlledFixtureSchema>;
+export const initializeSchema = z.strictObject({
   type: z.literal('initialize'),
+  ownerNonce: z.uuid(),
   dataDir: z.string().min(1),
   businessPath: z.string().min(1),
   nativeBinding: z.string().min(1).optional(),
+  fixture: controlledFixtureSchema.optional(),
+});
+export const heartbeatSchema = z.strictObject({
+  type: z.literal('heartbeat'),
+  ownerNonce: z.uuid(),
 });
 export const requestSchema = z.discriminatedUnion('method', [
-  z.object({ type: z.literal('request'), requestId: z.uuid(), method: z.literal('snapshot') }),
-  z.object({
+  z.strictObject({
+    type: z.literal('request'),
+    requestId: z.uuid(),
+    method: z.literal('snapshot'),
+  }),
+  z.strictObject({
     type: z.literal('request'),
     requestId: z.uuid(),
     method: z.literal('start'),
     input: startInputSchema,
   }),
-  z.object({
+  z.strictObject({
     type: z.literal('request'),
     requestId: z.uuid(),
     method: z.literal('cancel'),
     input: cancelInputSchema,
   }),
-  z.object({ type: z.literal('request'), requestId: z.uuid(), method: z.literal('shutdown') }),
+  z.strictObject({
+    type: z.literal('request'),
+    requestId: z.uuid(),
+    method: z.literal('getCommand'),
+    input: commandInputSchema,
+  }),
+  z.strictObject({
+    type: z.literal('request'),
+    requestId: z.uuid(),
+    method: z.literal('shutdown'),
+  }),
 ]);
 export type WorkerRequest = z.infer<typeof requestSchema>;
 export const shutdownResultSchema = z.union([
-  z.object({ ok: z.literal(true), value: z.null() }),
+  z.strictObject({ ok: z.literal(true), value: z.null() }),
   failureSchema,
 ]);
 export const workerEventSchema = z.union([
@@ -57,13 +92,18 @@ export const workerEventSchema = z.union([
       requestId: z.uuid(),
       result: businessResultSchema,
     }),
-    z.object({ type: z.literal('ready'), snapshot: snapshotSchema }),
-    z.object({ type: z.literal('snapshot'), snapshot: snapshotSchema }),
-    z.object({ type: z.literal('fatal'), message: z.string() }),
-    z.object({
+    z.strictObject({ type: z.literal('ready'), snapshot: workSnapshotSchema }),
+    z.strictObject({ type: z.literal('snapshot'), snapshot: workSnapshotSchema }),
+    z.strictObject({ type: z.literal('fatal'), message: z.string() }),
+    z.strictObject({
       type: z.literal('response'),
       requestId: z.uuid(),
-      result: z.union([runResultSchema, snapshotResultSchema, shutdownResultSchema]),
+      result: z.union([
+        commandResultSchema,
+        commandLookupResultSchema,
+        workSnapshotResultSchema,
+        shutdownResultSchema,
+      ]),
     }),
   ]),
 ]);
