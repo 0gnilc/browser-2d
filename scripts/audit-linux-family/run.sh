@@ -3,7 +3,7 @@ out="$PWD/artifacts/linux-family"
 mkdir -p "$out"
 sudo bpftrace --version > "$out/bpftrace-version.txt"
 python3 scripts/audit-linux-family/trace.py prepare
-sudo env BPFTRACE_STRLEN=256 bpftrace -q "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
+sudo env BPFTRACE_MAX_STRLEN=200 bpftrace -q "$out/trace.bt" > "$out/trace.tsv" 2> "$out/trace.stderr" &
 trace_sudo=$!
 cleanup() {
   sudo pkill -INT -x bpftrace || true
