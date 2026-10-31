@@ -2,6 +2,7 @@ import process from 'node:process';
 import { URL } from 'node:url';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import {
   feedUrl,
@@ -12,6 +13,10 @@ import {
 import { flipFuses, FuseVersion, FuseV1Options } from '@electron/fuses';
 
 const { executableName } = identity;
+const require = createRequire(import.meta.url);
+const updaterVersion = JSON.parse(
+  readFileSync(require.resolve('electron-updater/package.json'), 'utf8'),
+).version;
 const resourcePath =
   process.env.BROWSER2D_RELEASE_CONFIG ||
   fileURLToPath(new URL('./resources/release-config.json', import.meta.url));
@@ -22,6 +27,7 @@ validateProductionInputs(configuration, process.env, false);
 
 export default {
   ...identity,
+  extraMetadata: { dependencies: { 'electron-updater': updaterVersion } },
   extraResources: [{ from: resourcePath, to: 'release-config.json' }],
   forceCodeSigning: production && configuration.target !== 'linux-x64',
   asar: true,

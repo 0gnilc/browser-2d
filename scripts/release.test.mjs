@@ -23,6 +23,24 @@ import {
   verifyRelease,
 } from './release-verify.mjs';
 import { prepareRelease, recheckReceipt } from './release-prepare.mjs';
+import builderConfiguration from '../apps/desktop/electron-builder.config.mjs';
+
+test('builder receives the installed updater version instead of the pnpm catalog protocol', async () => {
+  const installed = JSON.parse(
+    await readFile(
+      new URL('../apps/desktop/node_modules/electron-updater/package.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  assert.equal(
+    builderConfiguration.extraMetadata.dependencies['electron-updater'],
+    installed.version,
+  );
+  assert.match(
+    builderConfiguration.extraMetadata.dependencies['electron-updater'],
+    /^\d+\.\d+\.\d+$/,
+  );
+});
 
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-release-test-'));
