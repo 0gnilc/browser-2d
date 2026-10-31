@@ -242,66 +242,14 @@ export function createChromeDriver({
       lifetime = live.lifetime;
       if (!lifetime) return uncertain();
     }
-    process.stderr.write(
-      JSON.stringify({
-        diagnostic: 'cleanup-before-initial-probe',
-        time: Date.now(),
-        operationId: intent.operationId,
-        lifetime,
-        phase: state.phase,
-        live: Boolean(live),
-        exited: live?.exited,
-        workerPid: process.pid,
-      }) + '\n',
-    );
     const observation = observeOwnedLifetime(lifetime);
-    if (observation === 'unknown') return uncertain();
-    const mainPid = lifetime.kind === 'posix-group' ? lifetime.pgid : lifetime.pid;
-    if (observation !== 'empty' && !live?.exited && !processAbsent(mainPid)) {
-      let browser: Browser | undefined;
-      try {
-        browser = await connect(await ownedEndpoint(directory(intent)), signal);
-      } catch {
-        if (live) await stopOwnedChild(live, signal);
-      }
-      if (browser) {
-        const removeAbort = disconnectOnAbort(browser, signal);
-        try {
-          const identity = await abortable(verifyOwned(browser, intent, state), signal);
-          if (!live && !identity.identity) return uncertain();
-          const connection = browserConnection(browser);
-          await connection.send('Browser.close').catch(() => {});
-          if (live) await awaitChildExit(live, signal);
-          else {
-            while (!processAbsent(identity.pid)) {
-              const currentIdentity = await processIdentity(identity.pid);
-              if (processAbsent(identity.pid)) break;
-              if (currentIdentity !== identity.identity) return uncertain();
-              await delay(25, undefined, { signal });
-            }
-          }
-        } finally {
-          removeAbort();
-          await browser.disconnect().catch(() => {});
-        }
-      }
-    }
-    process.stderr.write(
-      JSON.stringify({
-        diagnostic: 'cleanup-before-final-probe',
-        time: Date.now(),
-        operationId: intent.operationId,
-        lifetime,
-        phase: state.phase,
-        live: Boolean(live),
-        exited: live?.exited,
-        workerPid: process.pid,
-      }) + '\n',
-    );
-    const proof = await awaitOwnedLifetime(lifetime, signal);
+    if (observation === 'unknown') {
+      const proof = await awaitOwnedLifetime(lifetime, signal);
     process.stderr.write(
       JSON.stringify({
         diagnostic: 'cleanup-after-final-probe',
+        phase: state.phase,
+        live: Boolean(live),
         time: Date.now(),
         operationId: intent.operationId,
         lifetime,

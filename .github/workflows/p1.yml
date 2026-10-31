@@ -30,7 +30,24 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm dist -- --target=mac-arm64
       - name: Fused package verification outside checkout
-        run: pnpm verify:package -- --target=mac-arm64
+        run: |
+          mkdir -p artifacts
+          pnpm verify:package -- --target=mac-arm64 2>&1 | tee artifacts/arm-cleanup.log
+      - name: Read-only final group observations
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const log = await readFile('artifacts/arm-cleanup.log', 'utf8').catch(() => '');
+          for (const line of log.split('\n')) {
+            if (!line.startsWith('{"diagnostic":"owned-lifetime-unknown"')) continue;
+            const event = JSON.parse(line);
+            let result = 'present';
+            try { process.kill(-event.lifetime.pgid, 0); }
+            catch (error) { result = error.code; }
+            console.log(JSON.stringify({ diagnostic: 'observer-after-verifier', time: Date.now(), unknownAt: event.time, lifetime: event.lifetime, result }));
+          }
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
