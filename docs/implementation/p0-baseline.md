@@ -54,4 +54,4 @@ P1 的打包 productName 为 `Browser2DFoundation`，运行时 app 名为 `Brows
 
 已读取的 `apps/worker/tests/storage.test.ts` 包含接纳落库、完成快照、命令冲突、设备互斥、取消、正常关闭、重启 epoch、崩溃遗留 interrupted、历史保留与较新 schema 拒绝场景。`apps/ui/tests/Foundation.test.ts` 包含公共 bridge 发起任务、订阅释放、旧快照拒绝及错误呈现。此处只记录测试内容，执行结果由 P1 验收记录提供。
 
-P1 定时合成任务不代表旧业务 CRUD、旧库迁移、真实浏览器或正式更新已通过。实际四目标结果见[验收记录](p0-p1-acceptance.md)。P0 可复核命令为 `git show a0567c5:electron/db/database.js`、`git show a0567c5:src/utils/convert.js` 和 `rg -n 'onExport|onDeleteMaterial|onReset' src/views/history/index.vue`。
+P1 定时合成任务不代表旧业务 CRUD、旧库迁移、真实浏览器或正式更新已通过。实际四目标结果见[验收记录](p0-p1-acceptance.md)。P0 可复核命令为 `git show a0567c5:electron/db/database.js`、`git show a0567c5:src/utils/convert.js` 和 `git show a0567c5:src/views/history/index.vue`。P2 已移除退出使用的旧入口，后续对照仍读取该冻结提交。

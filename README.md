@@ -42,6 +42,8 @@ The native CI matrix in `.github/workflows/p1.yml` uses Windows, Intel macOS, Ap
 
 The [P0/P1 acceptance record](docs/implementation/p0-p1-acceptance.md) links the successful native matrix and records the verified scope and remaining production-release work.
 
+The [P2 acceptance record](docs/implementation/p2-acceptance.md) records the business migration, credential, native-platform and final-package checks, with the exact validated revisions and remaining phase boundaries.
+
 Read [the approved plan](docs/monorepo-refactor-plan.md) and [P0 source baseline](docs/implementation/p0-baseline.md) for scope, data ownership and later migration stages. `packages/contracts` provides the only shared runtime contract. `internal` contains engineering tools. Desktop depends on the worker's compiled executable package; it never imports worker business code or opens the database.
 
 [P2 implementation decisions](docs/implementation/p2-design.md) describe migration and credential ownership. Persistent credentials use OS encryption in `credentials.enc` under userData. A session-only replacement expires on restart and never restores a previous persistent key. Legacy plaintext migration requires working persistent encryption; session mode cannot bypass that requirement. Recovery backups deliberately preserve original data and may contain the old plaintext key. They are not automatically restored over a newer database.
