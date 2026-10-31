@@ -144,18 +144,22 @@ for (let pass = 1; pass <= 2; pass++) {
     observationAbort.signal,
     readyPath,
   );
-  const child = spawn(executable, [`--verify-p1=${reportPath}`], {
-    cwd: tmpdir(),
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      BROWSER2D_DATA_DIR: dataDir,
-      BROWSER2D_VERIFY_CHROME: '1',
-      BROWSER2D_EXECUTION: 'chrome',
-      BROWSER2D_NATIVE_BINDING: join(dataDir, 'must-not-load.node'),
-      ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/must-not-load',
+  const child = spawn(
+    process.env.BROWSER2D_APPIMAGE_EXECUTABLE || executable,
+    [`--verify-p1=${reportPath}`],
+    {
+      cwd: tmpdir(),
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        BROWSER2D_DATA_DIR: dataDir,
+        BROWSER2D_VERIFY_CHROME: '1',
+        BROWSER2D_EXECUTION: 'chrome',
+        BROWSER2D_NATIVE_BINDING: join(dataDir, 'must-not-load.node'),
+        ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/must-not-load',
+      },
     },
-  });
+  );
   const code = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       child.kill();
