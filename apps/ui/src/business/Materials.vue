@@ -218,7 +218,7 @@ onMounted(load);
             v-model="form.amount"
             data-testid="material-amount"
             type="number"
-            step="1"
+            step="any"
         /></label>
         <label class="field"
           >状态<select v-model="form.status" data-testid="material-status">

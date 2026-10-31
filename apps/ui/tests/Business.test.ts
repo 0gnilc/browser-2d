@@ -172,11 +172,16 @@ describe('P2 business screens', () => {
       status: 0,
     });
     await wrapper.get('[data-testid="material-edit-2"]').trigger('click');
+    await wrapper.get('[data-testid="material-amount"]').setValue('12.5');
+    expect(
+      wrapper.get<HTMLInputElement>('[data-testid="material-amount"]').element.checkValidity(),
+    ).toBe(true);
     await wrapper.get('[data-testid="material-note"]').setValue('updated note');
     await wrapper.get('[data-testid="material-form"]').trigger('submit');
     await flushPromises();
     expect(api.materials.update).toHaveBeenCalledWith({
       id: 2,
+      amount: 12.5,
       note: 'updated note',
     });
     const nextPage = wrapper.findAll('.n-pagination-item').find((item) => item.text() === '2');
