@@ -201,6 +201,8 @@ export function createChromeDriver({
     if (state.mode !== 'launch') return uncertain();
     const live = children.get(intent.operationId);
     if (live?.exited || live?.failedToSpawn) return released(intent, 'launch');
+    if (!live && state.phase === 'attached' && processAbsent(state.pid))
+      return released(intent, 'launch');
     let browser: Browser;
     try {
       browser = await connect(await ownedEndpoint(directory(intent)), signal);

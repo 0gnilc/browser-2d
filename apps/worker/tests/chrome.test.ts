@@ -638,3 +638,47 @@ it('refuses to close an unrelated Chrome found through a forged owned discovery 
   expect(await sentinel.title()).toBe('preserved unrelated Chrome');
   expect(database.work.obligations()).toHaveLength(1);
 }, 30_000);
+
+it('recovers a verified owned browser that exited before its release was journaled', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'browser-2d-closed-recovery-'));
+  const database = await openBusinessStore({
+    path: join(directory, 'data.db'),
+    execution: 'chrome',
+    confirmLegacy: async () => true,
+    prepareLegacy: async () => secretRefSchema.parse(randomUUID()),
+  });
+  const settings = value(database.store.settings.get());
+  value(
+    database.store.settings.commit({
+      expectedRevision: settings.revision,
+      values: {
+        ...settings,
+        browser: { mode: 'launch', executablePath, headless: true },
+      },
+    }),
+  );
+  const deviceId = value(database.store.devices.create({ symbol: 'closed-before-journal' })).id;
+  value(database.work.start({ commandId: randomUUID(), deviceId }));
+  const admitted = database.work.admit();
+  if (!admitted) throw new Error('Missing admission');
+  const root = join(directory, 'chrome-sessions');
+  const driver = createChromeDriver({ root, journal: database.work.chrome });
+  cleanups.push(async () => {
+    await driver.cleanup(admitted.intent, AbortSignal.timeout(7000));
+    database.store.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const resource = await driver.acquire(admitted.intent, AbortSignal.timeout(15_000));
+  database.work.acquired(admitted.intent, resource);
+  const observer = await ownedObserver(root);
+  await observer.browser.close();
+  await expect.poll(() => alive(observer.pid), poll).toBe(false);
+  database.work.recover();
+  const recovered = createChromeDriver({ root, journal: database.work.chrome });
+  expect(await recovered.cleanup(admitted.intent, AbortSignal.timeout(7000))).toEqual({
+    kind: 'resolved',
+  });
+  database.work.resolved(admitted.intent.operationId);
+  expect(database.work.snapshot().resources).toEqual([]);
+  expect(await readdir(root)).toEqual([]);
+}, 30_000);
