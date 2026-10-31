@@ -19,3 +19,5 @@
 验证分别覆盖真实 Chrome 页面与进程、调度与 SQLite、Electron worker 崩溃和关闭、生产依赖与原生打包。自动化测试只使用临时目录和本地页面。旧业务流程没有执行，浏览器安装包也不随 Electron 应用重复分发。
 
 参考 [Puppeteer 启动选项](https://pptr.dev/api/puppeteer.launchoptions)、[隔离上下文](https://pptr.dev/api/puppeteer.browser.createbrowsercontext)及 [CDP Target 协议](https://chromedevtools.github.io/devtools-protocol/tot/Target/)。
+
+Windows 上的自有 Chrome 使用 detached 启动，保留当前 ChildProcess 句柄进行正常关闭。这样 worker 意外退出时，Chrome 不会被 Node 的父进程终止作业提前杀掉，新的 worker 可以核验浏览器身份后完成清理。测试在 worker 死亡后、启动恢复进程前检查 Chrome 仍存活。此差异依据 [Node/libuv 的 Windows 子进程实现](https://github.com/nodejs/node/blob/v24.5.0/deps/uv/src/win/process.c#L1016-L1035)，不改变从磁盘 PID 不得授予终止权限的规则。

@@ -19,3 +19,11 @@ Comment audit found two redundant fallback comments, both removed. The observer 
 The first matrix exposed a Windows-only test path assertion and a macOS Chrome installation layout defect. The path assertion now compares the exact parent of DevToolsActivePort with node:path. CI restores the .app suffix removed by setup-chrome's channel cache. Identical Chrome for Testing 156.0.8078.80 binaries failed with helper IPC and Network.enable timeouts under an extensionless directory, then passed local navigation and all 11 existing Chrome tests after restoring the bundle layout. No production browser flags were changed.
 
 The Linux cancellation gate exposed a Puppeteer target-publication race. A real Chrome regression cancels after Target.createTarget and before waitForTarget subscribes. Before the fix it remained stopping after two seconds. Page operations now use the existing abortable boundary, and resource cleanup still proves context or browser removal. The already-aborted helper regression also reproduced a synchronous throw plus an unhandled late command rejection; the helper now always attaches pending handlers before rejecting cancellation. The corrected Chrome and connection suites contain 14 tests.
+
+## Deferred native acceptance
+
+Final runtime matrix 41168987583 passed both macOS targets. Windows and Linux passed code, browser, Electron and distribution builds, then failed copied-package verification. The prior generic startup error does not identify the failing assertion, so no native fix is claimed. Failure-stage and pre-assert observation artifacts were added for the next diagnostic run.
+
+Diagnostic run 41170041659 never started a job. GitHub reported failed account payments or a spending-limit requirement. The user explicitly chose not to address it now and to retain unfinished acceptance items. No further remote runs are authorized in this handback. Issue #5 remains open.
+
+The final cold-recovery follow-up was independently reviewed by gpt-6.1-sol. Its real-Chrome regression proved that an already exited, previously verified browser can be resolved by PID absence without a live child handle. Attempted launches and live/reused PIDs remain protected. Three related ownership regressions passed.

@@ -1,6 +1,6 @@
 Browser-2d 最终重构方案，2026-10-30。
 
-本文件保留已确认的设计基线。截至 2026-10-31，P0、P1、P2、P3 已实施，实际结果和阶段边界见 [P0/P1 验收](implementation/p0-p1-acceptance.md)、[P2 验收](implementation/p2-acceptance.md)及 [P3 验收](implementation/p3-acceptance.md)。P4 实施期间用户明确将浏览器方案调整为 Google Chrome 与 puppeteer-core，不引入 AdsPower。调整后的边界见 [P4 设计](implementation/p4-design.md)，后续阶段尚未推进。下文“本轮”指原设计轮次，实施状态以验收记录为准。
+本文件保留已确认的设计基线。截至 2026-10-31，P0、P1、P2、P3 已实施，实际结果和阶段边界见 [P0/P1 验收](implementation/p0-p1-acceptance.md)、[P2 验收](implementation/p2-acceptance.md)及 [P3 验收](implementation/p3-acceptance.md)。P4 实施期间用户明确将浏览器方案调整为 Google Chrome 与 puppeteer-core，不引入 AdsPower。调整后的边界见 [P4 设计](implementation/p4-design.md)。P4 代码已落地，Windows/Linux 成品检查尚未通过，按用户决定保留验收缺口，见 [P4 验收记录](implementation/p4-acceptance.md)。后续阶段尚未推进。下文“本轮”指原设计轮次，实施状态以验收记录为准。
 
 本方案依据已选技术栈整理应用边界、依赖关系、开发和交付流程。技术选型依据见[调研记录](research/electron-stack-2026-10-30.md)。本轮仅编写方案，没有创建目标目录、修改业务代码、安装依赖或运行应用。下文命令和目录均为实施目标，验收框尚未完成。
 
@@ -17,7 +17,7 @@ Browser-2d 最终重构方案，2026-10-30。
 | 分发更新 | electron-builder、electron-updater | 使用验证过的稳定版本，初期不引入 builder 27 预发布线 |
 | 工作运行时 | Electron utilityProcess | 一个宿主，受控异步并发，不默认每设备一个线程 |
 | 存储 | SQLite、better-sqlite3、版本化 SQL 迁移 | worker 单点读写，初期不引入 ORM |
-| 浏览器控制 | puppeteer-core、现有 AdsPower 协议适配 | 保留业务流程，不因测试工具变化重写生产驱动 |
+| 浏览器控制 | puppeteer-core、Google Chrome 直连 | P4 按用户调整取消 AdsPower，只运行本地受控任务 |
 | 通信 | contextBridge、命名业务方法、Zod | 业务 API 与私有宿主协议分离 |
 | 测试 | Vitest、Vue Test Utils、Playwright | 逻辑、组件、真实进程、最终安装包分层验证 |
 | 系统能力 | electron-log、Electron safeStorage | desktop 管日志汇聚与凭据系统适配 |
@@ -48,7 +48,7 @@ browser-2d/
 │       ├── src/host/               请求处理、就绪、退出
 │       ├── src/runs/               调度、状态、取消、资源所有权
 │       ├── src/storage/            连接、业务仓储、迁移执行
-│       ├── src/browser/            AdsPower 与 Puppeteer 适配
+│       ├── src/browser/            Chrome 与 Puppeteer 适配
 │       ├── migrations/             有序 SQL 与校验信息
 │       └── tests/                  调度、仓储和驱动测试
 ├── packages/
@@ -122,7 +122,7 @@ flowchart LR
     Main <-->|私有宿主协议| Worker[worker utilityProcess]
     Main --> OS[safeStorage 与系统能力]
     Worker --> DB[(SQLite)]
-    Worker --> Browser[AdsPower 与浏览器执行]
+    Worker --> Browser[Google Chrome 与浏览器执行]
 ```
 
 UI 使用以下业务能力。表内参数与结果是契约草案，实际类型由 schema 推导，不在不同应用手写平行接口。
@@ -153,7 +153,7 @@ UI 使用以下业务能力。表内参数与结果是契约草案，实际类�
 
 强制终止、worker 崩溃或宿主失联时，不能报告干净完成。所有未终结状态，包括 queued、starting 和 stopping，均在恢复时判定为 interrupted。不得自动重放可能产生外部副作用的操作。新宿主在确认旧进程结束后才能接管数据库。旧进程退出不确定时，保持不可用并报告原因，不启动第二个写入者。
 
-资源台账记录任务拥有的 AdsPower profile、会话和待清理义务。尽可能在创建外部资源前持久化意图，并覆盖创建成功但记录返回 ID 前崩溃的窗口。恢复时用已知 profile 与外部状态进行核对。只清理本应用拥有的会话，不误关用户原有会话。杀死 utilityProcess 不等于外部浏览器已停止；清理失败必须可见并阻止冲突任务。desktop 不为清理直接读取业务数据库，恢复由新的 worker 完成。
+资源台账记录任务拥有的 Chrome 用户目录、浏览器实例、隔离上下文和待清理义务。创建资源前持久化意图，创建结果未保存的崩溃窗口保留不确定状态。恢复时核对浏览器启动标记、用户目录、实例及进程身份。只清理本应用拥有的浏览器或上下文，不误关借用会话。杀死 utilityProcess 不等于外部浏览器已停止；清理失败必须可见并阻止冲突任务。desktop 不为清理直接读取业务数据库，恢复由新的 worker 完成。
 
 存储迁移第一轮保留现有配置路径 ~/kys/data.db，不把驱动替换和目录迁移放在同一步。新建开发和测试数据使用独立目录。迁移前确认旧应用已关闭并取得独占迁移访问，新应用的单实例锁不能代替对旧程序的检查。
 
@@ -260,7 +260,7 @@ CI 从第一阶段开始建立，不留到最后补建。PR 基础 job 执行锁
 | P1 最小桌面闭环 | pnpm workspace、internal 预设、contracts 骨架、三应用入口、builder；只执行合成任务与临时库 | 四个目标均可从干净安装构建；仓库外启动；UI 调用穿过 preload/main 到 worker；renderer 隔离与 IPC 来源限制通过；SQLite 写入重启可读；取消和关闭通过；无外部链接或原始 TS 运行依赖 | 未签名技术验证包、入口与依赖检查、真实运行日志、任务结束与进程退出证据 |
 | P2 存储与业务契约 | 更换 better-sqlite3；迁移和备份；设备→材料→历史→设置依次接入 worker；凭据边界 | 每个切片完成调用→事务→刷新→重启读取；旧库兼容、WAL 备份、失败回滚、原子认领、较新 schema 拒绝通过；凭据密文存储与重启引用通过；main 无业务 DB 访问 | 仓储与迁移测试、Electron CRUD 集成、备份完整性与凭据迁移报告 |
 | P3 调度与恢复 | 用可控驱动实现持久化接纳、并发限制、取消、资源台账、快照、异常恢复 | 同设备不重复运行；重复 commandId 不重复接纳；全部非终态恢复为 interrupted；关闭预算、宿主丢失和旧进程退出确认通过；无自动重放 | 确定性调度场景、故障注入、进程和资源状态报告 |
-| P4 真实浏览器适配 | 接入 puppeteer-core 与 AdsPower，保持原有业务流程；验证异步调度替代线程的影响 | 受控环境验证启动、页面并发、失败隔离、超时取消、拥有/借用会话清理；清理失败有明确状态；不依赖真实用户账户或实际业务副作用 | 适配器集成记录、关闭及崩溃场景、与 P0 行为清单的对照 |
+| P4 真实浏览器适配 | 接入 puppeteer-core 与本机 Google Chrome；以本地受控任务验证异步调度和资源生命周期，旧付款业务不执行 | 受控环境验证启动、页面并发、失败隔离、超时取消、拥有/借用会话清理；清理失败有明确状态；不依赖真实用户账户或实际业务副作用 | 适配器集成记录、关闭及崩溃场景、与 P0 行为清单的对照 |
 | P5 UI 与开发体验 | 各路由迁移到 TS、Pinia、Naive UI；连接唯一公共 API；完整开发重启流程 | 表单、导入、分页、筛选、历史、设置与任务操作满足行为清单；组件与 E2E 通过；订阅不累积；UI 仅使用公共 DTO；HMR 和工作模块重启可验证 | 路由验收表、VTU/Playwright 报告、关键界面截图 |
 | P6 正式分发与收尾 | 生产 fuses、签名、公证、更新渠道、安装器迁移、清理旧链路和开发文档 | 四个目标最终产物完成安装、升级、更新、数据保留、卸载和退出验收；应用不依赖源码仓库；旧 Forge/npm 锁文件/Element Plus/旧 sqlite3/旧入口已退出使用；CI 与根命令一致 | 最终产物、哈希、签名/公证记录、更新 N→N+1 记录、发布验收矩阵 |
 
