@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import { failureSchema } from './result';
+import type { BusinessApi } from './business';
+export * from './result';
+export * from './business';
 
 export const runSchema = z.object({
   id: z.uuid(),
@@ -28,14 +32,6 @@ export const cancelInputSchema = z.object({ runId: z.uuid() });
 export type StartInput = z.infer<typeof startInputSchema>;
 export type CancelInput = z.infer<typeof cancelInputSchema>;
 
-export const failureSchema = z.object({
-  ok: z.literal(false),
-  error: z.object({
-    code: z.enum(['INVALID_INPUT', 'CONFLICT', 'NOT_FOUND', 'UNAVAILABLE', 'INTERNAL']),
-    message: z.string(),
-  }),
-});
-export type Failure = z.infer<typeof failureSchema>;
 export const runResultSchema = z.union([
   z.object({ ok: z.literal(true), value: runSchema }),
   failureSchema,
@@ -47,13 +43,9 @@ export const snapshotResultSchema = z.union([
 export type RunResult = z.infer<typeof runResultSchema>;
 export type SnapshotResult = z.infer<typeof snapshotResultSchema>;
 
-export interface Browser2dApi {
+export interface Browser2dApi extends BusinessApi {
   getSnapshot(): Promise<SnapshotResult>;
   start(input: StartInput): Promise<RunResult>;
   cancel(input: CancelInput): Promise<RunResult>;
   subscribe(listener: (snapshot: Snapshot) => void): () => void;
-}
-
-export function failure(code: Failure['error']['code'], message: string): Failure {
-  return { ok: false, error: { code, message } };
 }
