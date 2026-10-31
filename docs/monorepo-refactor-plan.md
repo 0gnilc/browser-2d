@@ -1,6 +1,6 @@
 Browser-2d 最终重构方案，2026-10-30。
 
-本文件保留已确认的设计基线。截至 2026-10-31，P0、P1、P2、P3 已实施，实际结果和阶段边界见 [P0/P1 验收](implementation/p0-p1-acceptance.md)、[P2 验收](implementation/p2-acceptance.md)及 [P3 验收](implementation/p3-acceptance.md)。P4 实施期间用户明确将浏览器方案调整为 Google Chrome 与 puppeteer-core，不引入 AdsPower。调整后的边界见 [P4 设计](implementation/p4-design.md)。P4 代码已落地，Windows/Linux 成品检查尚未通过，按用户决定保留验收缺口，见 [P4 验收记录](implementation/p4-acceptance.md)。后续阶段尚未推进。下文“本轮”指原设计轮次，实施状态以验收记录为准。
+本文件保留已确认的设计基线。截至 2026-10-31，P0、P1、P2、P3、P4 已实施，实际结果和阶段边界见 [P0/P1 验收](implementation/p0-p1-acceptance.md)、[P2 验收](implementation/p2-acceptance.md)及 [P3 验收](implementation/p3-acceptance.md)。P4 实施期间用户明确将浏览器方案调整为 Google Chrome 与 puppeteer-core，不引入 AdsPower。调整后的边界见 [P4 设计](implementation/p4-design.md)。P4 已完成三平台验收，见 [P4 验收记录](implementation/p4-acceptance.md)。后续阶段尚未推进。下文“本轮”指原设计轮次，实施状态以验收记录为准。
 
 本方案依据已选技术栈整理应用边界、依赖关系、开发和交付流程。技术选型依据见[调研记录](research/electron-stack-2026-10-30.md)。本轮仅编写方案，没有创建目标目录、修改业务代码、安装依赖或运行应用。下文命令和目录均为实施目标，验收框尚未完成。
 

@@ -35,3 +35,11 @@ The resumed native diagnostic identified `Target.attachToTarget: No target with 
 Two separately reproduced verifier defects were corrected. Observer attachment changed real page dimensions; defaultViewport:null now preserves them. A four-second staggered Chrome launch caused the three-second workload to finish before concurrent observation; a private pages-ready checkpoint now holds each operation until the verifier releases the sole survivor. Shutdown work remains held until desktop close. Production duration and public IPC are unchanged. Independent verifier review approved the change and reran the real viewport regression.
 
 Root integration passed 59 worker tests, one observer test, all static/boundary checks, and 27 Electron tests. Corrected Linux diagnostic run 41174187218 passed five complete dual-launch package verifications. Final all-platform acceptance remains separately recorded in p4-ci.json.
+
+## Final acceptance verdict
+
+Final matrix 41175541889 passed all four native targets on source4c9706e9654d138c7a72a577f4f70a39a89e51f4. It includes the observer regression, 59 worker tests, native Electron suites, two copied-package runs per target and installed Fedora RPM checks. The Windows test-file isolation change does not alter product concurrency, assertions or timeouts; its two-run native probe passed59 tests twice before the final matrix.
+
+The independent verifier review and root-channel review found no remaining actionable code findings. Their noted native acceptance gate is now satisfied. The scoped internal Puppeteer getter remains intentionally coupled to the exact pinned version and guarded by real Chrome identity/disposal tests.
+
+The public repository restored Actions execution. PR creation was attempted again through the required built-in connector, which returned403 Resource not accessible by integration. No PR was created and main was not merged. This is a delivery-tool permission limitation, not an open P4 acceptance gate.
