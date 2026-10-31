@@ -1,103 +1,44 @@
-name: Desktop, UI and release engineering
+name: Linux owned family native proof
 on:
   push:
-    branches: [main, 'codex/**']
-    paths-ignore: ['docs/**', 'README.md', '.audit/**']
-  pull_request:
-    paths-ignore: ['docs/**', 'README.md', '.audit/**']
+    branches: ['codex/audit-linux-family-proof']
   workflow_dispatch:
-    inputs:
-      windows_only:
-        description: Run only the Windows native target
-        type: boolean
-        default: false
 permissions:
   contents: read
 concurrency:
-  group: p1-${{ github.ref }}
+  group: linux-family-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  native:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(inputs.windows_only && '[{"runner":"windows-2025","target":"win-x64"}]' || '[{"runner":"windows-2025","target":"win-x64"},{"runner":"macos-15-intel","target":"mac-x64"},{"runner":"macos-15","target":"mac-arm64"},{"runner":"ubuntu-24.04","target":"linux-x64"}]') }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+  linux-family:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .node-version
+          node-version: 24.22.1
       - run: npm install --global pnpm@12.16.1
-      - name: Linux desktop dependencies
-        if: runner.os == 'Linux'
+      - name: Linux desktop and native trace dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 rpm libfuse2t64 dbus-x11 gnome-keyring libglib2.0-bin
+          sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 rpm libfuse2t64 dbus-x11 gnome-keyring libglib2.0-bin bpftrace linux-tools-common linux-tools-generic linux-tools-$(uname -r)
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          test -r /sys/kernel/btf/vmlinux
+          sudo bpftrace --info
       - run: pnpm install --frozen-lockfile
       - uses: browser-actions/setup-chrome@v2
         id: chrome
         with:
-          chrome-version: stable
+          chrome-version: 156.0.8078.80
       - name: Export test Chrome path
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: node scripts/prepare-test-chrome.mjs
-      - run: pnpm check
-      - run: pnpm test
-      - run: pnpm test:release
-      - run: pnpm test:storage
-      - run: pnpm test:observer
-      - run: pnpm test:credentials
-      - name: Updater transport and lifecycle
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
-      - name: Electron integration and UI
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
-      - name: Native distributables
-        run: pnpm dist -- --target=${{ matrix.target }}
-      - name: Fused package verification outside checkout
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=${{ matrix.target }}; else pnpm verify:package -- --target=${{ matrix.target }}; fi
-      - name: Preview native install, reinstall and uninstall
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:installation; else pnpm verify:installation; fi
-      - name: Exact ZIP or direct FUSE AppImage runtime
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:formats -- --target=${{ matrix.target }}; else pnpm verify:formats -- --target=${{ matrix.target }}; fi
-      - name: Install and run RPM in Fedora 44 userspace
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          mkdir -p artifacts/fedora44
-          sha256sum release/linux-x64/linux-unpacked/browser-2d-foundation | cut -d ' ' -f 1 > release/linux-x64/executable.sha256
-          docker run --rm --init --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
-            -v "$PWD/release/linux-x64:/artifacts:ro" \
-            -v "$PWD/scripts/verify-rpm.sh:/verify-rpm.sh:ro" \
-            -v "$PWD/artifacts/fedora44:/evidence" fedora:44 bash /verify-rpm.sh
+      - name: Native writer and lifetime trace
+        run: bash scripts/audit-linux-family/run.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p6-${{ matrix.target }}
-          path: |
-            artifacts/
-            release/*/*.dmg
-            release/*/*.zip
-            release/*/*.exe
-            release/*/*.AppImage
-            release/*/*.deb
-            release/*/*.rpm
-            release/*/*.blockmap
-            release/*/*.yml
-            release/*/build-context.json
-            release/*/artifact-inventory.json
+          name: linux-family-native-proof
+          path: artifacts/linux-family/
           retention-days: 7
