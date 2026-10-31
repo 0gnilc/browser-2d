@@ -160,8 +160,9 @@ async function verifyPackagedWindow() {
       )
       .catch(() => undefined);
   }, 100);
-  const result: unknown = await window.webContents
-    .executeJavaScript(
+  let result: unknown;
+  try {
+    const preparation: unknown = await window.webContents.executeJavaScript(
       `(async () => {
     const assert = (value, message) => { if (!value) throw new Error(message); };
     assert(typeof require === 'undefined' && typeof process === 'undefined', 'Renderer has Node access');
@@ -208,14 +209,42 @@ async function verifyPackagedWindow() {
     const command = await api.work.getCommand({ commandId: cancelInput.commandId });
     assert(command.ok && command.value.status === 'recorded' && JSON.stringify(command.value.receipt) === JSON.stringify(cancelled), 'Durable cancel query failed');
     await waitFor(snapshot => snapshot.runs.some(run => run.id === starts[0].runId && run.state === 'cancelled') && snapshot.runs.some(run => run.id === starts[2].runId && run.state === 'cancelled'));
-    await waitFor(snapshot => snapshot.runs.some(run => run.id === starts[1].runId && run.state === 'completed') && snapshot.resources.length === 0);
     assert(observed > 0, 'Subscription received no events'); dispose();
-    const active = await api.work.start({ commandId: crypto.randomUUID(), deviceId: devices[0].id }); assert(active.ok, 'Shutdown start failed');
-    if (initial.value.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromeShutdownVerified === 'true', 'two observed shutdown pages');
-    return { initialCount: initial.value.runs.length, completedId: starts[1].runId, cancelledId: starts[0].runId, queuedCancelledId: starts[2].runId, shutdownId: active.value.runId, workerPid: initial.value.workerPid, observed, nodeIsolation: true, capacity: { devices: 2, pages: 4, queuedObserved: true }, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
+    return { initialCount: initial.value.runs.length, completedId: starts[1].runId, cancelledId: starts[0].runId, queuedCancelledId: starts[2].runId, shutdownDeviceId: devices[0].id, workerPid: initial.value.workerPid, observed, nodeIsolation: true, capacity: { devices: 2, pages: 4, queuedObserved: true }, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
   })()`,
-    )
-    .finally(() => clearInterval(pageProof));
+    );
+    if (latestSnapshot?.execution === 'chrome') {
+      const [remaining] = latestSnapshot.resources;
+      if (!remaining || latestSnapshot.resources.length !== 1)
+        throw new Error('Expected one Chrome workload after cancellation');
+      await mkdir(join(dataDir, 'chrome-checkpoints'), { recursive: true, mode: 0o700 });
+      await writeFile(
+        join(dataDir, 'chrome-checkpoints', `${remaining.operationId}.continue`),
+        '',
+        { mode: 0o600 },
+      );
+    }
+    result = await window.webContents.executeJavaScript(`(async () => {
+      const { shutdownDeviceId, ...result } = ${JSON.stringify(preparation)};
+      const api = window.browser2d;
+      async function waitFor(predicate, description) {
+        for (let attempt = 0; attempt < 400; attempt++) {
+          const snapshot = await api.work.getSnapshot();
+          if (!snapshot.ok) throw new Error('Snapshot failed');
+          if (predicate(snapshot.value)) return snapshot.value;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for ' + description);
+      }
+      const completed = await waitFor(snapshot => snapshot.runs.some(run => run.id === result.completedId && run.state === 'completed') && snapshot.resources.length === 0, 'completed Chrome workload');
+      const active = await api.work.start({ commandId: crypto.randomUUID(), deviceId: shutdownDeviceId });
+      if (!active.ok) throw new Error('Shutdown start failed');
+      if (completed.execution === 'chrome') await waitFor(() => document.documentElement.dataset.chromeShutdownVerified === 'true', 'two observed shutdown pages');
+      return { ...result, shutdownId: active.value.runId };
+    })()`);
+  } finally {
+    clearInterval(pageProof);
+  }
   verification = {
     result,
     versions: process.versions,
@@ -287,6 +316,10 @@ async function startApplication() {
   const generation = workState.generation + 1;
   worker = launchWorker({
     dataDir,
+    browserFixture:
+      reportPath && process.env.BROWSER2D_VERIFY_CHROME === '1'
+        ? { directory: join(dataDir, 'chrome-checkpoints'), hold: 'pages-ready' }
+        : undefined,
     execution:
       (reportPath && process.env.BROWSER2D_VERIFY_CHROME !== '1') ||
       (process.env.BROWSER2D_DATA_DIR && process.env.BROWSER2D_EXECUTION === 'controlled')
@@ -389,7 +422,15 @@ void app
         'Business storage is unavailable',
         `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,
       );
-    if (reportPath) await writeFile(reportPath, JSON.stringify({ error: code, detail: error instanceof Error ? error.message : 'Unknown verification failure', finalSnapshot: latestSnapshot }));
+    if (reportPath)
+      await writeFile(
+        reportPath,
+        JSON.stringify({
+          error: code,
+          detail: error instanceof Error ? error.message : 'Unknown verification failure',
+          finalSnapshot: latestSnapshot,
+        }),
+      );
     await worker?.close().catch(() => undefined);
     app.exit(1);
   });

@@ -127,7 +127,10 @@ async function initialize(data: unknown) {
             for (;;) {
               signal.throwIfAborted();
               try {
-                await access(join(fixture.directory, 'continue'));
+                await Promise.any([
+                  access(join(fixture.directory, 'continue')),
+                  access(join(fixture.directory, `${operationId}.continue`)),
+                ]);
                 return;
               } catch {
                 await delay(25, undefined, { signal });

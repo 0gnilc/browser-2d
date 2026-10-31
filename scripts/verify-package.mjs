@@ -153,7 +153,11 @@ for (let pass = 1; pass <= 2; pass++) {
     join(root, 'artifacts', target, `chrome-pass-${pass}.json`),
     JSON.stringify(chrome, null, 2),
   );
-  await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`));
+  await copyFile(reportPath, join(root, 'artifacts', target, `package-pass-${pass}.json`)).catch(
+    (error) => {
+      if (error.code !== 'ENOENT') throw error;
+    },
+  );
   assert.equal(code, 0, 'Packaged process failed');
   const report = JSON.parse(await readFile(reportPath, 'utf8'));
   assert.equal(report.arch, target.endsWith('-arm64') ? 'arm64' : 'x64');
