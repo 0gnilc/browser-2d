@@ -59,6 +59,13 @@ assert(
   archiveFiles.includes(`${workerPrefix}/dist/entry.cjs`),
   'Compiled worker entry missing from archive',
 );
+assert(
+  archiveFiles.some(
+    (entry) =>
+      entry.startsWith(`${workerPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
+  ),
+  'Business migration SQL missing from archive',
+);
 for (const entry of archiveFiles) {
   if (!entry.startsWith('/node_modules/@browser-2d/')) continue;
   assert(
@@ -135,6 +142,11 @@ for (let pass = 1; pass <= 2; pass++) {
   );
   assert(!report.workerEntry.includes(root), 'Worker still depends on source checkout');
   assert.equal(report.result.initialCount, pass === 1 ? 0 : 3);
+  assert.deepEqual(report.result.business, {
+    initialDeviceCount: pass - 1,
+    initialMaterialCount: pass - 1,
+    settingsRevision: pass,
+  });
   const shutdown = report.finalSnapshot.runs.find((run) => run.id === report.result.shutdownId);
   assert.equal(shutdown?.state, 'cancelled', 'Close did not persist cancellation');
   assert(report.finalSnapshot.runs.every((run) => run.state !== 'running'));

@@ -94,9 +94,13 @@ export function createBusinessStore(db: Database.Database) {
       ['status', '=', input.status],
       ['create_time', '>=', input.startTime],
       ['create_time', '<=', input.endTime],
-      ['note', 'LIKE', input.note === undefined ? undefined : `%${input.note}%`],
+      [
+        'note',
+        'LIKE',
+        input.note === undefined || input.note === '' ? undefined : `%${input.note}%`,
+      ],
     ] as const) {
-      if (value !== undefined) {
+      if (value !== undefined && value !== '') {
         clauses.push(`${name} ${operator} ?`);
         values.push(value);
       }
@@ -202,7 +206,14 @@ export function createBusinessStore(db: Database.Database) {
           .parse(db.prepare(`SELECT ${deviceColumns} FROM device ORDER BY create_time, id`).all()),
       }),
       create: db.transaction((input: DeviceCreate): Result<Device> => {
-        const value = { account: null, amount: null, count: 0, status: 2, note: null, ...input };
+        const value = {
+          account: null,
+          amount: null,
+          count: 0,
+          status: 2,
+          note: null,
+          ...Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)),
+        };
         const inserted = db
           .prepare(
             'INSERT INTO device (symbol, account, amount, count, status, note) VALUES (@symbol, @account, @amount, @count, @status, @note)',
@@ -230,7 +241,10 @@ export function createBusinessStore(db: Database.Database) {
         if (!materialExists(input.id)) return failure('NOT_FOUND', 'Material does not exist');
         if (claimed(input.id) || input.status === 1) return conflict();
         const previous = materialById(input.id);
-        const next = { ...previous, ...input };
+        const next = {
+          ...previous,
+          ...Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)),
+        };
         if (
           (next.card !== previous.card ||
             next.month !== previous.month ||

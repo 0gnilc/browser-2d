@@ -237,3 +237,28 @@ test('TypeScript helpers imported through emitted .js names are checked', async 
   );
   await assert.rejects(checkBoundaries(directory), /Public contract privileged import/);
 });
+
+test('browser conditional exports cannot expose host contracts to UI', async (t) => {
+  const directory = await workspace(t);
+  await manifest(directory, 'packages/contracts', (value) => {
+    value.exports['./public'] = {
+      browser: './src/host/index.ts',
+      default: './src/public/index.ts',
+    };
+  });
+  await assert.rejects(checkBoundaries(directory), /UI privileged import/);
+});
+
+test('computed imports in package-root helpers reachable from public contracts fail', async (t) => {
+  const directory = await workspace(t);
+  await writeFile(
+    join(directory, 'packages/contracts/helper.ts'),
+    "const name = 'node:fs'; export const load = () => import(name);",
+  );
+  await append(
+    directory,
+    'packages/contracts/src/public/index.ts',
+    "export * from '../../helper';",
+  );
+  await assert.rejects(checkBoundaries(directory), /Computed production import/);
+});

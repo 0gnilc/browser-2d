@@ -136,6 +136,16 @@ async function verifyPackagedWindow() {
     assert(document.querySelector('[data-testid="start-run"]'), 'Vue application missing');
     const api = window.browser2d;
     const initial = await api.getSnapshot(); assert(initial.ok, 'Snapshot failed');
+    const initialDevices = await api.devices.list(); assert(initialDevices.ok, 'Business device read failed');
+    const device = await api.devices.create({ symbol: 'release-device-' + initialDevices.value.length, amount: 0 });
+    assert(device.ok && device.value.amount === 0 && device.value.status === 2, 'Business device write failed');
+    const initialMaterials = await api.materials.page({}); assert(initialMaterials.ok, 'Business material read failed');
+    const material = await api.materials.create({ card: '00000000000000' + String(initialMaterials.value.total).padStart(2, '0'), month: '01', year: '2030', cvv: '000' });
+    assert(material.ok, 'Business material write failed');
+    const history = await api.history.exportText({}); assert(history.ok && history.value.count === 0, 'Business history read failed');
+    const settings = await api.settings.get(); assert(settings.ok, 'Business settings read failed');
+    const saved = await api.settings.save({ expectedRevision: settings.value.revision, values: { adsPowerUrl: 'http://127.0.0.1:50325', viewportWidth: 1280, viewportHeight: 800, pageCount: 2 }, secret: { action: 'retain' } });
+    assert(saved.ok && saved.value.revision === settings.value.revision + 1, 'Business settings commit failed');
     let observed = 0; const dispose = api.subscribe(() => { observed++; });
     const cancelled = await api.start({ commandId: crypto.randomUUID(), deviceId: 'release-cancel', durationMs: 10000 });
     assert(cancelled.ok, 'Start failed');
@@ -153,7 +163,7 @@ async function verifyPackagedWindow() {
     assert(observed > 0, 'Subscription received no events'); dispose();
     const active = await api.start({ commandId: crypto.randomUUID(), deviceId: 'release-shutdown', durationMs: 30000 });
     assert(active.ok, 'Shutdown task failed');
-    return { initialCount: initial.value.runs.length, completedId: completed.value.id, cancelledId: cancelled.value.id, shutdownId: active.value.id, workerPid: initial.value.workerPid, observed, nodeIsolation: true };
+    return { initialCount: initial.value.runs.length, completedId: completed.value.id, cancelledId: cancelled.value.id, shutdownId: active.value.id, workerPid: initial.value.workerPid, observed, nodeIsolation: true, business: { initialDeviceCount: initialDevices.value.length, initialMaterialCount: initialMaterials.value.total, settingsRevision: saved.value.revision } };
   })()`);
   verification = {
     result,

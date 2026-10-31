@@ -13,12 +13,12 @@ const form = reactive<Omit<Device, 'id' | 'createTime' | 'amount'> & { amount: s
   account: null,
   amount: '',
   count: 0,
-  status: 0,
+  status: 2,
   note: null,
 });
 function reset() {
   editing.value = null;
-  Object.assign(form, { symbol: '', account: null, amount: '', count: 0, status: 0, note: null });
+  Object.assign(form, { symbol: '', account: null, amount: '', count: 0, status: 2, note: null });
 }
 function edit(row: Device) {
   editing.value = row.id;
@@ -72,7 +72,7 @@ onMounted(load);
           >账户<input v-model="form.account" data-testid="device-account"
         /></label>
         <label class="field"
-          >金额，留空为 null<input
+          >金额，留空表示未设置<input
             v-model="form.amount"
             data-testid="device-amount"
             type="number"
@@ -121,11 +121,11 @@ onMounted(load);
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.id" :data-testid="`device-${row.id}`">
-              <td>{{ row.symbol }} / {{ row.account ?? 'null' }}</td>
-              <td>{{ row.amount ?? 'null' }}</td>
+              <td>{{ row.symbol }} / {{ row.account ?? '未设置' }}</td>
+              <td>{{ row.amount ?? '未设置' }}</td>
               <td>{{ row.count }}</td>
               <td>{{ row.status }}</td>
-              <td>{{ row.note ?? 'null' }}</td>
+              <td>{{ row.note ?? '未设置' }}</td>
               <td class="row-actions">
                 <NButton
                   size="small"

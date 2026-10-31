@@ -106,24 +106,23 @@ function packageName(name) {
   return name.startsWith('@') ? name.split('/').slice(0, 2).join('/') : name.split('/')[0];
 }
 
-function exportedTarget(exports, subpath) {
-  if (typeof exports === 'string') return subpath === '.' ? exports : undefined;
-  if (!exports || typeof exports !== 'object') return undefined;
+function exportedTargets(exports, subpath) {
+  if (typeof exports === 'string') return subpath === '.' ? [exports] : [];
+  if (!exports || typeof exports !== 'object') return [];
+  if (Array.isArray(exports)) return exports.flatMap((entry) => exportedTargets(entry, subpath));
   if (Object.keys(exports).some((key) => key.startsWith('.'))) {
-    if (subpath in exports) return exportedTarget(exports[subpath], '.');
+    if (subpath in exports) return exportedTargets(exports[subpath], '.');
     for (const [key, target] of Object.entries(exports)) {
       const [prefix, suffix] = key.split('*');
       if (key.includes('*') && subpath.startsWith(prefix) && subpath.endsWith(suffix)) {
-        const value = exportedTarget(target, '.');
-        return value?.replaceAll('*', subpath.slice(prefix.length, subpath.length - suffix.length));
+        return exportedTargets(target, '.').map((value) =>
+          value.replaceAll('*', subpath.slice(prefix.length, subpath.length - suffix.length)),
+        );
       }
     }
-    return undefined;
+    return [];
   }
-  for (const condition of ['import', 'require', 'default', 'types', 'node']) {
-    const target = exportedTarget(exports[condition], '.');
-    if (target) return target;
-  }
+  return Object.values(exports).flatMap((entry) => exportedTargets(entry, '.'));
 }
 
 async function resolveFile(path) {
@@ -244,6 +243,7 @@ export async function checkBoundaries(workspaceRoot = root) {
       graph.set(path, { unit, runtime, edges });
       for (const edge of imports(await readFile(path, 'utf8'), path)) {
         if (edge.kind === 'computed') {
+          edges.push(edge);
           if (runtime)
             fail(`Computed production import cannot be checked: ${relative(workspaceRoot, path)}`);
           continue;
@@ -263,17 +263,27 @@ export async function checkBoundaries(workspaceRoot = root) {
             fail(`Undeclared dependency ${label}`);
           if (targetUnit) {
             const subpath = name === dependency ? '.' : `.${name.slice(dependency.length)}`;
-            const exported = exportedTarget(targetUnit.manifest.exports, subpath);
-            if (!exported) fail(`Unexported workspace entry ${label}`);
-            else target = await resolveFile(resolve(targetUnit.directory, exported));
+            const exported = exportedTargets(targetUnit.manifest.exports, subpath);
+            if (!exported.length) fail(`Unexported workspace entry ${label}`);
+            for (const entry of exported) {
+              edges.push({
+                ...edge,
+                target: await resolveFile(resolve(targetUnit.directory, entry)),
+                builtin,
+                label,
+                dependency,
+              });
+            }
             if (targetUnit.group === 'apps') {
               const allowed =
                 unit === desktop &&
                 dependency === '@browser-2d/worker-runtime' &&
                 name === '@browser-2d/worker-runtime/entry' &&
                 edge.kind === 'resolve' &&
-                exported &&
-                within(join(targetUnit.directory, 'dist'), resolve(targetUnit.directory, exported));
+                exported.length > 0 &&
+                exported.every((entry) =>
+                  within(join(targetUnit.directory, 'dist'), resolve(targetUnit.directory, entry)),
+                );
               if (!allowed) fail(`Cross-app implementation import ${label}`);
             }
           }
@@ -312,6 +322,10 @@ export async function checkBoundaries(workspaceRoot = root) {
       if (seen.has(path)) return;
       seen.add(path);
       for (const edge of graph.get(path)?.edges ?? []) {
+        if (edge.kind === 'computed') {
+          fail(`Computed production import reachable from ${relative(workspaceRoot, path)}`);
+          continue;
+        }
         const host =
           edge.name.startsWith('@browser-2d/contracts/host') ||
           (edge.target && within(join(workspaceRoot, 'packages/contracts/src/host'), edge.target));

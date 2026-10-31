@@ -17,7 +17,12 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { secretRefSchema } from '@browser-2d/contracts/host';
-import type { Result } from '@browser-2d/contracts/public';
+import {
+  deviceCreateSchema,
+  materialCreateSchema,
+  materialUpdateSchema,
+  type Result,
+} from '@browser-2d/contracts/public';
 import { openBusinessStore, type StorageOptions } from '../src/storage/open-business-store';
 import { createBusinessStore, type BusinessStore } from '../src/storage/business-store';
 
@@ -65,6 +70,57 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 describe('business database ownership and migration', () => {
+  it('waits for migration consent before excluding the old connection', async () => {
+    legacy().close();
+    let observed = false;
+    const { store } = await open({
+      confirmLegacy: async () => {
+        const old = database();
+        old.prepare('INSERT INTO device(symbol) VALUES (?)').run('before-consent');
+        old.close();
+        observed = true;
+        return true;
+      },
+    });
+    expect(observed).toBe(true);
+    expect(value(store.devices.list())[0]?.symbol).toBe('before-consent');
+  });
+
+  it('accepted finite amounts and optional undefined values survive refresh and restart', async () => {
+    const { store } = await open();
+    const device = value(
+      store.devices.create(
+        deviceCreateSchema.parse({ symbol: 'defaults', count: undefined, status: undefined }),
+      ),
+    );
+    expect(device).toMatchObject({ count: 0, status: 2 });
+    value(store.materials.create(materialCreateSchema.parse({ ...material, amount: 1e16 })));
+    const other = value(store.materials.create({ ...material, card: '4222222222222222' }));
+    expect(
+      store.materials.update(
+        materialUpdateSchema.parse({ id: other.id, card: material.card, month: undefined }),
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'CONFLICT' } });
+    expect(value(store.materials.page({ card: '' })).total).toBe(2);
+    store.close();
+    const reopened = (await open()).store;
+    expect(value(reopened.materials.page()).items[0]?.amount).toBe(1e16);
+    expect(value(reopened.materials.page()).items[1]?.card).toBe('4222222222222222');
+  });
+
+  it('retains finite legacy integer amounts and ignores empty history filters', async () => {
+    const db = legacy();
+    db.exec(
+      "INSERT INTO history(card,amount,note) VALUES ('minimum',-9223372036854775808,NULL),('second',0,'')",
+    );
+    db.close();
+    const { store } = await open();
+    expect(
+      value(store.history.page({ card: '', note: '', startTime: '', endTime: '' })).total,
+    ).toBe(2);
+    expect(value(store.history.page()).items[0]?.amount).toBe(-9223372036854775808);
+  });
+
   it('preserves legacy rows, duplicate tuples, timestamps, day/year and sequences with an intact backup', async () => {
     const fixture = legacy();
     fixture.exec(`INSERT INTO device (id, create_time, symbol, account, amount, count, status, note) VALUES (41, '2021-01-01 08:00:00', 'same', '', 0, 0, 0, NULL), (42, '2021-01-01 08:00:00', 'same', NULL, NULL, 0, 2, '');

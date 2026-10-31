@@ -18,13 +18,14 @@
     "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit -p tests/e2e/tsconfig.json",
     "test": "vitest run",
     "test:storage": "pnpm --filter @browser-2d/worker-runtime test:storage",
+    "test:credentials": "pnpm --filter @browser-2d/desktop test:credentials",
     "test:electron": "node scripts/electron-test.mjs",
     "test:e2e": "node scripts/electron-test.mjs",
     "build": "pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs",
     "package": "node scripts/package.mjs",
     "dist": "node scripts/package.mjs --dist",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:electron",
+    "verify": "pnpm check && pnpm test && pnpm test:storage && pnpm test:credentials && pnpm test:electron",
     "check:boundaries": "node scripts/check-boundaries.mjs && node --test scripts/check-boundaries.test.mjs"
   },
   "devDependencies": {

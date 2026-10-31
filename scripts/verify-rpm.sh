@@ -27,6 +27,7 @@ assert report['packaged'] is True
 assert report['exitCode'] == 0 and report['workerExited'] is True
 assert report['result']['nodeIsolation'] is True
 assert report['result']['initialCount'] == (0 if sys.argv[2] == '1' else 3)
+assert report['result']['business'] == {'initialDeviceCount': int(sys.argv[2])-1, 'initialMaterialCount': int(sys.argv[2])-1, 'settingsRevision': int(sys.argv[2])}
 assert all(row['state'] != 'running' for row in report['finalSnapshot']['runs'])
 print('Installed Fedora RPM verified, pass', sys.argv[2])
 PY

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type {
-  ImportReport,
-  Material,
-  MaterialCreate,
-  MaterialQuery,
+import {
+  materialCreateSchema,
+  materialUpdateSchema,
+  type ImportReport,
+  type Material,
+  type MaterialQuery,
 } from '@browser-2d/contracts/public';
 import { onMounted, reactive, ref } from 'vue';
 import { NButton, NPagination, NPopconfirm } from 'naive-ui';
@@ -20,6 +21,7 @@ const status = ref<MaterialQuery['status']>();
 const importText = ref('');
 const report = ref<ImportReport>();
 const editing = ref<number | null>(null);
+let original = new Map<string, unknown>();
 const textFields = [
   { key: 'card', label: '卡号' },
   { key: 'month', label: '月份' },
@@ -60,10 +62,12 @@ function emptyForm(): Omit<Material, 'id' | 'createTime' | 'amount'> & { amount:
 const form = reactive(emptyForm());
 function resetEditor() {
   editing.value = null;
+  original = new Map();
   Object.assign(form, emptyForm());
 }
 function edit(row: Material) {
   editing.value = row.id;
+  original = new Map(Object.entries(row));
   Object.assign(form, {
     card: row.card,
     month: row.month,
@@ -108,11 +112,25 @@ async function resetFilter() {
 }
 async function save() {
   const fields = { ...form, amount: nullableNumber(form.amount) };
-  const value = await request((api) => {
-    if (editing.value !== null) return api.materials.update({ id: editing.value, ...fields });
-    const input: MaterialCreate = { ...fields, cvv: form.cvv ?? '' };
-    return api.materials.create(input);
-  });
+  const changes = Object.fromEntries(
+    Object.entries(fields).filter(([key, value]) => original.get(key) !== value),
+  );
+  let value: Material | undefined;
+  if (editing.value !== null) {
+    const input = materialUpdateSchema.safeParse({ id: editing.value, ...changes });
+    if (!input.success) {
+      error.value = '请检查已修改字段的格式。';
+      return;
+    }
+    value = await request((api) => api.materials.update(input.data));
+  } else {
+    const input = materialCreateSchema.safeParse(fields);
+    if (!input.success) {
+      error.value = '请检查卡号、有效期、CVV 和材料字段。';
+      return;
+    }
+    value = await request((api) => api.materials.create(input.data));
+  }
   if (value) {
     resetEditor();
     await load();
@@ -133,7 +151,11 @@ async function remove(id: number) {
   }
 }
 async function reset(id: number) {
-  if (await request((api) => api.materials.reset({ id }))) await load();
+  const value = await request((api) => api.materials.reset({ id }));
+  if (value) {
+    if (editing.value === id) edit(value);
+    await load();
+  }
 }
 async function clear() {
   if (await request((api) => api.materials.clear())) {
@@ -192,7 +214,7 @@ onMounted(load);
             "
         /></label>
         <label class="field"
-          >金额，留空为 null<input
+          >金额，留空表示未设置<input
             v-model="form.amount"
             data-testid="material-amount"
             type="number"
@@ -200,7 +222,7 @@ onMounted(load);
         /></label>
         <label class="field"
           >状态<select v-model="form.status" data-testid="material-status">
-            <option :value="null">null</option>
+            <option :value="null">未设置</option>
             <option v-for="value in 7" :key="value" :value="value - 1">{{ value - 1 }}</option>
           </select></label
         >
@@ -245,8 +267,8 @@ onMounted(load);
             <tr v-for="row in rows" :key="row.id" :data-testid="`material-${row.id}`">
               <td>{{ row.card }}</td>
               <td>{{ row.month }} / {{ row.year }}</td>
-              <td>{{ row.amount ?? 'null' }}</td>
-              <td>{{ row.status ?? 'null' }}</td>
+              <td>{{ row.amount ?? '未设置' }}</td>
+              <td>{{ row.status ?? '未设置' }}</td>
               <td>{{ row.device }} / {{ row.note }}</td>
               <td class="row-actions">
                 <NButton

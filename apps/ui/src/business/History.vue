@@ -138,8 +138,8 @@ onMounted(load);
             <tr v-for="row in rows" :key="row.id" :data-testid="`history-${row.id}`">
               <td>{{ row.card }}</td>
               <td>{{ row.month }} / {{ row.day }} / {{ row.year }}</td>
-              <td>{{ row.amount ?? 'null' }}</td>
-              <td>{{ row.status ?? 'null' }}</td>
+              <td>{{ row.amount ?? '未设置' }}</td>
+              <td>{{ row.status ?? '未设置' }}</td>
               <td>{{ row.note }}</td>
               <td>{{ row.createTime }}</td>
               <td>

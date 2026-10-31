@@ -1,10 +1,20 @@
 import assert from 'node:assert/strict';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { root } from './process.mjs';
 import { resolveNativeBinding } from './native.mjs';
 
 await resolveNativeBinding();
+
+const migrationSource = join(root, 'apps/worker/migrations');
+for (const path of await readdir(migrationSource, { recursive: true })) {
+  if (!(await stat(join(migrationSource, path))).isFile()) continue;
+  assert.deepEqual(
+    await readFile(join(root, 'apps/worker/dist/migrations', path)),
+    await readFile(join(migrationSource, path)),
+    `Missing or changed migration artifact ${path}`,
+  );
+}
 
 for (const path of [
   'apps/worker/dist/entry.cjs',

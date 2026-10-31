@@ -172,25 +172,12 @@ describe('P2 business screens', () => {
       status: 0,
     });
     await wrapper.get('[data-testid="material-edit-2"]').trigger('click');
+    await wrapper.get('[data-testid="material-note"]').setValue('updated note');
     await wrapper.get('[data-testid="material-form"]').trigger('submit');
     await flushPromises();
     expect(api.materials.update).toHaveBeenCalledWith({
       id: 2,
-      card: 'test-card',
-      month: '01',
-      year: '2030',
-      cvv: null,
-      name: null,
-      address: '',
-      city: null,
-      state: null,
-      zip: null,
-      country: null,
-      extra: null,
-      amount: null,
-      status: 0,
-      device: null,
-      note: null,
+      note: 'updated note',
     });
     const nextPage = wrapper.findAll('.n-pagination-item').find((item) => item.text() === '2');
     expect(nextPage).toBeDefined();

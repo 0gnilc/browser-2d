@@ -53,7 +53,7 @@ const contents = (db: Database.Database, tables: string[]) =>
     )
     .digest('hex');
 function syncFile(path: string) {
-  const fd = openSync(path, 'r');
+  const fd = openSync(path, process.platform === 'win32' ? 'r+' : 'r');
   try {
     fsyncSync(fd);
   } finally {
@@ -157,9 +157,17 @@ function validateRows(db: Database.Database) {
     if (
       db
         .prepare(
-          `SELECT 1 FROM ${table} WHERE status NOT BETWEEN -9007199254740991 AND 9007199254740991 OR amount NOT BETWEEN -9007199254740991 AND 9007199254740991 LIMIT 1`,
+          `SELECT 1 FROM ${table} WHERE status NOT BETWEEN -9007199254740991 AND 9007199254740991 LIMIT 1`,
         )
         .get()
+    )
+      throw new StorageError('DATABASE_UNRECOGNIZED');
+  }
+  for (const table of ['device', 'material', 'history']) {
+    if (
+      db
+        .prepare(`SELECT 1 FROM ${table} WHERE amount > ? OR amount < ? LIMIT 1`)
+        .get(Number.MAX_VALUE, -Number.MAX_VALUE)
     )
       throw new StorageError('DATABASE_UNRECOGNIZED');
   }
@@ -174,6 +182,11 @@ export async function openBusinessStore(options: StorageOptions) {
   };
   try {
     stage = 'DATABASE_IN_USE';
+    const needsConsent =
+      db.pragma('user_version', { simple: true }) === 0 &&
+      db.prepare("SELECT 1 FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get() !== undefined;
+    if (needsConsent && !(await options.confirmLegacy())) throw new StorageError('DATABASE_IN_USE');
+    checkCancelled();
     db.pragma('locking_mode = EXCLUSIVE');
     db.exec('BEGIN EXCLUSIVE; COMMIT');
     checkCancelled();
@@ -242,7 +255,7 @@ export async function openBusinessStore(options: StorageOptions) {
       store.settings.get();
       return { store, backup: null };
     }
-    if (!empty && !(await options.confirmLegacy())) throw new StorageError('DATABASE_IN_USE');
+    if (!empty && !needsConsent) throw new StorageError('DATABASE_UNRECOGNIZED');
     checkCancelled();
     const legacyKey = empty
       ? null
@@ -276,10 +289,10 @@ export async function openBusinessStore(options: StorageOptions) {
       } finally {
         copied.close();
       }
-      chmodSync(temporary, 0o400);
       syncFile(temporary);
+      chmodSync(temporary, 0o400);
       renameSync(temporary, backupPath);
-      syncFile(directory);
+      if (process.platform !== 'win32') syncFile(directory);
       backup = {
         path: backupPath,
         containsLegacyPlaintext: typeof legacyKey === 'string' && legacyKey.length > 0,
@@ -291,10 +304,11 @@ export async function openBusinessStore(options: StorageOptions) {
           integrity: 'ok',
           containsLegacyPlaintext: backup.containsLegacyPlaintext,
         }),
-        { mode: 0o400, flag: 'wx' },
+        { mode: 0o600, flag: 'wx' },
       );
       syncFile(`${backupPath}.json`);
-      syncFile(directory);
+      chmodSync(`${backupPath}.json`, 0o400);
+      if (process.platform !== 'win32') syncFile(directory);
     }
     let secretRef: SecretRef | null = null;
     if (typeof legacyKey === 'string' && legacyKey.length > 0) {
