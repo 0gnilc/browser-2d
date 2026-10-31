@@ -119,18 +119,17 @@ export function observeOwnedLifetime(lifetime: OwnedLifetime): 'present' | 'empt
 export async function awaitOwnedLifetime(
   lifetime: OwnedLifetime,
   signal: AbortSignal,
-): Promise<StoppedProof | undefined> {
+): Promise<StoppedProof> {
   for (;;) {
     signal.throwIfAborted();
     const observation = observeOwnedLifetime(lifetime);
     switch (observation) {
-      case 'unknown':
-        return undefined;
       case 'empty':
         return lifetime.kind === 'posix-group'
           ? { kind: 'posix-group-empty', pgid: lifetime.pgid }
           : { kind: 'windows-main-exited', pid: lifetime.pid };
       case 'present':
+      case 'unknown':
         await delay(25, undefined, { signal });
         break;
       default: {
