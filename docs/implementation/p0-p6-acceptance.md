@@ -87,4 +87,4 @@ P0 至 P5 的当前约定受控流程均有通过结果。P6 工程与四目标�
 
 以上由 [Issue #6](https://github.com/0gnilc/browser-2d/issues/6) 继续跟踪。本轮已完成的工程补齐与约定场景验收由 [Issue #7](https://github.com/0gnilc/browser-2d/issues/7) 结案，结案说明明确携带仍开放的 Issue #8，不表示全部工程不确定性都已消除。没有降低发布门槛，也没有把资源缺失记为通过。
 
-全部工程代码已推送到统一分支。内置 GitHub PR 连接器创建以 main 为目标的汇总 PR 时返回 403 `Resource not accessible by integration`，因此未创建 PR、未合并 main。没有通过其他接口绕过该限制。
+全部工程代码已推送到统一分支。初次创建汇总 PR 时，连接器返回 403 `Resource not accessible by integration`。组织补齐 GitHub App 授权后，已通过同一连接器创建 [PR #9](https://github.com/0gnilc/browser-2d/pull/9)。后续分支汇总与首版交付见 [0.1.0 分支汇总](v0.1.0-consolidation.md)。
