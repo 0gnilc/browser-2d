@@ -1,80 +1,65 @@
-# Release candidates and acceptance
+# 构建与验收发布候选
 
-`pnpm dist` produces an unsigned preview by default. Preview runs never enable the updater and cannot pass `release:verify`. Signing credentials, notarization credentials and a production feed are not currently supplied. Final signed four-target acceptance remains open. No command in this repository uploads files.
+候选生成、最终文件验收、暂存和上传是不同操作。当前工程只支持前三步，`pnpm release` 明确拒绝未配置的线上发布。待完成的正式分发条件由 [Issue #6](https://github.com/0gnilc/browser-2d/issues/6)维护。
 
-Preview acceptance includes `pnpm verify:formats -- --target=mac-x64`, `mac-arm64` or `linux-x64` on the matching native host. This command requires a clean-source preview build at the current revision and checks the lockfile and full inventory before and after two launches. macOS runs the application extracted from the actual ZIP. Linux launches the original AppImage through FUSE and checks the mounted worker path. The normal native workflow runs this check alongside installer and unpacked application acceptance. Dirty local previews remain available through `package`, `dist` and `verify:package`.
+## 生成预览包
 
-## Build modes
+在目标平台及架构的原生主机上执行。目标与交付格式以 [release.mjs](../internal/build-config/release.mjs) 的 `targets` 为准。
 
 ```sh
-pnpm dist -- --mode=preview --target=mac-x64
+pnpm dist -- --target=mac-x64
+```
+
+默认生成未签名预览包，输出到 `release/<target>`。只需可运行应用目录时使用 `pnpm package`。预览不启用更新，不能通过正式发布验收。
+
+打包在临时源码副本中锁定安装并构建，不复用开发构建输出。执行会清理所选目标的旧输出。保留需要复查的安装包时，先将整套产物和清单移到独立目录。
+
+在隔离验收主机上检查预览产物。
+
+```sh
+pnpm verify:package -- --target=mac-x64
+pnpm verify:installation
+pnpm verify:formats -- --target=mac-x64
+```
+
+`verify:package` 在仓库外运行复制的应用。`verify:installation` 实际安装、同版本重装和卸载，Windows/Linux 只在一次性 CI 环境运行。`verify:formats` 在 macOS 运行实际 ZIP，在 Linux 运行 FUSE AppImage，并要求当前干净提交生成的预览产物。Windows 不运行此格式命令。
+
+同版本重装不能证明 N 到 N+1 升级。开发与测试使用独立数据目录，具体路径规则见[架构文档](architecture.md#数据与安全边界)。
+
+## 生成生产候选
+
+先准备干净源码、频道、可信 HTTPS 更新源及对应平台签名输入。必需变量和校验规则由 [validateProductionInputs](../internal/build-config/release.mjs)维护，GitHub secret 到变量的映射只维护在[候选工作流](../.github/workflows/release.yml)。缺少条件时拒绝构建，不回退为预览模式。
+
+```sh
 pnpm dist -- --mode=production --target=mac-x64 --channel=test --feed-base-url=https://updates.example.invalid/browser-2d
 ```
 
-Use the native OS and architecture for `win-x64`, `mac-x64`, `mac-arm64` and `linux-x64`. Preview keeps the existing `release/<target>` layout. Production uses `release/production/<channel>/<target>`. Each invocation clears only its selected target output and builds in a temporary isolated source copy with a frozen lockfile. Production requires a clean Git revision and final distributables through `dist`; `package --mode=production` without `--dist` is rejected.
+替换示例域名后执行。输出位于 `release/production/<channel>/<target>`。生产模式必须使用 `dist`，不能仅生成应用目录。频道和 feed 写入包内配置，运行时环境变量不选择更新服务器。
 
-Production requires an explicit `stable` or `test` distribution audience and an HTTPS feed base without credentials, query or fragment. A target's feed is `<base>/<channel>/<target>/`. The audience does not change application identity, data paths or semver policy. Each target has its own default metadata filename. Windows uses `latest.yml`, macOS uses `latest-mac.yml`, and Linux uses `latest-linux.yml`.
+macOS 在最终 DMG 公证和 stapling 完成后计算清单，保留 `notarization.json`。`build-context.json` 记录源码、工具和配置，`artifact-inventory.json` 记录最终文件摘要。这些文件证明来源和完整性，不证明安装或升级行为已验收。
 
-`resources/release-config.json` is immutable packaged configuration. Preview contains only `{"mode":"preview"}`. Production contains `mode`, `channel`, `feedBaseUrl` and `target`. Runtime environment variables do not select an update server. Linux DEB/RPM installations use their package manager; only AppImage enables in-app update actions.
+## 验证同一批最终文件
 
-The frozen identities remain `io.github.0gnilc.browser2d.foundation`, `Browser2DFoundation` and `browser-2d-foundation`. Runtime app name, default userData and the explicit data-directory override are unchanged. See the [P0 identity baseline](implementation/p0-baseline.md).
+先在目标原生系统执行安装、真实升级、受控 feed 故障、数据保留、卸载、退出清理及仓库外运行。将实际命令、日志和观察值保存为 `release-acceptance.json` 及其引用文件。
 
-| Target              | Required production inputs                                                                                                             | Final artifacts                                                                                 |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Windows x64         | `CSC_LINK`, `CSC_KEY_PASSWORD`, `BROWSER2D_WINDOWS_PUBLISHER` matching the certificate's common name                                   | Authenticode signed NSIS installer; publisher verification enabled in packaged `app-update.yml` |
-| macOS Intel and ARM | `CSC_LINK`, `CSC_KEY_PASSWORD`, `CSC_NAME` naming Developer ID Application, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | Developer ID signed app and DMG; notarized and stapled app and DMG; update ZIP                  |
-| Linux x64           | Explicit channel and HTTPS feed                                                                                                        | AppImage, DEB and RPM; no native code-signing claim                                             |
-
-Inputs are checked before isolated dependency installation or compilation. Preview removes signing and notarization inputs from its child environment and disables identity discovery. Production preserves signing discovery, enables mandatory signing on Windows/macOS, uses builder 26's `win.signtoolOptions.publisherName`, and verifies the same publisher at runtime. Both modes pass `--publish never`.
-
-Builder notarizes the macOS application. Packaging separately submits and staples the signed DMG before computing the final inventory. Stapling changes DMG bytes, so its obsolete sidecar blockmap and DMG update reference are removed before hashing. In-app macOS updates use the unchanged ZIP and its metadata. `notarization.json` records the DMG submission ID; secrets are never written there.
-
-`build-context.json` records the exact commit, dirty status, lockfile SHA256, desktop version, target, mode, public release configuration, frozen identity, Node/package-manager versions and installed Electron/builder/updater versions. `artifact-inventory.json` records names, sizes, SHA256 and base64 SHA512 for final installers, update archives, sidecar blockmaps and metadata. Neither file claims acceptance.
-
-## Verify existing final files
+报告结构、必需场景、摘要绑定及旧 Squirrel 证据要求以 [release-verify.mjs](../scripts/release-verify.mjs) 为准，[发布工具测试](../scripts/release.test.mjs)包含构造示例。测试 fixture 仅用于说明结构，不能作为实际验收证据。预览报告也不能改名充当生产证据。
 
 ```sh
 pnpm release:verify -- --directory=/absolute/path/release/production/test/mac-x64 --evidence=/absolute/path/native-mac-x64-evidence
 ```
 
-Run verification on the target's native OS and architecture. It never builds, installs, signs, notarizes or uploads an artifact. macOS verification mounts the DMG read-only and extracts the ZIP into a temporary directory. It checks Developer ID, bundle identifier, signing team, strict signatures, Gatekeeper, stapling, application version, packaged feed configuration and identical DMG/ZIP application archives. Windows checks Authenticode trust, certificate publisher and signed version on the installer and packaged executable, plus the packaged updater's publisher identity. Linux reads DEB/RPM versions and architecture without installing them.
+验证器检查现有文件，不构建、签名、安装或上传。成功时写入原生检查记录和 `release-receipt.json`，失败会移除旧回执。回执绑定精确的产物与证据摘要，是本地验证记录，不是独立签名机构的证明。
 
-The verifier rejects preview mode, dirty production provenance, changed inventory, missing final formats, duplicate or unexpected metadata, duplicate YAML keys, URL/traversal references, version/size/SHA512 disagreement and missing external acceptance evidence. Installer and ZIP/AppImage hashes bind external behavior reports to these exact final files. Paths must name regular files contained in their evidence directory. Symbolic links are rejected.
-
-A successful verification writes `native-verification.json` with actual native tool commands and output and `release-receipt.json` with the exact artifact, provenance and evidence digests. A failed rerun removes the old receipt. A receipt is a local verification record, not a cryptographic attestation from an independent signer. Preserve its native logs and the external runner evidence for review.
-
-## External native evidence
-
-Each native candidate requires an externally produced `release-acceptance.json` and the nonempty logs it names. Preview package checks, component tests, fake updater adapters and installation/reinstallation harness results do not establish signed N→N+1 update acceptance. A preview report cannot be relabeled as production evidence.
-
-The report uses `schemaVersion: 1` and repeats `target`, `sourceCommit`, `lockSha256`, `version` and the exact `files` array from the candidate's inventory. `runner.platform` and `runner.arch` must match the native target. Each entry in `scenarios` includes the executed `command` argument array, numeric `exitCode`, a `log` with a contained filename and SHA256, and these measured `observations`.
-
-| Scenario           | Required observations                                                                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `install`          | `installedVersion` equals the candidate version                                                                                                                                       |
-| `upgrade`          | A distinct `fromVersion` and candidate `toVersion`                                                                                                                                    |
-| `controlledFeed`   | The same origin and destination versions, `downloadedFile` and `downloadedSha512` matching a final candidate payload, and `failureCases` containing `offline`, `http-404`, `checksum` |
-| `dataRetention`    | Nonempty fixture `beforeSha256` and identical `afterSha256` across the upgrade                                                                                                        |
-| `uninstall`        | `remainingInstallationPaths` is an empty array                                                                                                                                        |
-| `shutdown`         | Nonempty `ownedPidsBefore`, empty `ownedPidsAfter`, and `workerExitCode: 0`; independently observe worker/browser cleanup before installer handoff                                    |
-| `packageIsolation` | Candidate `installedVersion` and empty `sourcePathsAccessed`, from execution outside the checkout                                                                                     |
-
-The scenario logs must establish the observations on the final native artifacts and include the executed tests' actual results. The validator checks their presence, binding and integrity. It does not turn invented JSON or an unreviewed human assertion into a real installation test. No `passed: true` or `verified: true` field replaces a scenario or a signature check. The repository does not yet produce complete signed external upgrade reports. Until those real runs exist, receipt generation stays blocked.
-
-`legacySquirrel` defaults to unknown through absence of evidence. The repository's old Forge configuration does not prove there were no installations. A release owner may supply `status: "none-attested"`, an accountable `author`, and a separately hashed nonempty `evidence` document identifying the distribution history. If Squirrel users exist, use `status: "migration-verified"`, `target: "win-x64"` and `checked` containing `shortcuts`, `registration`, `uninstall`, `data-retention`, backed by the Windows migration exercise. Preserve and review that Windows evidence for all four target reports. No such attestation has been supplied in this phase.
-
-## Stage the same four verified candidates
+## 暂存四目标候选
 
 ```sh
 pnpm release:prepare -- --directory=/absolute/path/release/production/test --staging=/absolute/path/new-empty-staging
 ```
 
-Preparation requires four target receipts with one commit, lockfile, version, audience and feed base. It rehashes every candidate, checks metadata and acceptance evidence again, and copies only the exact verified files plus their provenance into a new empty directory outside the candidate tree. It checks hashes before and after copying. It never invokes builder, alters versions, regenerates metadata, signs files or uploads anything.
+准备四目标回执后执行，暂存目录必须是新的空目录。脚本复核来源一致性、产物和证据，复制前后再次核对摘要，不重新构建或签名。`upload-manifest.json` 区分安装文件、最后上传的更新元数据及不应进入公开 feed 的来源记录。暂存完成不代表已发布。
 
-`upload-manifest.json` distinguishes payloads, metadata to publish last, and provenance that should remain outside the public update feed. Future upload tooling must rehash this exact inventory and require an authorized destination. `pnpm release` currently fails explicitly because no upload destination is configured or authorized. Staging is not publication.
+## 在 GitHub Actions 中运行
 
-## CI and remaining gates
+[CI](../.github/workflows/ci.yml)负责原生测试及预览安装验收。[候选工作流](../.github/workflows/release.yml)仅手动触发，生成并归档候选，不生成正式回执、不发布 Release、不上传更新源。
 
-The manual `Release candidates (no publication)` workflow exposes explicit mode, audience and feed inputs and builds four native targets. Production preflight runs before dependency installation. Missing signing/notarization/feed inputs fail instead of falling back to preview. The workflow archives candidates and does not mint release receipts or publish releases. It complements the existing test/package matrix; it does not replace it.
-
-The remaining gates are real final signed native artifacts, four-target install and N→N+1 upgrade acceptance, controlled HTTPS feed failures and checksum behavior, retained user data, uninstall, cleanup before installer handoff, execution without the checkout, and the old Squirrel distribution decision. No real installation is performed on the user's host by this engineering work.
+两者使用[共享依赖安装](../.github/actions/setup-dependencies/action.yml)，版本读取仓库清单，只缓存 pnpm store。候选的生产预检先于依赖安装，签名输入只提供给对应平台的预检和打包步骤。查看 Actions 中每个目标的日志和 artifact，不能用单一平台成功替代四目标完成。

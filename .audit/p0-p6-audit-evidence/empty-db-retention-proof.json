@@ -1,9 +1,0 @@
-{
-  "sourceCommit": "f966ba79db50786ef95d2661d6845107da06724e",
-  "method": "Real openBusinessStore with temporary database, delete data.db between opens",
-  "hashes": [
-    "a53820b55ba223cf2091de1278dad792aea9692e7c4c545ac846f3c0cd1fa1ea",
-    "a53820b55ba223cf2091de1278dad792aea9692e7c4c545ac846f3c0cd1fa1ea"
-  ],
-  "identicalDespiteDeletion": true
-}

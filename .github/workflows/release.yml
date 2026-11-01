@@ -18,8 +18,12 @@ on:
         required: false
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.mode }}-${{ inputs.channel }}
+  cancel-in-progress: false
 jobs:
   candidate:
+    name: Candidate (${{ inputs.mode }}, ${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -35,34 +39,45 @@ jobs:
       RELEASE_CHANNEL: ${{ inputs.channel }}
       RELEASE_FEED: ${{ inputs.feed_base_url }}
       RELEASE_TARGET: ${{ matrix.target }}
-      CSC_LINK: ${{ startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_LINK || secrets.WINDOWS_CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_KEY_PASSWORD || secrets.WINDOWS_CSC_KEY_PASSWORD }}
-      CSC_NAME: ${{ secrets.MAC_CSC_NAME }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      BROWSER2D_WINDOWS_PUBLISHER: ${{ secrets.WINDOWS_PUBLISHER }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
       - name: Fail closed before installing or building
+        env:
+          CSC_LINK: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_LINK || inputs.mode == 'production' && matrix.target == 'win-x64' && secrets.WINDOWS_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_KEY_PASSWORD || inputs.mode == 'production' && matrix.target == 'win-x64' && secrets.WINDOWS_CSC_KEY_PASSWORD || '' }}
+          CSC_NAME: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_NAME || '' }}
+          APPLE_ID: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.APPLE_TEAM_ID || '' }}
+          BROWSER2D_WINDOWS_PUBLISHER: ${{ inputs.mode == 'production' && matrix.target == 'win-x64' && secrets.WINDOWS_PUBLISHER || '' }}
         shell: bash
         run: node scripts/release-preflight.mjs --mode="$RELEASE_MODE" --target="$RELEASE_TARGET" --channel="$RELEASE_CHANNEL" --feed-base-url="$RELEASE_FEED"
-      - run: npm install --global pnpm@12.16.1
       - name: Linux package tools
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y rpm libfuse2t64
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-dependencies
+      - run: pnpm test:workflows
       - run: pnpm test:release
       - name: Build final candidate without uploading
+        env:
+          CSC_LINK: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_LINK || inputs.mode == 'production' && matrix.target == 'win-x64' && secrets.WINDOWS_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_KEY_PASSWORD || inputs.mode == 'production' && matrix.target == 'win-x64' && secrets.WINDOWS_CSC_KEY_PASSWORD || '' }}
+          CSC_NAME: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.MAC_CSC_NAME || '' }}
+          APPLE_ID: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ inputs.mode == 'production' && startsWith(matrix.target, 'mac-') && secrets.APPLE_TEAM_ID || '' }}
+          BROWSER2D_WINDOWS_PUBLISHER: ${{ inputs.mode == 'production' && matrix.target == 'win-x64' && secrets.WINDOWS_PUBLISHER || '' }}
         shell: bash
         run: pnpm dist -- --mode="$RELEASE_MODE" --target="$RELEASE_TARGET" --channel="$RELEASE_CHANNEL" --feed-base-url="$RELEASE_FEED"
       - name: Archive candidates, never release receipts
         uses: actions/upload-artifact@v4
         with:
-          name: candidate-${{ inputs.mode }}-${{ matrix.target }}
+          name: candidate-${{ inputs.mode }}-${{ inputs.channel }}-${{ matrix.target }}
           path: |
             release/**/*.dmg
             release/**/*.zip
@@ -74,7 +89,10 @@ jobs:
             release/**/*.yml
             release/**/build-context.json
             release/**/artifact-inventory.json
+            release/**/notarization.json
             release/**/win-unpacked/**
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 7
       - name: Explain remaining native acceptance
         run: node -e "console.log('Candidate generation does not certify installation, N to N+1 update, data retention, uninstall, shutdown or legacy Squirrel migration. Native external acceptance is required by release:verify. No files were published.')"

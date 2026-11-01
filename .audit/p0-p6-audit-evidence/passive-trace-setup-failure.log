@@ -1,8 +1,0 @@
-profile	Restore original target without JavaScript tracing	﻿2026-10-31T12:06:46.2214890Z ##[group]Run git show b1b592fbacd33f20fc2bf42a7583280b2b6f184d:apps/worker/tests/chrome.test.ts > apps/worker/tests/chrome.test.ts
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.2217020Z ^[[36;1mgit show b1b592fbacd33f20fc2bf42a7583280b2b6f184d:apps/worker/tests/chrome.test.ts > apps/worker/tests/chrome.test.ts^[[0m
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.2286180Z shell: /bin/bash -e {0}
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.2287030Z env:
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.2290100Z   BROWSER2D_CHROME_EXECUTABLE: /Users/runner/hostedtoolcache/setup-chrome/chrome/156.0.8078.80/x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.2291740Z ##[endgroup]
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.3156930Z fatal: path 'apps/worker/tests/chrome.test.ts' exists on disk, but not in 'b1b592fbacd33f20fc2bf42a7583280b2b6f184d'
-profile	Restore original target without JavaScript tracing	2026-10-31T12:06:46.3192010Z ##[error]Process completed with exit code 128.
