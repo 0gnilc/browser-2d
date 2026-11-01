@@ -5,7 +5,5 @@ out
 release
 artifacts
 .audit
-docs/research
-docs/monorepo-refactor-plan.md
 pnpm-lock.yaml
 /docs/agents/

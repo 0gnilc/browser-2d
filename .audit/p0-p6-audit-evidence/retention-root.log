@@ -1,9 +1,0 @@
-
-Running 2 tests using 1 worker
-
-(node:12295) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-  ✓  1 tests/e2e/development-entrypoints.spec.ts:81:1 › dev:ui serves fixture-only routes in Chrome and shuts down its server (4.5s)
-  ✓  2 tests/e2e/development-entrypoints.spec.ts:166:1 › dev:worker starts without a window, drains on stdin stop and cold restarts the same database (13.2s)
-
-  2 passed (19.1s)
