@@ -1,42 +1,41 @@
-name: Desktop, UI and release engineering
+name: CI
 on:
   push:
-    branches: [main, 'codex/**']
-    paths-ignore: ['docs/**', 'README.md', '.audit/**']
+    branches: [main]
   pull_request:
-    paths-ignore: ['docs/**', 'README.md', '.audit/**']
   workflow_dispatch:
-    inputs:
-      windows_only:
-        description: Run only the Windows native target
-        type: boolean
-        default: false
 permissions:
   contents: read
 concurrency:
-  group: p1-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   native:
+    name: Native (${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.windows_only && '[{"runner":"windows-2025","target":"win-x64"}]' || '[{"runner":"windows-2025","target":"win-x64"},{"runner":"macos-15-intel","target":"mac-x64"},{"runner":"macos-15","target":"mac-arm64"},{"runner":"ubuntu-24.04","target":"linux-x64"}]') }}
+        include:
+          - { runner: windows-2025, target: win-x64 }
+          - { runner: macos-15-intel, target: mac-x64 }
+          - { runner: macos-15, target: mac-arm64 }
+          - { runner: ubuntu-24.04, target: linux-x64 }
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
-      - run: npm install --global pnpm@12.16.1
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 rpm libfuse2t64 dbus-x11 gnome-keyring libglib2.0-bin
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-dependencies
       - uses: browser-actions/setup-chrome@v2
         id: chrome
         with:
@@ -46,6 +45,7 @@ jobs:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: node scripts/prepare-test-chrome.mjs
       - run: pnpm check
+      - run: pnpm test:workflows
       - run: pnpm test
       - run: pnpm test:release
       - run: pnpm test:storage
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p6-${{ matrix.target }}
+          name: native-${{ matrix.target }}
           path: |
             artifacts/
             release/*/*.dmg
@@ -100,4 +100,18 @@ jobs:
             release/*/*.yml
             release/*/build-context.json
             release/*/artifact-inventory.json
+          compression-level: 0
           retention-days: 7
+  acceptance:
+    name: Native acceptance
+    if: always()
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require the entire native matrix
+        shell: bash
+        env:
+          NATIVE_RESULT: ${{ needs.native.result }}
+        run: |
+          node -e "process.exit(process.env.NATIVE_RESULT === 'success' ? 0 : 1)"
