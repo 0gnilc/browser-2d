@@ -1,0 +1,32 @@
+[6079:1031/084901.474920:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.
+[6079:1031/084901.478633:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[6079:1031/084901.478724:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.
+[6079:1031/084901.478804:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[6079:1031/084901.644948:ERROR:components/viz/service/main/viz_main_impl.cc:192] Exiting GPU process due to errors during initialization
+2026-10-31 08:49:02.700 Browser2DFoundation Helper[6080:20949] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+2026-10-31 08:49:02.700 Browser2DFoundation Helper[6080:20943] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+2026-10-31 08:49:02.720 Browser2DFoundation Helper[6080:20949] XPC error for connection com.apple.backupd.sandbox.xpc: Connection invalid
+[6502:1031/084921.025877:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.
+[6502:1031/084921.026529:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[6502:1031/084921.026549:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.
+[6502:1031/084921.026554:ERROR:ui/gl/init/gl_initializer_mac.cc:127] GLDisplayEGL::Initialize failed.
+[6502:1031/084921.092467:ERROR:components/viz/service/main/viz_main_impl.cc:192] Exiting GPU process due to errors during initialization
+{
+  "target": "mac-x64",
+  "executable": "/private/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-format-GB7PhN/zip/browser-2d-foundation.app/Contents/MacOS/browser-2d-foundation",
+  "database": "/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-release-WkZpgL",
+  "fuses": {
+    "0": 48,
+    "1": 48,
+    "2": 48,
+    "3": 48,
+    "4": 49,
+    "5": 49,
+    "6": 48,
+    "7": 49,
+    "8": 49,
+    "version": "1"
+  },
+  "passes": 2,
+  "result": "VERIFIED"
+}

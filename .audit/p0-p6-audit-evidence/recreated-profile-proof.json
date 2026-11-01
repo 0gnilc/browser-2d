@@ -1,0 +1,18 @@
+{
+  "result": "RECREATION_VERIFIED",
+  "source": "1a8111dcb32c04ce1f18d2a6781146d71b1e59d4",
+  "node": "v24.22.1",
+  "operation": "3e286fbb-dbc8-4f29-b6a0-65e92d587415",
+  "initialInode": "12888456740",
+  "residualInode": "12888456982",
+  "initialBirthtimeNs": "1793450284215156257",
+  "residualBirthtimeNs": "1793450285762167339",
+  "birthtimeDifferenceNs": 1547011082,
+  "journal": {
+    "mode": "launch",
+    "phase": "released"
+  },
+  "writerIdentity": "NOT_VERIFIED",
+  "run": "https://github.com/0gnilc/browser-2d/actions/runs/41201558080",
+  "probe": 80
+}

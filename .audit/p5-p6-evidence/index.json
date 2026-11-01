@@ -1,0 +1,290 @@
+{
+  "scope": "Local logs and final native preview evidence; not signed release acceptance",
+  "localPackagedSource": "3031074+dirty; build began before metadata-fix commit",
+  "finalSourceCommit": "f52238f4e54117649cfeee710ed336d0724dba67",
+  "finalRun": "https://github.com/0gnilc/browser-2d/actions/runs/41184202293",
+  "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+  "files": [
+    {
+      "file": "check-final.log",
+      "sha256": "25f4dde92e07860827a017923a149e0ac2814990823944daf4241a3fdfcf2ded"
+    },
+    {
+      "file": "check.log",
+      "sha256": "d5eaf7100a12307339cc2802203e042618d07ba162f635fffc0d7fcf04fa3831"
+    },
+    {
+      "file": "credentials.log",
+      "sha256": "7f62dd3125935719f1310ff7b3f74cd670eaff0430b055a86a9ae2995f82e186"
+    },
+    {
+      "file": "development-config.log",
+      "sha256": "3bfe3ce0f588adc9bf5043bbe9ef9a107ae70ff2c1878c5e5489eef2c0b80f7c"
+    },
+    {
+      "file": "dist.log",
+      "sha256": "f7553b985e8f4acdf1015ff6a31458905377978712d86f54522807fdc4421ce2"
+    },
+    {
+      "file": "electron.log",
+      "sha256": "e5ea99efc15e1effc7b2160a5479c195e0ea9f15019d0b5e499b993a8d99883f"
+    },
+    {
+      "file": "extra-linux-x64/chrome-pass-1.json",
+      "sha256": "6f57677bd8f771d5ce79d2dc504132838f8a3f1b26cf4296231392345754f175"
+    },
+    {
+      "file": "extra-linux-x64/chrome-pass-2.json",
+      "sha256": "277b268a829ef5ca01601daaac2e623f4df5e39126fac18557226847f8fe85a1"
+    },
+    {
+      "file": "extra-linux-x64/format-summary.json",
+      "sha256": "7d2e625b8fc869701c93cf9e8d731aee051d04573618acc68b783b1d3d9a3fcb"
+    },
+    {
+      "file": "extra-linux-x64/package-pass-1.json",
+      "sha256": "c45c2b6e3f1e3c51f869579b9517140b59eb3b3a00a936f5b62f2f4671bd9960"
+    },
+    {
+      "file": "extra-linux-x64/package-pass-2.json",
+      "sha256": "9a0dad5ba3472be27ad35d4f1d14909f60f04b214f89f0b826fc2958e56f6d68"
+    },
+    {
+      "file": "extra-linux-x64/package-summary.json",
+      "sha256": "bec1ad91acbd3ca613524bbbc72faf87a16a68e550fda0dc1aac9e8ea6cb23fe"
+    },
+    {
+      "file": "extra-linux-x64/runtime.log",
+      "sha256": "a50b6fa7fcdec829823becfa7a6487300c56b811aed94ba5bdbfb549421dfed7"
+    },
+    {
+      "file": "extra-linux-x64/source.json",
+      "sha256": "9880551136ca21fe47f95012d5849c394c7a3aa9b3a9917e0a0569e534731a48"
+    },
+    {
+      "file": "extra-mac-arm64/chrome-pass-1.json",
+      "sha256": "27a8431ff194e60ec4da7dad312ba88841786582a62e1bc1462a81475b125e38"
+    },
+    {
+      "file": "extra-mac-arm64/chrome-pass-2.json",
+      "sha256": "9577e21e10aad6e71f7a26efc02b29f94373270577729418f8fade2c7bb773ad"
+    },
+    {
+      "file": "extra-mac-arm64/format-summary.json",
+      "sha256": "c2cf08d704bee3433441f29445873876ea1ecd01326550097c1bbef36c5f0c96"
+    },
+    {
+      "file": "extra-mac-arm64/package-pass-1.json",
+      "sha256": "847f36dd4517365978e81e7671d4723bc4cf445d657098a6b1cb616c97fece66"
+    },
+    {
+      "file": "extra-mac-arm64/package-pass-2.json",
+      "sha256": "fcd8ad805b303c669a2733b3bd50fe7f930b189dc41bb0663a4e94cb9b06959e"
+    },
+    {
+      "file": "extra-mac-arm64/package-summary.json",
+      "sha256": "64247dbe42cf466ce2ad2ad0ebf1d5b16ffaa8fee3e6f5d8709cbcfb409320c6"
+    },
+    {
+      "file": "extra-mac-arm64/runtime.log",
+      "sha256": "d27a3a60d8dddfc562cbaf440fca05726554cb213368f785190caaf5996a8e6e"
+    },
+    {
+      "file": "extra-mac-arm64/source.json",
+      "sha256": "0bf9251eb901b65aad75bb415dce91a9b6d7d671dac0eb1326f97dc6007a07ce"
+    },
+    {
+      "file": "extra-mac-x64/chrome-pass-1.json",
+      "sha256": "2fd678d4990f74a03e476fd01fd5bb63a193d3cfbbdfd4d16f5e9dfceae44373"
+    },
+    {
+      "file": "extra-mac-x64/chrome-pass-2.json",
+      "sha256": "c828bf034ddab94e4c910e11f63acbcff840132c72484dfa80ff95a9c7c21c18"
+    },
+    {
+      "file": "extra-mac-x64/format-summary.json",
+      "sha256": "8285918b6c7b0be06bad862447d216cf7edf76f7e83f1011a368afdd3ce89f97"
+    },
+    {
+      "file": "extra-mac-x64/package-pass-1.json",
+      "sha256": "8e6b53c48992ceb502a570d8c6f34b9f0d80c99f3db6db5dbfb091a1fb8dc8a9"
+    },
+    {
+      "file": "extra-mac-x64/package-pass-2.json",
+      "sha256": "74f36e54761c198e511b884700e2db5c6cd1ca1e352659dacb2efa3fb382ff73"
+    },
+    {
+      "file": "extra-mac-x64/package-summary.json",
+      "sha256": "b6e71c830b9e3c367f91d5707d0ad8382fe26c2e845ca167ccd02b2112bd08e7"
+    },
+    {
+      "file": "extra-mac-x64/runtime.log",
+      "sha256": "8690016c9ce7d2e71ed429fa6a650e60e0a9b8db038c063213f5a63e1131bc5e"
+    },
+    {
+      "file": "extra-mac-x64/source.json",
+      "sha256": "9251cefdd835c9b2b88643fdca2fc82ca2ecaa8baf81e3416543b2a814111af6"
+    },
+    {
+      "file": "final-linux-test-summary.log",
+      "sha256": "2cdc289ae90ab479a1831a4a57203b1c07395346be55ff54b8a73784a762aaa3"
+    },
+    {
+      "file": "final-linux-x64/artifacts__fedora44__rpm-pass-1.json",
+      "sha256": "32b7a204d1c254e8cdde48b0958b46ad6520c33cff69f9d1914025940f4dfc98"
+    },
+    {
+      "file": "final-linux-x64/artifacts__fedora44__rpm-pass-2.json",
+      "sha256": "b7b93336c2dd5149124289e49e4ce59d12d666ef12ad85fecb99aa8b1f1ec75b"
+    },
+    {
+      "file": "final-linux-x64/artifacts__installation__linux-x64__installation.json",
+      "sha256": "20414eb152a393e9bece80f6ac524b1f25ce1e8c96e4c0ef14f502db11bf3d80"
+    },
+    {
+      "file": "final-linux-x64/artifacts__installation__linux-x64__pass-0__package-summary.json",
+      "sha256": "f95f381e409b619c0809f7a4eebbd8e50e81bcf84e1bf1d5bd0989cc74bcad35"
+    },
+    {
+      "file": "final-linux-x64/artifacts__installation__linux-x64__pass-2__package-summary.json",
+      "sha256": "3f53d5bd6a30b06c086a78a3e5337ea7421d48ae466df4cdc5c17f3fef327749"
+    },
+    {
+      "file": "final-linux-x64/artifacts__linux-x64__package-summary.json",
+      "sha256": "fb93cd235fe2697299321f7dfca40aff9fd8d41763117b0b35ccef5b7d453554"
+    },
+    {
+      "file": "final-linux-x64/release__linux-x64__artifact-inventory.json",
+      "sha256": "ec5dfc68c89aae82a6e1844c79c82cbad651c02a3ba0f7c43b1042e33b04b46a"
+    },
+    {
+      "file": "final-linux-x64/release__linux-x64__build-context.json",
+      "sha256": "176fee4d901b0541045442be1226707883b1518c4f9da88631447d0c41836593"
+    },
+    {
+      "file": "final-mac-arm64/artifacts__installation__mac-arm64__installation.json",
+      "sha256": "afcfc64e8e134cd41b35674d012707d0d9f822ec5e596611d77098d9007951a7"
+    },
+    {
+      "file": "final-mac-arm64/artifacts__installation__mac-arm64__pass-0__package-summary.json",
+      "sha256": "fbbbce13201d258db671e5b301be82731a70bbec6c99f354dfce7ccaadb9e588"
+    },
+    {
+      "file": "final-mac-arm64/artifacts__installation__mac-arm64__pass-2__package-summary.json",
+      "sha256": "4ddbe662122cb26c0d07c6eea7fd4de0854893a5e006a3510245036c17eedb06"
+    },
+    {
+      "file": "final-mac-arm64/artifacts__mac-arm64__package-summary.json",
+      "sha256": "9318c6bc907783fb45b2a590d311145f7a39c79f0b91cd93a741d8961a306ada"
+    },
+    {
+      "file": "final-mac-arm64/release__mac-arm64__artifact-inventory.json",
+      "sha256": "805a502532e7db9d4e27ebe0fc21318b8966eaef8803bc1cc6264e8bed16a318"
+    },
+    {
+      "file": "final-mac-arm64/release__mac-arm64__build-context.json",
+      "sha256": "04a8df05b6e6d0569857bd1e795aef070052d34f1bf9115a9c31c7531b85334b"
+    },
+    {
+      "file": "final-mac-x64/artifacts__installation__mac-x64__installation.json",
+      "sha256": "8e903af654d4e48a220d3a32e76d80a66e1185b44462c543c0dc02beb5542dfb"
+    },
+    {
+      "file": "final-mac-x64/artifacts__installation__mac-x64__pass-0__package-summary.json",
+      "sha256": "d535d011fb8f39fdb444dfd90e23d07656024440c3bbdb64706be74413382680"
+    },
+    {
+      "file": "final-mac-x64/artifacts__installation__mac-x64__pass-2__package-summary.json",
+      "sha256": "3695cf34dacc004ae504f5c8fbad3666d9f460bd469d822feb941e572348e75c"
+    },
+    {
+      "file": "final-mac-x64/artifacts__mac-x64__package-summary.json",
+      "sha256": "6c5cb31ce2e28adf8c0e57c87913667435b821d9ab022bfeb9f31afba93255df"
+    },
+    {
+      "file": "final-mac-x64/release__mac-x64__artifact-inventory.json",
+      "sha256": "ce6adcd6630bc966a3b201ad6d986c60a7be9eaadac97719fbc785be1920ad86"
+    },
+    {
+      "file": "final-mac-x64/release__mac-x64__build-context.json",
+      "sha256": "5b53e83699884520b51614d549f3f2e603161c30d06ecdc34cb8e911ca12fb44"
+    },
+    {
+      "file": "final-win-test-summary.log",
+      "sha256": "1700495102639279803b274979f95247328cab805ef251a37beabab06443bc9f"
+    },
+    {
+      "file": "final-win-x64/artifacts__installation__win-x64__installation.json",
+      "sha256": "5abcab5067acdba182bb5d6c6aa20517804e1d9bb23b922bcbbc538c2991e8bb"
+    },
+    {
+      "file": "final-win-x64/artifacts__installation__win-x64__pass-0__package-summary.json",
+      "sha256": "b4fe71e38308b1dfd2996fa5767ce13845ca65f1800b810ef6777a2f726b8253"
+    },
+    {
+      "file": "final-win-x64/artifacts__installation__win-x64__pass-2__package-summary.json",
+      "sha256": "49187a7bc49bd9646bdb78c6b9df230cf5a9d1df0ca8e256eb9de7e3e031854b"
+    },
+    {
+      "file": "final-win-x64/artifacts__win-x64__package-summary.json",
+      "sha256": "52abbfb0bbab44faacb6709945cc7286765ab07a10d645e000d901cf4cac1d67"
+    },
+    {
+      "file": "final-win-x64/release__win-x64__artifact-inventory.json",
+      "sha256": "1afa112b0a2b0fc8d641e630c147d9df4efd80a56860d9acd0c77de151a97f38"
+    },
+    {
+      "file": "final-win-x64/release__win-x64__build-context.json",
+      "sha256": "c8e9b798f3754da152ff5b4a2fa68fc201c5a623b6aaeac7fd04d2ffe48298f9"
+    },
+    {
+      "file": "installation.log",
+      "sha256": "82dcd50c4b84530ae36f486cb3f9b1c9dc2172da85c22c4bf5f56d5df983ae53"
+    },
+    {
+      "file": "linux-ci-failure.log",
+      "sha256": "ae116ed5660594ec9ebac62b918218879b7675e7ea2690ca4ef70a68191ec1e2"
+    },
+    {
+      "file": "local-installation.json",
+      "sha256": "9dcfc7b04e739ad8575520fdd92183759fe74b35f5ed0d48d08aaeb4ce9cbf40"
+    },
+    {
+      "file": "observer.log",
+      "sha256": "721229b541d28d1397a5158bd2be8fbcbbd99275662b2296c9c0a09a5d7325bf"
+    },
+    {
+      "file": "package.log",
+      "sha256": "d3e0ea3b57d456fdb22f8b9e8c286b1706028dfc5f6f9e77bdd5b9bac7590ffc"
+    },
+    {
+      "file": "release-refusals.json",
+      "sha256": "0c12023eb905dddf3d5de01e5179638ea96b74f8c35d5d84da650cd32c078d39"
+    },
+    {
+      "file": "release.log",
+      "sha256": "5e514cb08ba4c59fb8109bad2c227543392e5ed32c5496aef2f0f6decd8e5f74"
+    },
+    {
+      "file": "renderer-config-proof.log",
+      "sha256": "88e514fd8e888d0253a053a0c7293e2e19074fbfb5d9414506cd33c497013a3e"
+    },
+    {
+      "file": "storage.log",
+      "sha256": "ed3acd300464e287a2952f08f9c27a55a3b6dcfab6f3833e7aa4461f493bffae"
+    },
+    {
+      "file": "ui.log",
+      "sha256": "9a505e80e6ff307aa5e24674181d84a834d42ec8d5f6c217018f556209f6760f"
+    },
+    {
+      "file": "updates.log",
+      "sha256": "279eaaadc17b83bc5fee34a38ff286ac4f3bca86a324c14b8f6ad2449a2a3f2f"
+    },
+    {
+      "file": "windows-ci-failure.log",
+      "sha256": "66dd6f8b272941f0824cf5c169a6eb740c6ec5e33f9089022dcfdd6979a0a5ac"
+    }
+  ],
+  "logNormalization": "Archived logs omit ANSI color and trailing whitespace; execution content is unchanged."
+}

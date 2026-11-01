@@ -1,0 +1,20 @@
+{
+  "auditIssue": {
+    "number": 7,
+    "state": "CLOSED",
+    "closedAt": "2026-10-31T16:31:49Z",
+    "comment": "https://github.com/0gnilc/browser-2d/issues/7#issuecomment-6546112038"
+  },
+  "formalRelease": {
+    "number": 6,
+    "state": "OPEN",
+    "label": "needs-info"
+  },
+  "windowsObservation": {
+    "number": 8,
+    "state": "OPEN",
+    "label": "needs-triage"
+  },
+  "prCreated": false,
+  "mainMerged": false
+}

@@ -1,0 +1,31 @@
+$ node --test scripts/release.test.mjs
+✔ builder receives the installed updater version instead of the pnpm catalog protocol (12.990315ms)
+✔ staging rejects a descendant whose name only begins with two dots (4.672511ms)
+✔ preview configuration is independent of feed and signing secrets (1.992693ms)
+✔ production configuration needs explicit mode, channel, target and trustworthy feed URL (0.892681ms)
+✔ production signing inputs and clean source fail closed before build (0.985946ms)
+✔ unknown CLI arguments and missing values fail instead of selecting preview accidentally (0.521421ms)
+✔ production CLI refuses a missing feed before invoking pnpm (134.355867ms)
+✔ metadata checks final file size and SHA512 using real file bytes (48.389408ms)
+✔ same-size payload corruption fails the SHA512 check (12.980372ms)
+✔ missing final metadata blocks production verification (12.541046ms)
+✔ metadata rejects traversal, remote URLs, version mismatch and duplicate YAML keys (25.609974ms)
+✔ preview build never mints a receipt and removes stale receipt (9.866504ms)
+✔ valid metadata and hashes without real acceptance reports cannot mint a release receipt (12.242925ms)
+✔ acceptance schema requires observations and hashed logs, never a passed flag (20.402014ms)
+✔ modified evidence logs and reports for a different artifact fail (17.860012ms)
+✔ unknown Squirrel distribution is an explicit failed gate (16.955336ms)
+✔ evidence traversal and symbolic links are rejected (9.262707ms)
+✔ artifact links cannot smuggle outside bytes into an inventory (12.131128ms)
+✔ staging rejects fabricated preview receipt and never builds or publishes (7.787242ms)
+✔ remote release command always refuses publication without destination and authorization (135.837484ms)
+✔ receipt rejects changed artifact bytes even if a previous check succeeded (11.138198ms)
+✔ macOS finalization keeps ZIP bytes and removes stale DMG differential metadata after stapling (20.678725ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 802.835556

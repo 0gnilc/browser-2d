@@ -1,0 +1,38 @@
+# Final P0 to P6 evidence and trail review
+
+The user wants every phase checked against the accepted plan, currently achievable engineering and acceptance gaps completed, and formal release gates preserved. This independent review checks the final documentation, archived evidence, and current-task decision trail. It does not rerun the application or substitute for the separate source reviewers.
+
+Verdict is PASS for this review scope after the coordinator appended three missing decision checkpoints. No remaining documentation or evidence contradiction blocks the current engineering acceptance record. This is not a claim that every engineering uncertainty is resolved. Windows Issue #8 remains open and uncorrected.
+
+The reviewed product source is `beeaba0c9fae03192714dbe51be753a882c0c6e5`. The final reviewed staged tree is `fee6176659fd789a11a7cbd9f463acd44b5abe12`. It contains 289 changed files consisting of documentation and audit artifacts. The earlier tree `76620b7567686e7b357b5c839b330745960fff99` preceded the three append-only trail corrections. No application code changed between these snapshots. Final commit, tracker closure, and final delivery are still pending at this review.
+
+## Checks and evidence
+
+I recomputed size and SHA256 for all 278 files listed by `.audit/p0-p6-audit-evidence/index.json`. Every entry matches its working file and exact staged Git blob. The index covers every tracked file in that directory except itself. The index names the final product source and explicitly limits scope to unsigned preview acceptance with Issue #8 open. `git diff --cached --check` passes.
+
+I read the acceptance record, plan checkbox diff, README and development changes, audit workflow, selected family design, archived phase reviews, implementation reviews, and final wait review. The docs preserve the distinction between the accepted controlled Chrome flows and excluded legacy payment automation. They leave final upgrades and signed distribution checkboxes open. The POSIX group proof, Windows child-only proof, and ambiguous historical records remain distinct. No current text claims universal descendant containment or a repaired Windows timeout.
+
+I independently checked the four final build-context records against the final SHA and current lock digest. All are clean preview builds. The archived final-run metadata records attempt 2 with four successful jobs at that SHA. The four installation reports record four launches, successful commands, same-version reinstall, retained data, and `nativeUpgrade: NOT_VERIFIED`. Their installer hashes match their artifact inventories. Thirty package reports have exit code zero, exited workers, empty final resource lists, and packaged execution. The thirty corresponding Chrome observer reports each record three browser instances, two concurrent browsers, and four concurrent pages. ZIP reports and the AppImage report bind the same source and artifact digest. The AppImage report explicitly records direct FUSE launch. Fedora RPM reports are separate controlled-driver userspace evidence, not Fedora desktop or native Chrome acceptance.
+
+The final per-target test summaries support 100 worker and 33 Electron cases on macOS and Linux. Windows records 94 worker cases with six POSIX skips, and 31 Electron cases with two POSIX skips. These differences are disclosed in the acceptance record. The final local verification and prior independent review logs are supplied evidence, not tests newly executed by this reviewer.
+
+I inspected native event values rather than accepting only the VERIFIED labels. On macOS, the first recorded group ESRCH return is `1793460840478795286`, before successful exact profile rmdir at `1793460840597864660`. Its recorded Chrome writer samples use minted group 9921. On Linux, group ESRCH returns at `64912716292`, before the captured profile-deletion attempt and successful exact-root VFS removal at `64930915592`. Its recorded Chrome writer samples and the acknowledged late helper write use minted group 3204. Both fixtures record absent profile namespaces before teardown and empty resources. The worker source tree digest is `d9aec39f1859793b1258ac9139b7ac9bdd49504b`, which I matched against the final product Git tree. Positive writer samples establish the documented scoped ordering. They do not establish complete coverage. The archived analyses include samples of the writer events and aggregate counts; I did not independently recount every raw trace event.
+
+The original Windows report records `Timed out waiting for two observed shutdown pages`, a starting third run, and an unresolved intent. The quiet-control log contains ten VERIFIED package invocations with two passes each, consistent with the documented twenty application launches and sixty Chrome acquisitions. Successful unchanged reruns and quiet controls do not identify the original failure's cause. The docs correctly preserve that distinction. The Intel Resource busy failure and the tee-masked ARM diagnostic failure remain archived as failures.
+
+## Trail audit
+
+I inspected only the specified current-task transcript, starting at line 3382 of `rollout-2026-10-31T06-10-07-01a18ac7-1ba9-73d1-bd16-3acc7068e2cd_01a1905d-7b73-7673-afc2-43c78a0cfa7f.jsonl`. I did not read unrelated chats. Every final TSV decision appears in an actual logging call in this transcript. Referenced temporary evidence paths currently resolve. The important source, runtime, failed-diagnostic, rerun, and PR decisions match visible tool actions and archived evidence.
+
+The initial trail omitted three material pivots. The coordinator corrected them by appending current-time rows 26 through 28, without rewriting prior rows. They record the orphan Helper kernel attribution, the forged-discovery test's missing ownership-check path and negative control, and the correction to test the actual bounded WorkService retry policy. The appended evidence resolves and supports those claims. The root attribution JSON contains successful Node removal followed by Helper 9429 with PPID 1 recreating the exact path. The cold-service report states that production code was unchanged and that unsafe EPERM-as-empty behavior fails its preservation assertion.
+
+The scoped implementation review reports consistently record zero new comments and zero lint or TypeScript suppressions for their reviewed changes. They also record zero comment deletion requests, HOLD flags, and MUST KILL flags. This is confirmation of those bounded review records, not a repository-wide zero-comment claim.
+
+## Attention
+
+reviewed by gpt-6.1-sol
+
+- Issue #8 remains an engineering reliability observation. The final Windows result permits a qualified current acceptance record, but does not support saying that all engineering gaps or uncertainty are eliminated. Closing Issue #7 should explicitly carry this unresolved observation forward and keep Issue #8 open.
+- Native writer evidence is positive and partial. macOS open-predicate errors, Linux path and syscall coverage limits, and the weaker Windows child-only contract remain material limits. Preserve these qualifications in the final reply. Archived analysis samples are not the complete raw trace corpus.
+- Issue #6 retains signing, notarization, trusted update hosting, real upgrades, Windows 11, legacy installer evidence, and publication conditions. Same-version reinstall and Server 2025 do not satisfy those gates.
+- The built-in PR creation attempt returned 403. No PR exists and main has not been merged. This is a delivery limitation, not a product-code failure. Final commit and tracker updates must be reported only after they actually occur.

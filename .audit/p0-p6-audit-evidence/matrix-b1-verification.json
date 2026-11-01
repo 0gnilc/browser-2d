@@ -1,0 +1,41 @@
+{
+  "sourceCommit": "b1b592fbacd33f20fc2bf42a7583280b2b6f184d",
+  "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+  "previewOnly": true,
+  "rows": [
+    {
+      "target": "win-x64",
+      "cleanSource": true,
+      "packagePassReports": 6,
+      "installedLaunches": 4,
+      "additionalFormats": []
+    },
+    {
+      "target": "mac-x64",
+      "cleanSource": true,
+      "packagePassReports": 8,
+      "installedLaunches": 4,
+      "additionalFormats": [
+        ".zip"
+      ]
+    },
+    {
+      "target": "mac-arm64",
+      "cleanSource": true,
+      "packagePassReports": 8,
+      "installedLaunches": 4,
+      "additionalFormats": [
+        ".zip"
+      ]
+    },
+    {
+      "target": "linux-x64",
+      "cleanSource": true,
+      "packagePassReports": 8,
+      "installedLaunches": 4,
+      "additionalFormats": [
+        ".AppImage"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "sourceCommit": "f52238f4e54117649cfeee710ed336d0724dba67",
+  "run": "https://github.com/0gnilc/browser-2d/actions/runs/41184202293",
+  "runId": 41184202293,
+  "attempt": 1,
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 124487637261,
+      "name": "native (macos-15, mac-arm64)",
+      "html_url": "https://github.com/0gnilc/browser-2d/actions/runs/41184202293/job/124487637261",
+      "conclusion": "success",
+      "started_at": "2026-10-31T08:20:33Z",
+      "completed_at": "2026-10-31T08:28:44Z"
+    },
+    {
+      "id": 124487637445,
+      "name": "native (macos-15-intel, mac-x64)",
+      "html_url": "https://github.com/0gnilc/browser-2d/actions/runs/41184202293/job/124487637445",
+      "conclusion": "success",
+      "started_at": "2026-10-31T08:20:39Z",
+      "completed_at": "2026-10-31T08:38:09Z"
+    },
+    {
+      "id": 124487637461,
+      "name": "native (windows-2025, win-x64)",
+      "html_url": "https://github.com/0gnilc/browser-2d/actions/runs/41184202293/job/124487637461",
+      "conclusion": "success",
+      "started_at": "2026-10-31T08:20:33Z",
+      "completed_at": "2026-10-31T08:32:26Z"
+    },
+    {
+      "id": 124487637473,
+      "name": "native (ubuntu-24.04, linux-x64)",
+      "html_url": "https://github.com/0gnilc/browser-2d/actions/runs/41184202293/job/124487637473",
+      "conclusion": "success",
+      "started_at": "2026-10-31T08:20:32Z",
+      "completed_at": "2026-10-31T08:29:33Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 13036916396,
+      "name": "p6-win-x64",
+      "size_in_bytes": 136166237,
+      "digest": "sha256:49dd25c8182720e5137dccc931fa14cd40b4debac57271bde590dbc79330767b",
+      "expired": false,
+      "expires_at": "2026-11-07T08:32:15Z"
+    },
+    {
+      "id": 13036673373,
+      "name": "p6-mac-x64",
+      "size_in_bytes": 279403808,
+      "digest": "sha256:f5fa9af9212348c38a2cb02f0d98dc634ffe4921e251c3445f7e552ce0dd4494",
+      "expired": false,
+      "expires_at": "2026-11-07T08:36:32Z"
+    },
+    {
+      "id": 13036547226,
+      "name": "p6-mac-arm64",
+      "size_in_bytes": 271747432,
+      "digest": "sha256:bee463467c54ca6c2cf3ceffef191390b817357e16b6381bb286d7900c097173",
+      "expired": false,
+      "expires_at": "2026-11-07T08:28:28Z"
+    },
+    {
+      "id": 13036211929,
+      "name": "p6-linux-x64",
+      "size_in_bytes": 356976484,
+      "digest": "sha256:a49de820fa5db4b2df42242b6d38eb5030e6d7ef9979d0441ba0177f18cb1da7",
+      "expired": false,
+      "expires_at": "2026-11-07T08:29:20Z"
+    }
+  ],
+  "formalRelease": "NOT_VERIFIED",
+  "priorWindowsTimeout": {
+    "run": 41182001465,
+    "job": 124481141138,
+    "reason": "5000ms Vitest default exceeded; limiter not established; unchanged rerun passed"
+  },
+  "finalWindows": "first attempt passed, including 59 worker tests and 29 Electron tests plus 2 POSIX-only skips",
+  "supplementalFormats": {
+    "run": "https://github.com/0gnilc/browser-2d/actions/runs/41185989791",
+    "verifierCommit": "ff668f9285c1839cfdd329d761e9111a34d40c2f",
+    "artifactSource": "f52238f4e54117649cfeee710ed336d0724dba67",
+    "conclusion": "success",
+    "formats": [
+      {
+        "target": "linux-x64",
+        "format": ".AppImage",
+        "artifact": {
+          "name": "browser-2d-foundation-0.1.0-linux-x86_64.AppImage",
+          "size": 141747304,
+          "sha256": "54e391665307d7cdfe066ac2483a6d6e1edd9096b4441dff2be1c913be854ae8",
+          "sha512": "dY3cavGXCWRwwcQyh2PcVCaxuB4Lxn3/7zq4OQsJLeewKewvcCeFTnjj7oXL0Sjls1uZBi05ZKMZyXTMVh4FKQ=="
+        },
+        "passes": 2
+      },
+      {
+        "target": "mac-arm64",
+        "format": ".zip",
+        "artifact": {
+          "name": "browser-2d-foundation-0.1.0-mac-arm64.zip",
+          "size": 132504645,
+          "sha256": "cfbd54669035d5e3b5154a8d9653bcd77b364bbfeebabada93a9e606ec333529",
+          "sha512": "KJdNOk8e84ZmguYaxMUvqai6ay9rUM+/AJdPKTVu0QpgUOap6hyYGWwEgMn7InZ9DteYW0vHXUNv6xJv35/iyA=="
+        },
+        "passes": 2
+      },
+      {
+        "target": "mac-x64",
+        "format": ".zip",
+        "artifact": {
+          "name": "browser-2d-foundation-0.1.0-mac-x64.zip",
+          "size": 136578649,
+          "sha256": "86ab0b756e65987e3008687e8ca4236e825cec937f74cecf620cc748f412ddbb",
+          "sha512": "iH7juOY+k7ShlVwECSK9WtLGLV2TgLxlBqMjDMtgPQBpRQWy9Swvi3J7W2gtxBLkKACrtfpXpV8nEnHtbYMQiw=="
+        },
+        "passes": 2
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+
+ RUN  v5.0.5 /private/tmp/browser-2d-audit-profile-race/apps/worker
+
+stderr | tests/chrome.test.ts > recovers a verified owned browser that exited before its release was journaled
+Chrome profile cleanup failure
+{
+  "capturedAt": "2026-10-31T11:43:36.507Z",
+  "root": "/var/folders/5w/3dbjx64s70z2kp07729ggl3h0000gn/T/browser-2d-closed-recovery-XE4AK3/chrome-sessions",
+  "remaining": [
+    "7421c3d4-77fe-4045-a492-c3ccf3fff486"
+  ],
+  "journal": {
+    "mode": "launch",
+    "phase": "released"
+  },
+  "browserPid": 14205,
+  "processes": [],
+  "entries": [
+    {
+      "path": "7421c3d4-77fe-4045-a492-c3ccf3fff486",
+      "size": 96,
+      "mtime": "2026-10-31T11:43:36.507Z",
+      "mode": 16877,
+      "directory": true,
+      "symlink": false
+    },
+    {
+      "path": "7421c3d4-77fe-4045-a492-c3ccf3fff486/diagnostic-probe.txt",
+      "size": 40,
+      "mtime": "2026-10-31T11:43:36.507Z",
+      "mode": 33188,
+      "directory": false,
+      "symlink": false
+    }
+  ]
+}
+
+ ❯ tests/chrome.test.ts (13 tests | 1 failed | 12 skipped) 1884ms
+   × recovers a verified owned browser that exited before its release was journaled 1883ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/chrome.test.ts > recovers a verified owned browser that exited before its release was journaled
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "7421c3d4-77fe-4045-a492-c3ccf3fff486",
++ ]
+
+ ❯ tests/chrome.test.ts:745:21
+    743|     }
+    744|   }
+    745|   expect(remaining).toEqual([]);
+       |                     ^
+    746| }, 30_000);
+    747|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 skipped (13)
+   Start at  12:43:34
+   Duration  2.43s (tests 85%, import 11%, transform 4%)

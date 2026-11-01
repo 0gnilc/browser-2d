@@ -1,0 +1,13 @@
+{
+  "maximumPages": 4,
+  "maximumBrowsers": 2,
+  "instances": 3,
+  "pids": [
+    4032,
+    4031,
+    4364
+  ],
+  "versions": [
+    "Chrome/156.0.8078.80"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@browser-2d/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./base.json": "./base.json",
+    "./node.json": "./node.json",
+    "./web.json": "./web.json"
+  }
+}

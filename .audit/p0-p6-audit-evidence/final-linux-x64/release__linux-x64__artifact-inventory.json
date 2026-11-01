@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "name": "browser-2d-foundation-0.1.0-linux-amd64.deb",
+      "size": 113194548,
+      "sha256": "4fcc75e5fc0d70d7f4402e21d25b21ab4b004a7de5e1aa1aac9b04739f9b6c85",
+      "sha512": "TEMiIkuNyPvdEzpY92Hm79c/Mkq/czzRJT4b3IteSkoNir8sH0abOOm6qPwqzYLS/lBDHadObr7OSkKClLYBtg=="
+    },
+    {
+      "name": "browser-2d-foundation-0.1.0-linux-x86_64.AppImage",
+      "size": 141755446,
+      "sha256": "e0b08eba19c145b8ef58b5cdc5025cbcd10242c986fbb5e74008f4d350030d7d",
+      "sha512": "utnVc0ybO2ukjULwnOXf+gkxr/Sx2q7vSo97wKgR33GuSTETepiga8ezcDDVC4Fb7jlh6RmTBCQW9847tRA53w=="
+    },
+    {
+      "name": "browser-2d-foundation-0.1.0-linux-x86_64.rpm",
+      "size": 100802397,
+      "sha256": "8479b86489485f2c7b2585dd8edc7c2f8b250d09327e1c04f02e24328314b5d4",
+      "sha512": "jw6ahHkVSeNiSNQpPZ6XDBL4hdpf0yL/RLqDgMszXskKNXE9ne6GQwC+3hDdGLq8InCJlzPrLGHsT3gZfdIXbQ=="
+    }
+  ]
+}

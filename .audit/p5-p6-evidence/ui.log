@@ -1,0 +1,9 @@
+$ vitest run
+
+ RUN  v5.0.5 /Volumes/fc/automator/browser-2d
+
+
+ Test Files  3 passed (3)
+      Tests  30 passed (30)
+   Start at  08:29:06
+   Duration  7.88s (import 40%, tests 39%, environment 19%, transform 1%)

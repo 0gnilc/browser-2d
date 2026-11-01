@@ -1,0 +1,300 @@
+{
+  "result": {
+    "initialCount": 12,
+    "completedId": "db626b77-7bae-4a44-a53d-180b60e8b6d7",
+    "cancelledId": "69cb2ce1-2c5e-49e1-a367-5ae5a904a7ab",
+    "queuedCancelledId": "19b32a0d-ff63-4a12-8df8-142f25ab54a5",
+    "workerPid": 19245,
+    "observed": 45,
+    "nodeIsolation": true,
+    "capacity": {
+      "devices": 2,
+      "pages": 4,
+      "queuedObserved": true
+    },
+    "business": {
+      "initialDeviceCount": 9,
+      "initialMaterialCount": 3,
+      "settingsRevision": 4
+    },
+    "shutdownId": "df63c47c-3749-4fbd-9f7f-f7f68ce0a7ae"
+  },
+  "appVersion": "0.1.0",
+  "versions": {
+    "node": "24.22.1",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.9",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "150",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026e",
+    "undici": "7.30.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.6.75.19-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "45.2.0",
+    "chrome": "156.0.8078.49"
+  },
+  "platform": "linux",
+  "arch": "x64",
+  "packaged": true,
+  "rendererUrl": "app://ui/index.html#/",
+  "workerEntry": "/opt/Browser2DFoundation/resources/app.asar/node_modules/@browser-2d/worker-runtime/dist/entry.cjs",
+  "finalSnapshot": {
+    "epoch": "d5a72163-246d-4bf4-b1fc-1060a6a80292",
+    "revision": 21,
+    "workerPid": 19245,
+    "execution": "chrome",
+    "policy": {
+      "devices": 2,
+      "pages": 4
+    },
+    "runs": [
+      {
+        "id": "df63c47c-3749-4fbd-9f7f-f7f68ce0a7ae",
+        "deviceId": 10,
+        "state": "cancelled",
+        "config": {
+          "revision": 4,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:48.103Z",
+        "updatedAt": "2026-10-31T11:54:48.952Z"
+      },
+      {
+        "id": "19b32a0d-ff63-4a12-8df8-142f25ab54a5",
+        "deviceId": 12,
+        "state": "cancelled",
+        "config": {
+          "revision": 4,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:43.744Z",
+        "updatedAt": "2026-10-31T11:54:44.681Z"
+      },
+      {
+        "id": "db626b77-7bae-4a44-a53d-180b60e8b6d7",
+        "deviceId": 11,
+        "state": "completed",
+        "config": {
+          "revision": 4,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "completed",
+        "createdAt": "2026-10-31T11:54:43.713Z",
+        "updatedAt": "2026-10-31T11:54:48.075Z"
+      },
+      {
+        "id": "69cb2ce1-2c5e-49e1-a367-5ae5a904a7ab",
+        "deviceId": 10,
+        "state": "cancelled",
+        "config": {
+          "revision": 4,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:43.701Z",
+        "updatedAt": "2026-10-31T11:54:44.886Z"
+      },
+      {
+        "id": "b66c99b3-5b32-4149-b2a0-43b34f24f99a",
+        "deviceId": 7,
+        "state": "cancelled",
+        "config": {
+          "revision": 3,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:41.945Z",
+        "updatedAt": "2026-10-31T11:54:42.728Z"
+      },
+      {
+        "id": "a4f0f9fd-4f8c-499b-acf1-43c2387669ab",
+        "deviceId": 9,
+        "state": "cancelled",
+        "config": {
+          "revision": 3,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:37.625Z",
+        "updatedAt": "2026-10-31T11:54:38.551Z"
+      },
+      {
+        "id": "0fa60019-3580-429f-b707-e1e5d34dfaaa",
+        "deviceId": 8,
+        "state": "completed",
+        "config": {
+          "revision": 3,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "completed",
+        "createdAt": "2026-10-31T11:54:37.594Z",
+        "updatedAt": "2026-10-31T11:54:41.912Z"
+      },
+      {
+        "id": "0d7a2770-696d-4031-8e3d-48ea74a70a5f",
+        "deviceId": 7,
+        "state": "cancelled",
+        "config": {
+          "revision": 3,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:37.577Z",
+        "updatedAt": "2026-10-31T11:54:38.741Z"
+      },
+      {
+        "id": "b271d44c-3562-42b1-90cc-354cc3dd163f",
+        "deviceId": 4,
+        "state": "cancelled",
+        "config": {
+          "revision": 2,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:24.956Z",
+        "updatedAt": "2026-10-31T11:54:25.702Z"
+      },
+      {
+        "id": "820f34b4-39db-4cf2-bfd1-3558b918b5b3",
+        "deviceId": 6,
+        "state": "cancelled",
+        "config": {
+          "revision": 2,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:20.582Z",
+        "updatedAt": "2026-10-31T11:54:21.542Z"
+      },
+      {
+        "id": "f58e3619-044b-4285-a9ec-ce36d93b956f",
+        "deviceId": 5,
+        "state": "completed",
+        "config": {
+          "revision": 2,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "completed",
+        "createdAt": "2026-10-31T11:54:20.562Z",
+        "updatedAt": "2026-10-31T11:54:24.923Z"
+      },
+      {
+        "id": "4aa28ff5-e97e-4f04-8239-8a0ee12a9eca",
+        "deviceId": 4,
+        "state": "cancelled",
+        "config": {
+          "revision": 2,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:20.550Z",
+        "updatedAt": "2026-10-31T11:54:21.717Z"
+      },
+      {
+        "id": "6a5e0b35-7489-48a4-b249-12645fc6a9e7",
+        "deviceId": 1,
+        "state": "cancelled",
+        "config": {
+          "revision": 1,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:18.842Z",
+        "updatedAt": "2026-10-31T11:54:19.588Z"
+      },
+      {
+        "id": "16af009f-f54c-4f89-9995-ca2b2a1e423e",
+        "deviceId": 3,
+        "state": "cancelled",
+        "config": {
+          "revision": 1,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:14.372Z",
+        "updatedAt": "2026-10-31T11:54:15.435Z"
+      },
+      {
+        "id": "47c83965-f718-4812-be2e-77b95d558d74",
+        "deviceId": 2,
+        "state": "completed",
+        "config": {
+          "revision": 1,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "completed",
+        "createdAt": "2026-10-31T11:54:14.363Z",
+        "updatedAt": "2026-10-31T11:54:18.826Z"
+      },
+      {
+        "id": "4869ae1b-ca1a-423d-b106-c5780ff97856",
+        "deviceId": 1,
+        "state": "cancelled",
+        "config": {
+          "revision": 1,
+          "pageCount": 2,
+          "viewportWidth": 1280,
+          "viewportHeight": 800
+        },
+        "outcome": "cancelled",
+        "createdAt": "2026-10-31T11:54:14.342Z",
+        "updatedAt": "2026-10-31T11:54:15.633Z"
+      }
+    ],
+    "resources": []
+  },
+  "exitCode": 0,
+  "workerExited": true
+}

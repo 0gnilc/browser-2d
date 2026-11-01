@@ -1,0 +1,94 @@
+{
+  "target": "win-x64",
+  "mode": "preview",
+  "source": {
+    "schemaVersion": 1,
+    "sourceCommit": "b1b592fbacd33f20fc2bf42a7583280b2b6f184d",
+    "dirty": false,
+    "lockSha256": "d84c071288a0ce59b29d515b1d2759b6b65c6cdc8cd49133e1e86ae33663837b",
+    "version": "0.1.0",
+    "target": "win-x64",
+    "mode": "preview",
+    "configuration": {
+      "mode": "preview"
+    },
+    "identity": {
+      "appId": "io.github.0gnilc.browser2d.foundation",
+      "productName": "Browser2DFoundation",
+      "executableName": "browser-2d-foundation"
+    },
+    "node": "v24.22.1",
+    "packageManager": "pnpm@12.16.1",
+    "createdAt": "2026-10-31T11:51:21.327Z",
+    "tools": {
+      "electron": "45.2.0",
+      "electron-builder": "26.18.0",
+      "electron-updater": "6.8.11"
+    }
+  },
+  "installer": {
+    "name": "browser-2d-foundation-0.1.0-win-x64.exe",
+    "sha256": "a384eb34e511766979d08b1e17d5752b543ae8ced32dff482ea536c2acb15948"
+  },
+  "result": "VERIFIED",
+  "sameVersionReinstall": true,
+  "nativeUpgrade": "NOT_VERIFIED",
+  "dataPreservedOnUninstall": true,
+  "launchCount": 4,
+  "commands": [
+    {
+      "file": "D:\\a\\browser-2d\\browser-2d\\release\\win-x64\\browser-2d-foundation-0.1.0-win-x64.exe",
+      "args": [
+        "/S",
+        "/D=C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\browser-2d-native-install-9KRwEG\\installed"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "C:\\npm\\prefix\\node_modules\\pnpm\\pnpm.exe",
+      "args": [
+        "verify:package",
+        "--",
+        "--target=win-x64",
+        "--in-place",
+        "--data-dir=C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\browser-2d-release-p8rp69",
+        "--initial-pass=0"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\browser-2d-native-install-9KRwEG\\installed\\Uninstall browser-2d-foundation.exe",
+      "args": [
+        "/S"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "D:\\a\\browser-2d\\browser-2d\\release\\win-x64\\browser-2d-foundation-0.1.0-win-x64.exe",
+      "args": [
+        "/S",
+        "/D=C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\browser-2d-native-install-9KRwEG\\installed"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "C:\\npm\\prefix\\node_modules\\pnpm\\pnpm.exe",
+      "args": [
+        "verify:package",
+        "--",
+        "--target=win-x64",
+        "--in-place",
+        "--data-dir=C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\browser-2d-release-p8rp69",
+        "--initial-pass=2"
+      ],
+      "exitCode": 0
+    },
+    {
+      "file": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\browser-2d-native-install-9KRwEG\\installed\\Uninstall browser-2d-foundation.exe",
+      "args": [
+        "/S"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

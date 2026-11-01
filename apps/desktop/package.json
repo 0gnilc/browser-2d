@@ -1,0 +1,40 @@
+{
+  "name": "@browser-2d/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser 2D foundation verification app",
+  "author": "browser-2d contributors",
+  "license": "UNLICENSED",
+  "main": "dist/main/index.cjs",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test:credentials": "vitest run --config vitest.credentials.config.ts",
+    "test:updates": "vitest run --config vitest.updates.config.ts"
+  },
+  "dependencies": {
+    "@browser-2d/worker-runtime": "workspace:*",
+    "electron-log": "catalog:",
+    "electron-updater": "catalog:"
+  },
+  "devDependencies": {
+    "@browser-2d/contracts": "workspace:*",
+    "@browser-2d/ui": "workspace:*",
+    "@browser-2d/tsconfig": "workspace:*",
+    "@browser-2d/build-config": "workspace:*",
+    "electron": "catalog:",
+    "electron-vite": "catalog:",
+    "electron-builder": "catalog:",
+    "@electron/fuses": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "homepage": "https://github.com/0gnilc/browser-2d",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0gnilc/browser-2d.git"
+  }
+}

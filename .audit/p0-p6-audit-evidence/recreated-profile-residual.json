@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-10-31T12:38:05.762Z",
+  "root": "/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/browser-2d-closed-recovery-PwgDs9/chrome-sessions",
+  "remaining": [
+    "3e286fbb-dbc8-4f29-b6a0-65e92d587415"
+  ],
+  "journal": {
+    "mode": "launch",
+    "phase": "released"
+  },
+  "browserPid": 10191,
+  "processes": [],
+  "entries": [
+    {
+      "path": "3e286fbb-dbc8-4f29-b6a0-65e92d587415",
+      "size": "64",
+      "inode": "12888456982",
+      "birthtimeNs": "1793450285762167339",
+      "ctimeNs": "1793450285762225484",
+      "mtimeNs": "1793450285762167339",
+      "mtime": "2026-10-31T12:38:05.762Z",
+      "mode": "16832",
+      "directory": true,
+      "symlink": false
+    }
+  ]
+}

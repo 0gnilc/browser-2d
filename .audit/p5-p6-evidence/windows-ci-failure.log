@@ -1,0 +1,48 @@
+2026-10-31T07:51:06.7495389Z ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+2026-10-31T07:51:06.7495741Z
+2026-10-31T07:51:06.7499162Z  FAIL  tests/business-storage.test.ts > business database ownership and migration > upgrades v3 without rewriting old work obligations or dormant references
+2026-10-31T07:51:06.7503715Z Error: Test timed out in 5000ms.
+2026-10-31T07:51:06.7504663Z If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+2026-10-31T07:51:06.7505576Z  ❯ tests/business-storage.test.ts:174:3
+2026-10-31T07:51:06.7595541Z     172|   });
+2026-10-31T07:51:06.7596064Z     173|
+2026-10-31T07:51:06.7596876Z     174|   it('upgrades v3 without rewriting old work obligations or dormant re…
+2026-10-31T07:51:06.7597659Z        |   ^
+2026-10-31T07:51:06.7598270Z     175|     const fixture = legacy();
+2026-10-31T07:51:06.7599052Z     176|     const migrationDirectory = fileURLToPath(new URL('../migrations/bu…
+2026-10-31T07:51:06.7599654Z
+2026-10-31T07:51:06.7600063Z ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+2026-10-31T07:51:06.7600332Z
+2026-10-31T07:51:06.7600956Z
+2026-10-31T07:51:06.7606930Z  Test Files  1 failed | 7 passed (8)
+2026-10-31T07:51:06.7607953Z       Tests  1 failed | 58 passed (59)
+2026-10-31T07:51:06.7608601Z    Start at  07:49:26
+2026-10-31T07:51:06.7612116Z    Duration  100.38s (tests 99%, import 1%)
+2026-10-31T07:51:06.7621628Z
+2026-10-31T07:51:06.7632910Z
+2026-10-31T07:51:06.7651773Z ##[error]Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/business-storage.test.ts:174:3
+
+
+2026-10-31T07:51:06.7842282Z [ELIFECYCLE] Command failed with exit code 1.
+2026-10-31T07:51:06.7851394Z Error: ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL
+2026-10-31T07:51:06.7851644Z
+2026-10-31T07:51:06.7852207Z   × "pnpm recursive run" failed in D:\a\browser-2d\browser-2d\apps\worker
+2026-10-31T07:51:06.7852466Z
+2026-10-31T07:51:06.7903425Z [ELIFECYCLE] Command failed with exit code 1.
+2026-10-31T07:51:06.8166351Z ##[error]Process completed with exit code 1.
+2026-10-31T07:51:06.8378905Z ##[group]Run actions/upload-artifact@v4
+2026-10-31T07:51:06.8379268Z with:
+2026-10-31T07:51:06.8379510Z   name: p6-win-x64
+2026-10-31T07:51:06.8380131Z   path: artifacts/
+release/*/*.dmg
+release/*/*.zip
+release/*/*.exe
+release/*/*.AppImage
+release/*/*.deb
+release/*/*.rpm
+release/*/*.blockmap
+release/*/*.yml
+release/*/build-context.json
+release/*/artifact-inventory.json

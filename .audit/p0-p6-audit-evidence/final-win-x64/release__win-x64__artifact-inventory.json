@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "name": "browser-2d-foundation-0.1.0-win-x64.exe",
+      "size": 133176520,
+      "sha256": "67f46c27ae014d5c56c84b524481a8cc891cdd4590c71866d19a7482b8bee05b",
+      "sha512": "SCJswBxlWsPoHaLmgog13tMHA8BIUpFt6EBdAy4dGPEzp3PH89kfoDFW8gHQH/JZ0eRb5RgcnOBTC74IDHxbjQ=="
+    },
+    {
+      "name": "browser-2d-foundation-0.1.0-win-x64.exe.blockmap",
+      "size": 139652,
+      "sha256": "d9454b6002e853320fc3dc465df2d58e50b342a9bbfb314de74b60d798e19d19",
+      "sha512": "CcN+BxaykiR4VQfl5HarlY+vwzoLrmgA4ujPRz3rhV4qf5RIL12aO70cOGl5JR6axh6FiXdsUeDF++XUnXy0Hg=="
+    }
+  ]
+}

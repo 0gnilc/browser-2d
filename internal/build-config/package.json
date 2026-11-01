@@ -1,0 +1,16 @@
+{
+  "name": "@browser-2d/build-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs",
+    "./release": "./release.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "catalog:"
+  },
+  "devDependencies": {
+    "vite": "catalog:"
+  }
+}

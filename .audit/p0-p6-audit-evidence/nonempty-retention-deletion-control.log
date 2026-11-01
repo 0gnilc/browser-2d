@@ -1,0 +1,67 @@
+
+Running 1 test using 1 worker
+
+(node:8358) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/development-entrypoints.spec.ts:166:1 › dev:worker starts without a window, drains on stdin stop and cold restarts the same database (10.5s)
+
+
+  1) tests/e2e/development-entrypoints.spec.ts:166:1 › dev:worker starts without a window, drains on stdin stop and cold restarts the same database
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 12
+    + Received  +  1
+
+      Object {
+        "ok": true,
+    -   "value": Array [
+    -     Object {
+    -       "account": "synthetic-retention-account",
+    -       "amount": 123.45,
+    -       "count": 7,
+    -       "createTime": "2026-10-31 19:36:35",
+    -       "id": 1,
+    -       "note": "Must survive the real dev:worker cold restart",
+    -       "status": 2,
+    -       "symbol": "retention-bef2e5b2-3fd6-4c49-99dc-7d10d899552b",
+    -     },
+    -   ],
+    +   "value": Array [],
+      }
+
+      247 |             retainedDevice = created.value;
+      248 |           }
+    > 249 |           expect(store.devices.list()).toEqual({ ok: true, value: [retainedDevice] });
+          |                                        ^
+      250 |         } finally {
+      251 |           store.close();
+      252 |         }
+        at /private/tmp/browser-2d-audit-retention/tests/e2e/development-entrypoints.spec.ts:249:40
+
+    attachment #1: dev-worker-output-1 (text/plain) ────────────────────────────────────────────────
+    (node:8362) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    $ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+    (node:838...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: dev-worker-output-2 (text/plain) ────────────────────────────────────────────────
+    (node:8471) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    $ pnpm --filter @browser-2d/worker-runtime build && pnpm --filter @browser-2d/desktop build && node scripts/check-artifacts.mjs
+    (node:848...
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: artifacts/test-results/development-entrypoints-de-0b56d--restarts-the-same-database/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/test-results/development-entrypoints-de-0b56d--restarts-the-same-database/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace artifacts/test-results/development-entrypoints-de-0b56d--restarts-the-same-database/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/development-entrypoints.spec.ts:166:1 › dev:worker starts without a window, drains on stdin stop and cold restarts the same database

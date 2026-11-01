@@ -1,0 +1,8 @@
+
+ RUN  v5.0.5 /Volumes/fc/automator/browser-2d/apps/worker
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  12:27:27
+   Duration  2.87s (tests 85%, import 10%, transform 5%)
