@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart TB
-    UI["apps/ui<br/>Vue 3 · Vue Router · Pinia · Naive UI"]
+    UI["apps/ui<br/>Vue 3 · Vue Router · Pinia · Element Plus · Tailwind CSS"]
     Bridge["apps/desktop preload<br/>具名公共 API · contextBridge"]
     Main["apps/desktop main<br/>Electron · 生命周期 · IPC 校验"]
     Worker["apps/worker<br/>utilityProcess · 业务仓储 · 调度与恢复"]

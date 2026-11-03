@@ -98,10 +98,13 @@ it('downloads separately and installs only after the stop-work confirmation', as
   expect(test.updates.download).toHaveBeenCalledOnce();
   expect(test.updates.install).not.toHaveBeenCalled();
   async function confirm(text: string) {
-    const button = [...document.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent?.trim() === text,
-    );
-    expect(button).toBeDefined();
+    const button = await vi.waitFor(() => {
+      const match = [...document.querySelectorAll('button')].find(
+        (candidate) => candidate.textContent?.trim() === text,
+      );
+      expect(match).toBeDefined();
+      return match;
+    });
     button?.click();
     await flushPromises();
   }

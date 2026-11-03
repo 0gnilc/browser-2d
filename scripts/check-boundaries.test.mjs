@@ -45,7 +45,7 @@ for (const name of ['forge.config.js', 'vite.config.js', 'package-lock.json']) {
   });
 }
 
-for (const dependency of ['@electron-forge/cli', 'element-plus', 'sqlite3']) {
+for (const dependency of ['@electron-forge/cli', 'naive-ui', 'sqlite3']) {
   test(`retired dependency ${dependency} cannot reenter a workspace manifest`, async (t) => {
     const directory = await workspace(t);
     await manifest(directory, 'apps/worker', (value) => {

@@ -16,7 +16,8 @@ const uiModules = new Set([
   'vue',
   'vue-router',
   'pinia',
-  'naive-ui',
+  'element-plus',
+  '@element-plus/icons-vue',
   'react',
   'react-dom',
   'svelte',
@@ -197,7 +198,7 @@ export async function checkBoundaries(workspaceRoot = root) {
       for (const dependency of Object.keys(manifest[field] ?? {})) {
         if (
           dependency.startsWith('@electron-forge/') ||
-          ['electron-forge', 'element-plus', 'sqlite3'].includes(dependency)
+          ['electron-forge', 'naive-ui', 'sqlite3'].includes(dependency)
         )
           fail(`${manifest.name}: retired dependency ${dependency}`);
       }

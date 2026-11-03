@@ -25,12 +25,22 @@ export function cancellable(state: string) {
   return ['queued', 'starting', 'running', 'stopping'].includes(state);
 }
 
+export function deviceUnavailable(snapshot: WorkSnapshot | undefined, deviceId: number) {
+  return (
+    !!snapshot &&
+    (snapshot.runs.some((run) => run.deviceId === deviceId && cancellable(run.state)) ||
+      snapshot.resources.some((resource) => resource.deviceId === deviceId))
+  );
+}
+
 type PendingCommand = { kind: 'start'; input: StartInput } | { kind: 'cancel'; input: CancelInput };
 
 export const useRunsStore = defineStore('runs', () => {
   const snapshot = shallowRef<WorkSnapshot>();
   const connection = ref<'connecting' | 'connected' | 'unavailable'>('connecting');
-  const error = ref('');
+  const connectionError = ref('');
+  const commandError = ref('');
+  const error = computed(() => connectionError.value || commandError.value);
   const notice = ref('');
   const busy = ref(false);
   const pending = shallowRef<PendingCommand>();
@@ -51,17 +61,18 @@ export const useRunsStore = defineStore('runs', () => {
     if (current && current.epoch !== value.epoch) retiredEpochs.add(current.epoch);
     snapshot.value = value;
     connection.value = 'connected';
+    connectionError.value = '';
     updates++;
   }
 
   function unavailable(message: string) {
     unavailableGeneration = Math.max(unavailableGeneration, workGeneration);
     connection.value = 'unavailable';
-    error.value = message;
+    connectionError.value = message;
     updates++;
   }
 
-  function reject(reason: unknown) {
+  function reject(reason: unknown, source: 'connection' | 'command') {
     const message =
       reason instanceof Error
         ? reason.message
@@ -71,7 +82,8 @@ export const useRunsStore = defineStore('runs', () => {
             typeof reason.message === 'string'
           ? reason.message
           : '请求失败，请重试。';
-    error.value = message;
+    if (source === 'connection') connectionError.value = message;
+    else commandError.value = message;
     if (
       typeof reason === 'object' &&
       reason !== null &&
@@ -101,9 +113,9 @@ export const useRunsStore = defineStore('runs', () => {
       if (currentSession !== session || before !== updates) return;
       if (result.ok) {
         if (connection.value !== 'unavailable') accept(result.value);
-      } else reject(result.error);
+      } else reject(result.error, 'connection');
     } catch (reason) {
-      if (currentSession === session && before === updates) reject(reason);
+      if (currentSession === session && before === updates) reject(reason, 'connection');
     }
   }
 
@@ -113,7 +125,8 @@ export const useRunsStore = defineStore('runs', () => {
     api = bridge;
     connection.value = 'connecting';
     busy.value = false;
-    error.value = '';
+    connectionError.value = '';
+    commandError.value = '';
     workGeneration = -1;
     unavailableGeneration = -1;
     snapshot.value = undefined;
@@ -171,8 +184,8 @@ export const useRunsStore = defineStore('runs', () => {
           result.value.kind !== command.kind ||
           (command.kind === 'cancel' && result.value.runId !== command.input.runId))
       ) {
-        error.value = '指令回执与原指令不匹配。请查询原指令。';
-        updateBatch(command.input.commandId, 'unknown', error.value);
+        commandError.value = '指令回执与原指令不匹配。请查询原指令。';
+        updateBatch(command.input.commandId, 'unknown', commandError.value);
         return;
       }
       if (command)
@@ -199,7 +212,7 @@ export const useRunsStore = defineStore('runs', () => {
     if (result.error.code !== 'UNAVAILABLE' && result.error.code !== 'INTERNAL') {
       pending.value = undefined;
     }
-    reject(result.error);
+    reject(result.error, 'command');
   }
 
   async function send(command: PendingCommand) {
@@ -207,7 +220,7 @@ export const useRunsStore = defineStore('runs', () => {
     const currentSession = session;
     const bridge = api;
     busy.value = true;
-    error.value = '';
+    commandError.value = '';
     notice.value = '';
     pending.value = command;
     updateBatch(command.input.commandId, 'sending', '正在发送指令。');
@@ -221,8 +234,8 @@ export const useRunsStore = defineStore('runs', () => {
       await refresh();
     } catch (reason) {
       if (currentSession === session) {
-        reject(reason);
-        updateBatch(command.input.commandId, 'unknown', error.value);
+        reject(reason, 'command');
+        updateBatch(command.input.commandId, 'unknown', commandError.value);
       }
     } finally {
       if (currentSession === session) busy.value = false;
@@ -234,26 +247,32 @@ export const useRunsStore = defineStore('runs', () => {
     const command = pending.value;
     const currentSession = session;
     busy.value = true;
-    error.value = '';
+    commandError.value = '';
     try {
       const result = commandLookupResultSchema.parse(
         await api.work.getCommand({ commandId: command.input.commandId }),
       );
       if (currentSession !== session) return;
-      if (!result.ok) reject(result.error);
+      if (!result.ok) reject(result.error, 'command');
       else if (result.value.status === 'recorded') {
         received(result.value.receipt);
         await refresh();
       } else notice.value = '尚未查到该指令。可使用相同指令 ID 重试，不会自动创建第二个任务。';
     } catch (reason) {
-      if (currentSession === session) reject(reason);
+      if (currentSession === session) reject(reason, 'command');
     } finally {
       if (currentSession === session) busy.value = false;
     }
   }
 
   function start(deviceId: number) {
-    if (pending.value || batching.value || connection.value !== 'connected') return;
+    if (
+      pending.value ||
+      batching.value ||
+      connection.value !== 'connected' ||
+      deviceUnavailable(snapshot.value, deviceId)
+    )
+      return;
     return send({ kind: 'start', input: { commandId: crypto.randomUUID(), deviceId } });
   }
 
@@ -270,6 +289,13 @@ export const useRunsStore = defineStore('runs', () => {
     try {
       for (const item of batch.value) {
         if (currentSession !== session || pending.value || connection.value !== 'connected') break;
+        if (
+          item.command.kind === 'start' &&
+          deviceUnavailable(snapshot.value, item.command.input.deviceId)
+        ) {
+          updateBatch(item.command.input.commandId, 'rejected', '设备有活动任务或待清理资源。');
+          continue;
+        }
         await send(item.command);
       }
     } finally {

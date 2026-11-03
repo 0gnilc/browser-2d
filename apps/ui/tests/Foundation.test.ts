@@ -125,7 +125,10 @@ describe('scheduling screen', () => {
   it('starts with a numeric business device and treats the receipt as acceptance', async () => {
     const { wrapper, api, dispose } = fixture();
     await flushPromises();
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="task-device-select-7"] input').setValue(true);
+    await wrapper.get('[data-testid="start-run"]').trigger('click');
     await flushPromises();
     expect(api.work.start).toHaveBeenCalledWith({ commandId: expect.any(String), deviceId: 7 });
     expect(wrapper.find('[data-testid="duration-ms"]').exists()).toBe(false);
@@ -140,15 +143,19 @@ describe('scheduling screen', () => {
   it('creates an account-free fixture through the business API and selects its real ID', async () => {
     const { wrapper, api } = fixture();
     await flushPromises();
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
     await wrapper.get('[data-testid="create-fixture-device"]').trigger('click');
     await flushPromises();
     expect(api.devices.create).toHaveBeenCalledWith({
       symbol: expect.stringMatching(/^local-test-/),
       note: '本地验证测试设备，无真实账户。',
     });
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="start-run"]').trigger('click');
     await flushPromises();
     expect(api.work.start).toHaveBeenCalledWith({ commandId: expect.any(String), deviceId: 8 });
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
     await wrapper.get('[data-testid="devices-refresh"]').trigger('click');
     await flushPromises();
     expect(api.devices.list).toHaveBeenCalledTimes(2);
@@ -178,7 +185,7 @@ describe('scheduling screen', () => {
     emit({ ...initial, revision: 99 });
     await flushPromises();
     expect(wrapper.get('[data-testid="worker-pid"]').text()).toBe('5678');
-    expect(wrapper.get('[data-testid="run-table"]').text()).toContain(run.id);
+    expect(wrapper.find(`[data-testid="run-${run.id}"]`).exists()).toBe(true);
     wrapper.unmount();
   });
 
@@ -199,6 +206,8 @@ describe('scheduling screen', () => {
     expect(wrapper.get('[data-testid="connection-status"]').attributes('data-state')).toBe(
       'unavailable',
     );
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
     expect(wrapper.get('[data-testid="start-run"]').attributes('disabled')).toBeDefined();
     api.work.getSnapshot = async () => ({ ok: true, value: initial });
     await wrapper.get('[data-testid="refresh"]').trigger('click');
@@ -265,14 +274,16 @@ describe('scheduling screen', () => {
     });
     await flushPromises();
     for (const row of runs) {
-      expect(wrapper.get(`[data-testid="run-${row.id}"]`).text()).toContain('版本 4 · 2 页');
+      await wrapper.get(`[data-testid="run-details-${row.id}"]`).trigger('click');
+      await flushPromises();
+      expect(wrapper.text()).toContain('版本 4 · 2 页');
       expect(wrapper.find(`[data-testid="cancel-${row.id}"]`).exists()).toBe(
         ['queued', 'starting', 'running', 'stopping'].includes(row.state),
       );
     }
-    expect(wrapper.get(`[data-testid="resource-${operationId}"]`).text()).toContain(
-      'CLEANUP_FAILED',
-    );
+    expect(
+      wrapper.get(`[data-testid="resource-${operationId}"]`).element.closest('tr')?.textContent,
+    ).toContain('CLEANUP_FAILED');
     wrapper.unmount();
   });
 
@@ -283,10 +294,15 @@ describe('scheduling screen', () => {
     });
     api.work.start = start;
     await flushPromises();
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="task-device-select-7"] input').setValue(true);
+    await wrapper.get('[data-testid="start-run"]').trigger('click');
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('响应超时');
     const commandId = wrapper.get('[data-testid="command-id"]').text();
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
     expect(wrapper.get('[data-testid="start-run"]').attributes('disabled')).toBeDefined();
     await wrapper.get('[data-testid="query-command"]').trigger('click');
     await flushPromises();
@@ -296,7 +312,7 @@ describe('scheduling screen', () => {
     await flushPromises();
     expect(start).toHaveBeenCalledTimes(2);
     expect(start.mock.calls[0]).toEqual(start.mock.calls[1]);
-    expect(wrapper.get('[data-testid="run-table"]').text()).toContain('尚无运行记录');
+    expect(wrapper.get('[data-testid="run-table"]').text()).toContain('尚无匹配运行记录');
     wrapper.unmount();
   });
 
@@ -306,7 +322,10 @@ describe('scheduling screen', () => {
       throw new Error('响应丢失');
     });
     await flushPromises();
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="task-device-select-7"] input').setValue(true);
+    await wrapper.get('[data-testid="start-run"]').trigger('click');
     await flushPromises();
     const commandId = wrapper.get('[data-testid="command-id"]').text();
     api.work.getCommand = async () => ({
@@ -347,12 +366,17 @@ describe('scheduling screen', () => {
       },
     });
     await flushPromises();
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="task-device-select-7"] input').setValue(true);
+    await wrapper.get('[data-testid="start-run"]').trigger('click');
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('指令回执与原指令不匹配');
     expect(wrapper.get('[data-testid="command-id"]').text()).not.toBe(
       '22222222-2222-4222-8222-222222222222',
     );
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
     expect(wrapper.get('[data-testid="start-run"]').attributes('disabled')).toBeDefined();
     wrapper.unmount();
   });
@@ -531,6 +555,68 @@ describe('scheduling screen', () => {
     disconnect();
   });
 
+  it('keeps task details live through subscription updates and closes when a run leaves the snapshot', async () => {
+    const { wrapper, emit } = fixture();
+    await flushPromises();
+    emit({ ...initial, revision: 1, runs: [run] });
+    await flushPromises();
+    await wrapper.get(`[data-testid="run-details-${run.id}"]`).trigger('click');
+    await flushPromises();
+    expect(wrapper.find('.el-descriptions').text()).toContain('运行中');
+    emit({
+      ...initial,
+      revision: 2,
+      runs: [
+        { ...run, state: 'completed', outcome: 'completed', updatedAt: '2026-10-30T12:01:00.000Z' },
+      ],
+    });
+    await flushPromises();
+    expect(wrapper.find('.el-descriptions').text()).toContain('已完成');
+    expect(wrapper.find('.el-descriptions').text()).toContain('completed');
+    emit({ ...initial, revision: 3, runs: [] });
+    await flushPromises();
+    expect(wrapper.find('.el-descriptions').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('blocks terminal resource-held devices in list actions, editor actions and task selection', async () => {
+    const { wrapper, router, emit, api, store } = fixture();
+    await flushPromises();
+    emit({
+      ...initial,
+      revision: 1,
+      runs: [{ ...run, state: 'completed', outcome: 'completed' }],
+      resources: [
+        {
+          operationId: crypto.randomUUID(),
+          runId: run.id,
+          deviceId: 7,
+          pages: 2,
+          state: 'release-pending',
+          ownership: 'owned',
+          failure: 'CLEANUP_FAILED',
+        },
+      ],
+    });
+    await flushPromises();
+    await router.push('/devices');
+    await flushPromises();
+    for (const action of ['start', 'edit', 'delete'])
+      expect(
+        wrapper.get(`[data-testid="device-${action}-7"]`).attributes('disabled'),
+      ).toBeDefined();
+    await store.start(7);
+    expect(api.work.start).not.toHaveBeenCalled();
+    await router.push('/');
+    await flushPromises();
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
+    expect(
+      wrapper.get('[data-testid="task-device-select-7"] input').attributes('disabled'),
+    ).toBeDefined();
+    wrapper.unmount();
+  });
+
   it('keeps the development fixture explicitly unavailable', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
@@ -547,6 +633,8 @@ describe('scheduling screen', () => {
     expect(wrapper.get('[data-testid="devices-error"]').text()).toContain(
       '界面预览不连接业务数据库',
     );
+    await wrapper.get('[data-testid="task-new"]').trigger('click');
+    await flushPromises();
     expect(wrapper.get('[data-testid="start-run"]').attributes('disabled')).toBeDefined();
     wrapper.unmount();
   });

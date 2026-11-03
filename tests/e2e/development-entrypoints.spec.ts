@@ -106,16 +106,17 @@ test('dev:ui serves fixture-only routes in Chrome and shuts down its server', as
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.goto(url);
-    await expect(page.getByTestId('controlled-mode')).toContainText(
-      '界面预览 · 调度与业务功能不可用',
-    );
+    await expect(page.getByTestId('controlled-mode')).toContainText('界面预览，业务不可用');
     await expect(page.getByTestId('connection-status')).toHaveAttribute(
       'data-state',
       'unavailable',
     );
     await expect(page.getByTestId('worker-pid')).toHaveText('—');
     await expect(page.getByTestId('devices-error')).toContainText('UNAVAILABLE');
+    await page.getByTestId('task-new').click();
     await expect(page.getByTestId('start-run')).toBeDisabled();
+    await page.getByRole('button', { name: '关闭此对话框', exact: true }).click();
+    await page.getByText('运行详情', { exact: true }).click();
     await page.getByTestId('refresh').click();
     await expect(page.getByRole('alert').filter({ hasText: '未连接调度器' })).toBeVisible();
     expect(

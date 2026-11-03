@@ -20,6 +20,7 @@ test('business screens save through the real bridge and display refreshed record
   try {
     const page = await application.firstWindow();
     await page.getByTestId('nav-devices').click();
+    await page.getByTestId('device-new').click();
     await expect(page.getByTestId('device-save')).toBeEnabled();
     await page.getByTestId('device-symbol').fill('ui-fixture-device');
     await page.getByTestId('device-amount').fill('0');
@@ -27,15 +28,17 @@ test('business screens save through the real bridge and display refreshed record
     await expect(page.getByTestId('devices-table')).toContainText('ui-fixture-device');
     await page.screenshot({ path: testInfo.outputPath('devices.png'), fullPage: true });
     await page.getByTestId('nav-materials').click();
+    await page.getByTestId('material-import-open').click();
     await expect(page.getByTestId('material-import')).toBeEnabled();
     await page.getByTestId('material-import-text').fill('0000000000000009|09|2030|000\ninvalid');
     await page.getByTestId('material-import').click();
     await expect(page.getByTestId('import-report')).toContainText('实际提交 1 条');
     await expect(page.getByTestId('import-line-2')).toContainText('无效');
     await page.getByTestId('material-filter-status').click();
-    await page.locator('.n-base-select-option').getByText('0', { exact: true }).click();
+    await page.getByRole('option').getByText('0', { exact: true }).click();
     await page.getByTestId('material-filter-submit').click();
-    await expect(page.getByTestId('materials-table')).toContainText('0000000000000009');
+    await expect(page.getByTestId('materials-table')).toContainText('•••• 0009');
+    await expect(page.getByTestId('materials-table')).not.toContainText('0000000000000009');
     await page.screenshot({ path: testInfo.outputPath('materials.png'), fullPage: true });
     await page.getByTestId('nav-history').click();
     await expect(page.getByTestId('history-export')).toBeEnabled();
@@ -45,16 +48,13 @@ test('business screens save through the real bridge and display refreshed record
     await expect(page.getByTestId('settings-save')).toBeEnabled();
     await expect(page.getByTestId('settings-browser-mode')).toContainText('启动新 Chrome');
     await page.getByTestId('settings-browser-mode').click();
-    await page
-      .locator('.n-base-select-option')
-      .getByText('连接现有 Chrome', { exact: true })
-      .click();
+    await page.getByRole('option').getByText('连接现有 Chrome', { exact: true }).click();
     await page.getByTestId('settings-endpoint').fill('http://127.0.0.1:9222');
-    await page.getByTestId('settings-width').fill('900');
+    await page.getByTestId('settings-width').getByRole('spinbutton').fill('900');
     await page.getByTestId('settings-save').click();
     await expect(page.getByTestId('settings-saved')).toBeVisible();
     await page.getByTestId('settings-reload').click();
-    await expect(page.getByTestId('settings-width')).toHaveValue('900');
+    await expect(page.getByTestId('settings-width').getByRole('spinbutton')).toHaveValue('900');
     await page.screenshot({ path: testInfo.outputPath('settings.png'), fullPage: true });
     await page.getByTestId('nav-devices').click();
     await expect(page.getByTestId('devices-table')).toContainText('ui-fixture-device');

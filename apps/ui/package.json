@@ -7,10 +7,11 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "naive-ui": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",
-    "vue-router": "catalog:"
+    "vue-router": "catalog:",
+    "element-plus": "catalog:",
+    "@element-plus/icons-vue": "catalog:"
   },
   "devDependencies": {
     "@browser-2d/contracts": "workspace:*",
@@ -20,6 +21,7 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "vue-tsc": "catalog:"
+    "vue-tsc": "catalog:",
+    "tailwindcss": "catalog:"
   }
 }
