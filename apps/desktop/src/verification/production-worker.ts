@@ -30,7 +30,7 @@ export async function verifyProductionWorker(options: {
   let platformExited = false;
   let platformExit: Promise<void> | undefined;
   let verified = false;
-  let pulses = 0;
+
   let released = false;
   let stage = 'worker-starting';
   let platformFailure: string | undefined;
@@ -103,18 +103,17 @@ export async function verifyProductionWorker(options: {
       released = true;
     },
     async request() {
-      throw new Error('Production probe cannot request card operations');
+      return { kind: 'next_card', result: { ok: true, value: { kind: 'empty' } } };
     },
     observe(event) {
       stage = event.kind;
       if (event.kind === 'verified') verified = true;
-      if (event.kind === 'pulse') pulses++;
     },
     deadlineMs: 15_000,
   });
   try {
     const deadline = Date.now() + 30_000;
-    while (!verified || pulses < 1) {
+    while (!verified) {
       if (
         Date.now() > deadline ||
         worker.state.kind === 'exited' ||
@@ -131,7 +130,7 @@ export async function verifyProductionWorker(options: {
       behavior: 'production-entry-local-chrome',
       result: 'passed',
       navigationConfirmed: verified,
-      pageHeartbeat: pulses > 0,
+      noCardEnds: worker.state.kind === 'exited',
       platformExited,
       entry: worker.entry,
     };

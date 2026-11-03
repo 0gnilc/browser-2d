@@ -1,7 +1,7 @@
 import { isAbsolute } from 'node:path';
 
 export function isolatedProcessEnvironment(
-  role: 'browser-worker' | 'test-browser-platform' | 'verification',
+  role: 'data-service' | 'browser-worker' | 'test-browser-platform' | 'verification',
 ): Record<string, string> {
   const environment: Record<string, string> = { BROWSER2D_ROLE: role };
   if (process.platform === 'win32') {

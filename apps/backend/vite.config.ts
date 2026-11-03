@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   define: {
-    __BUSINESS_MIGRATIONS__: '__dirname + "/migrations/business"',
+    __APPLICATION_MIGRATIONS__: '__dirname + "/migrations/application"',
     'import.meta.url': 'undefined',
   },
   build: {
@@ -14,8 +14,10 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        'data-service': 'src/data-service.ts',
+        'data-service': 'src/data-service/entry.ts',
         'browser-worker': 'src/browser-worker/entry.ts',
+        'verification/card-worker': 'tests/process/card-worker.ts',
+        'verification/application-data-service': 'tests/process/application-data-service.ts',
         'verification/browser-worker': 'tests/process/browser-worker.ts',
         'verification/data-service': 'tests/process/data-service.ts',
         'verification/browser-platform': 'tests/process/browser-platform.ts',

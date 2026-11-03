@@ -11,7 +11,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { workerOwnerSchema } from '@browser-2d/contracts/host';
+import { z } from 'zod';
+const workerOwnerSchema = z.strictObject({
+  format: z.literal(1),
+  hostPid: z.number().int().positive(),
+  pid: z.number().int().positive().nullable(),
+  ownerNonce: z.uuid(),
+});
 
 function absent(pid: number) {
   try {

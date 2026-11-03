@@ -13,6 +13,8 @@ import {
   executionNonceSchema,
   type TaskProcessEvent,
 } from '@browser-2d/contracts/host';
+import { verifyCrashRecovery } from './crash-owner';
+import { verifyApplicationProcesses } from './application-process';
 import { verifyProductionWorker } from './production-worker';
 import { superviseTask, type TaskOptions } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
@@ -141,6 +143,7 @@ export async function verifyTaskProcesses(reportPath: string) {
       async request() {
         requests++;
         await dbRequest('read');
+        return { kind: 'next_card', result: { ok: true, value: { kind: 'empty' } } };
       },
       ...change,
       observe(event) {
@@ -459,6 +462,8 @@ export async function verifyTaskProcesses(reportPath: string) {
         },
       }),
     );
+    reports.push(...(await verifyApplicationProcesses(directory, runtime)));
+    reports.push(...(await verifyCrashRecovery(directory, runtime)));
     await writeFile(
       reportPath,
       JSON.stringify(

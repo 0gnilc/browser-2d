@@ -88,6 +88,9 @@ export function createCredentialVault(options: {
         }
       });
     },
+    resolve(ref: SecretRef): Promise<string> {
+      return serialized(() => read(ref));
+    },
     verify(ref: SecretRef): Promise<void> {
       return serialized(async () => {
         await read(ref);

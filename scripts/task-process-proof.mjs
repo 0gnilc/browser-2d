@@ -16,7 +16,7 @@ export async function verifyTaskProcessExecutable(executable, options) {
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error('Task process verification timeout'));
-    }, 90_000);
+    }, 240_000);
     child.once('error', (error) => {
       clearTimeout(timer);
       reject(error);

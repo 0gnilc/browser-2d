@@ -1,0 +1,286 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { app, utilityProcess } from 'electron';
+import type { Result, BrowserId } from '@browser-2d/contracts/public';
+import type { SessionFingerprint } from '@browser-2d/contracts/host';
+import { launchDataService } from '../main/data-service-client';
+import { createTaskCoordinator } from '../main/task-coordinator';
+import { superviseTask } from '../main/task-supervisor';
+import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
+import type {
+  BrowserPlatform,
+  StartOutcome,
+  CloseOutcome,
+} from '../main/browser-platforms/adspower';
+function value<T>(result: Result<T>): T {
+  assert(result.ok, JSON.stringify(result));
+  return result.value;
+}
+async function until(check: () => Promise<boolean> | boolean, label: string) {
+  const deadline = Date.now() + 20_000;
+  while (!(await check())) {
+    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${label}`);
+    await delay(10);
+  }
+}
+export async function verifyApplicationProcesses(directory: string, runtime: string) {
+  const root = join(directory, 'application');
+  await mkdir(root, { recursive: true });
+  const behaviors = new Map<string, string>();
+  const sessions = new Map<string, SessionFingerprint>();
+  const closeFailures = new Set<string>();
+  const unknownStarts = new Set<string>();
+  const lateStarts = new Map<string, () => void>();
+  const launchCounts = new Map<BrowserId, number>();
+  const claimedNumbers = new Map<BrowserId, string>();
+  let deferStart: string | undefined;
+  let coordinator: ReturnType<typeof createTaskCoordinator>;
+  const data = launchDataService({
+    dataPath: join(root, 'app.sqlite'),
+    entry: join(runtime, 'verification/application-data-service.cjs'),
+    nativeBinding: app.isPackaged ? undefined : process.env.BROWSER2D_NATIVE_BINDING,
+    onChanged() {},
+    onUnavailable() {
+      coordinator?.unavailable();
+    },
+  });
+  const platform: BrowserPlatform = {
+    inspect: async (profileId) =>
+      sessions.has(profileId)
+        ? { kind: 'active', endpoint: sessions.get(profileId)?.endpoint ?? null }
+        : { kind: 'inactive' },
+    async start(profileId): Promise<StartOutcome> {
+      if (deferStart === profileId)
+        await new Promise<void>((resolve) => lateStarts.set(profileId, resolve));
+      if (unknownStarts.has(profileId))
+        return { kind: 'uncertain', message: 'Fixture lost start response' };
+      const id = randomUUID();
+      const session = { endpoint: `ws://127.0.0.1:1/devtools/browser/${id}`, browserTargetId: id };
+      sessions.set(profileId, session);
+      return { kind: 'opened', session };
+    },
+    async closeOwned({ profileId, session }): Promise<CloseOutcome> {
+      if (closeFailures.has(profileId))
+        return { kind: 'uncertain', message: 'Fixture close failure' };
+      if (sessions.get(profileId)?.endpoint !== session.endpoint)
+        return { kind: 'foreign_session', message: 'Replacement preserved' };
+      sessions.delete(profileId);
+      return { kind: 'closed', session };
+    },
+  };
+  const options = {
+    data,
+    ownershipDirectory: join(root, 'execution-owners'),
+    connection: async () => ({ apiBaseUrl: 'http://127.0.0.1:1', apiKey: 'isolated-test-only' }),
+    changed() {},
+    platform: () => platform,
+    spawn(task: Parameters<typeof superviseTask>[2]) {
+      launchCounts.set(task.browser.id, (launchCounts.get(task.browser.id) ?? 0) + 1);
+      const entry = join(runtime, 'verification/card-worker.cjs');
+      const child = utilityProcess.fork(entry, [behaviors.get(task.browser.profileId) ?? 'cards'], {
+        env: isolatedProcessEnvironment('verification'),
+      });
+      return superviseTask(child, entry, {
+        ...task,
+        async request(request, sequence) {
+          const reply = await task.request(request, sequence);
+          if (
+            reply.kind === 'next_card' &&
+            reply.result.ok &&
+            reply.result.value.kind === 'claimed'
+          )
+            claimedNumbers.set(task.browser.id, reply.result.value.claim.card.number);
+          return reply;
+        },
+      });
+    },
+  };
+  const reports: object[] = [];
+  const controls: ReturnType<typeof createTaskCoordinator>[] = [];
+  async function browser(profileId: string) {
+    return value(
+      await data.request('browsers.create', {
+        provider: 'adspower',
+        profileId,
+        name: profileId,
+        account: 'snapshot-input',
+        amount: '0.29',
+        notes: '',
+      }),
+    );
+  }
+  async function importCards(...numbers: string[]) {
+    value(
+      await data.request('cards.importText', {
+        text: numbers.map((number) => `${number}|01|2030|000|||||||`).join('\n'),
+      }),
+    );
+  }
+  async function cards() {
+    return value(await data.request('cards.list', { page: 1, pageSize: 200 })).items;
+  }
+  async function emptyTasks() {
+    return value(await data.request('tasks.list', undefined)).length === 0;
+  }
+  try {
+    await data.ready;
+    coordinator = createTaskCoordinator(options);
+    controls.push(coordinator);
+    await coordinator.recover();
+    const sequential = await browser('sequential');
+    await importCards('A', 'B', 'C');
+    const accepted = value(await coordinator.start({ browserId: sequential.id }));
+    assert.equal(value(await coordinator.start({ browserId: sequential.id })).id, accepted.id);
+    await until(emptyTasks, 'three sequential Cards exhausted and cleaned');
+    assert.deepEqual(
+      (await cards()).map((card) => [card.number, card.status, card.amount, card.extra]),
+      ['A', 'B', 'C'].map((number) => [number, 'processed', '1.00', 'controlled-committed']),
+    );
+    assert.equal(
+      value(await data.request('browsers.list', undefined)).find((row) => row.id === sequential.id)
+        ?.count,
+      3,
+    );
+    assert.equal(launchCounts.get(sequential.id), 1);
+    assert.equal(sessions.size, 0);
+    reports.push({ behavior: 'real-data-service-three-cards-one-worker-replay', result: 'passed' });
+
+    const selected = await browser('selected');
+    const peer = await browser('peer');
+    const queued = await browser('queued');
+    behaviors.set('selected', 'cards-cpu-loop');
+    behaviors.set('peer', 'cards-hold');
+    await importCards('D', 'E', 'F');
+    value(await coordinator.start({ browserId: selected.id }));
+    value(await coordinator.start({ browserId: peer.id }));
+    value(await coordinator.start({ browserId: queued.id }));
+    await until(
+      async () =>
+        (await cards()).filter((card) => card.status === 'processing' && card.amount === '1.00')
+          .length === 2,
+      'two committed current Cards',
+    );
+    assert.equal(launchCounts.get(queued.id), undefined);
+    assert.equal(value(await coordinator.stop({ browserId: queued.id })).kind, 'stopped');
+    const stop = coordinator.stop({ browserId: selected.id });
+    assert.equal(coordinator.live.find((entry) => entry.taskId !== accepted.id)?.gate, 'stopping');
+    assert.equal(
+      value(await coordinator.list()).find((entry) => entry.browserId === selected.id)?.state,
+      'stopping',
+    );
+    const repeated = coordinator.stop({ browserId: selected.id });
+    assert.equal(value(await stop).kind, 'stopped');
+    assert.equal(value(await repeated).kind, 'stopped');
+    const afterStop = await cards();
+    assert.equal(
+      afterStop.find((card) => card.number === claimedNumbers.get(selected.id))?.status,
+      'pending',
+    );
+    assert.equal(
+      afterStop.find((card) => card.number === claimedNumbers.get(selected.id))?.amount,
+      '1.00',
+    );
+    assert.equal(
+      afterStop.find((card) => card.number === claimedNumbers.get(peer.id))?.status,
+      'processing',
+    );
+    assert(sessions.has('peer'));
+    const free = afterStop.find((card) => card.number === 'F');
+    assert(free);
+    value(
+      await data.request('cards.update', {
+        id: free.id,
+        notes: 'DataService progresses after selected CPU loop stop',
+      }),
+    );
+    assert.equal(value(await coordinator.stop({ browserId: peer.id })).kind, 'stopped');
+    behaviors.set('selected', 'cards');
+    value(await coordinator.start({ browserId: selected.id }));
+    await until(emptyTasks, 'reclaimed Cards finish');
+    assert((await cards()).every((card) => card.amount === '1.00'));
+    assert.equal(
+      value(await data.request('browsers.list', undefined)).find((row) => row.id === selected.id)
+        ?.count,
+      3,
+    );
+    assert.equal(launchCounts.get(queued.id), undefined);
+    reports.push({
+      behavior: 'real-card-cpu-stop-peer-progress-fifo-no-fork-reclaim-dedupe',
+      result: 'passed',
+    });
+
+    const failed = await browser('close-failure');
+    behaviors.set(failed.profileId, 'cards-hold');
+    closeFailures.add(failed.profileId);
+    await importCards('G');
+    value(await coordinator.start({ browserId: failed.id }));
+    await until(
+      async () =>
+        (await cards()).some(
+          (card) => card.number === 'G' && card.extra === 'controlled-committed',
+        ),
+      'close failure current Card',
+    );
+    assert.equal(value(await coordinator.stop({ browserId: failed.id })).kind, 'recovery_required');
+    assert.equal((await cards()).find((card) => card.number === 'G')?.status, 'processing');
+    closeFailures.delete(failed.profileId);
+    const retry = value(await coordinator.stop({ browserId: failed.id }));
+    assert.equal(retry.kind, 'stopped', JSON.stringify({ retry, live: coordinator.live }));
+    assert.equal((await cards()).find((card) => card.number === 'G')?.status, 'pending');
+    reports.push({ behavior: 'real-card-close-failure-retains-claim-retry', result: 'passed' });
+
+    const late = await browser('late-start');
+    deferStart = late.profileId;
+    value(await coordinator.start({ browserId: late.id }));
+    await until(() => lateStarts.has(late.profileId), 'start request in flight');
+    const lateStop = coordinator.stop({ browserId: late.id });
+    assert(
+      value(await data.request('tasks.list', undefined)).some((task) => task.browserId === late.id),
+    );
+    lateStarts.get(late.profileId)?.();
+    deferStart = undefined;
+    assert.equal(value(await lateStop).kind, 'stopped');
+    assert(!sessions.has(late.profileId));
+    reports.push({
+      behavior: 'real-data-service-late-start-settles-before-release',
+      result: 'passed',
+    });
+
+    const unknown = await browser('unknown-start');
+    unknownStarts.add(unknown.profileId);
+    value(await coordinator.start({ browserId: unknown.id }));
+    await until(
+      async () =>
+        value(await data.request('tasks.list', undefined)).some(
+          (task) => task.browserId === unknown.id && task.state === 'recovery_required',
+        ),
+      'uncertain start retained',
+    );
+    assert.equal(
+      value(await coordinator.stop({ browserId: unknown.id })).kind,
+      'recovery_required',
+    );
+    const unknownTask = value(await data.request('tasks.list', undefined)).find(
+      (task) => task.browserId === unknown.id,
+    );
+    assert(unknownTask);
+    const replacement = createTaskCoordinator(options);
+    controls.push(replacement);
+    await replacement.recover();
+    assert(
+      value(await data.request('tasks.list', undefined)).some(
+        (task) => task.id === unknownTask.id && task.state === 'recovery_required',
+      ),
+    );
+    assert.equal(launchCounts.get(unknown.id), 1);
+    reports.push({ behavior: 'unknown-start-retained-without-replay', result: 'passed' });
+    return reports;
+  } finally {
+    // The deliberately unresolved start has no live execution or browser and must retain its DB reservation.
+    for (const control of controls) control.unavailable();
+    await data.close();
+  }
+}
