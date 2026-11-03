@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import asar from '@electron/asar';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import path, { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
@@ -26,6 +27,51 @@ import {
 } from './release-verify.mjs';
 import { prepareRelease, recheckReceipt } from './release-prepare.mjs';
 import builderConfiguration from '../../apps/desktop/electron-builder.config.mjs';
+import { extractArchiveFile } from '../packaging/archive.mjs';
+
+for (const platform of ['native', 'Windows']) {
+  test(`archive reads preserve nested files with ${platform} path semantics`, async (t) => {
+    const directory = await mkdtemp(join(tmpdir(), 'browser-2d-archive-test-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const source = join(directory, 'source');
+    const archive = join(directory, 'app.asar');
+    const files = [
+      'package.json',
+      'node_modules/@browser-2d/backend/dist/.vite/manifest.json',
+      'node_modules/@browser-2d/backend/dist/browser-worker.cjs',
+      'node_modules/@browser-2d/backend/dist/chunks/automation.cjs',
+      'node_modules/@browser-2d/backend/dist/migrations/application/001-application.sql',
+      'dist/main/index.cjs',
+      'dist/preload/index.cjs',
+    ];
+    for (const file of files) {
+      await mkdir(dirname(join(source, file)), { recursive: true });
+      await writeFile(join(source, file), `contents of ${file}`);
+    }
+    await asar.createPackage(source, archive);
+    const separator = path.sep;
+    try {
+      if (platform === 'Windows') {
+        // Keep host filesystem resolution while exercising ASAR's real Windows traversal.
+        for (const key of ['dirname', 'basename', 'join', 'normalize'])
+          t.mock.method(path, key, path.win32[key]);
+        path.sep = path.win32.sep;
+        syncBuiltinESMExports();
+      }
+      for (const file of files)
+        assert.equal(extractArchiveFile(archive, file).toString('utf8'), `contents of ${file}`);
+      assert.throws(
+        () => extractArchiveFile(archive, 'dist/missing.cjs'),
+        /was not found in this archive/,
+      );
+    } finally {
+      t.mock.restoreAll();
+      path.sep = separator;
+      syncBuiltinESMExports();
+      asar.uncache(archive);
+    }
+  });
+}
 
 test('builder receives the installed updater version instead of the pnpm catalog protocol', async () => {
   const installed = JSON.parse(

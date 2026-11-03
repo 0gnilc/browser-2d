@@ -21,6 +21,7 @@ import { root } from '../process.mjs';
 import { desktopRequire } from '../testing/native.mjs';
 import { runtimeArtifacts, assertBundledWorkspace } from '../checks/runtime-artifacts.mjs';
 import { verifyTaskProcessExecutable } from '../testing/task-process-proof.mjs';
+import { extractArchiveFile } from './archive.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
   pathToFileURL(desktopRequire.resolve('@electron/fuses')).href
@@ -85,15 +86,15 @@ const archive =
     : join(installedApp, 'resources/app.asar');
 const backendPrefix = '/node_modules/@browser-2d/backend';
 const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
-const packagedManifest = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
+const packagedManifest = JSON.parse(extractArchiveFile(archive, 'package.json').toString('utf8'));
 const runtimeManifest = JSON.parse(
-  asar
-    .extractFile(archive, join(backendPrefix.slice(1), 'dist/.vite/manifest.json'))
-    .toString('utf8'),
+  extractArchiveFile(archive, join(backendPrefix.slice(1), 'dist/.vite/manifest.json')).toString(
+    'utf8',
+  ),
 );
 for (const file of runtimeArtifacts(runtimeManifest)) {
   assertBundledWorkspace(
-    asar.extractFile(archive, `${backendPrefix.slice(1)}/dist/${file}`).toString('utf8'),
+    extractArchiveFile(archive, `${backendPrefix.slice(1)}/dist/${file}`).toString('utf8'),
     file,
   );
   assert(
@@ -111,7 +112,7 @@ assert(
 );
 const migration = `${backendPrefix.slice(1)}/dist/migrations/application/001-application.sql`;
 assert.deepEqual(
-  asar.extractFile(archive, migration),
+  extractArchiveFile(archive, migration),
   await readFile(join(root, 'apps/backend/migrations/application/001-application.sql')),
   'Packaged application migration differs from source',
 );
@@ -121,7 +122,7 @@ assert(
 );
 assert.equal(packagedManifest.name, '@browser-2d/desktop');
 for (const path of ['dist/main/index.cjs', 'dist/preload/index.cjs'])
-  assertBundledWorkspace(asar.extractFile(archive, path).toString('utf8'), path);
+  assertBundledWorkspace(extractArchiveFile(archive, path).toString('utf8'), path);
 for (const entry of archiveFiles) {
   if (!entry.startsWith('/node_modules/@browser-2d/')) continue;
   assert(
