@@ -10,11 +10,13 @@ import {
   type DataMethod,
   type DataInput,
   type DataResult,
+  type PreparedTask,
   type SessionFingerprint,
 } from '@browser-2d/contracts/host';
 import type { DataClient } from '../main/data-service-client';
 import { launchDataService } from '../main/data-service-client';
 import { createTaskCoordinator } from '../main/task-coordinator';
+import { createExecutionOwnership } from '../main/execution-ownership';
 import { superviseTask } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
 import type {
@@ -79,6 +81,8 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     },
   };
   const heldFences = new Map<string, Promise<void>>();
+  const lostReleaseReplies = new Set<string>();
+  const failedWitnessRemovals = new Set<string>();
   const coordinatorData: DataClient = {
     get available() {
       return data.available;
@@ -86,7 +90,16 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     async request<M extends DataMethod>(method: M, input: DataInput<M>): Promise<DataResult<M>> {
       if (method === 'tasks.fence')
         await heldFences.get(dataOperations['tasks.fence'].input.parse(input).taskId);
-      return data.request(method, input);
+      const result = await data.request(method, input);
+      if (
+        method === 'tasks.finish' &&
+        result.ok &&
+        lostReleaseReplies.delete(
+          dataOperations['tasks.finish'].input.parse(input).execution.taskId,
+        )
+      )
+        throw new Error('Fixture lost committed release acknowledgment');
+      return result;
     },
   };
   const options = {
@@ -95,6 +108,13 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     connection: async () => ({ apiBaseUrl: 'http://127.0.0.1:1', apiKey: 'isolated-test-only' }),
     changed() {},
     platform: () => platform,
+    checkpoint(point: string, task: PreparedTask) {
+      if (
+        point === 'post-release-pre-unlink' &&
+        failedWitnessRemovals.delete(task.browser.profileId)
+      )
+        throw new Error('Fixture failed witness removal after committed release');
+    },
     spawn(task: Parameters<typeof superviseTask>[2]) {
       launchCounts.set(task.browser.id, (launchCounts.get(task.browser.id) ?? 0) + 1);
       const entry = join(runtime, 'verification/card-worker.cjs');
@@ -249,6 +269,74 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     assert.equal(retry.kind, 'stopped', JSON.stringify({ retry, live: coordinator.live }));
     assert.equal((await cards()).find((card) => card.number === 'G')?.status, 'pending');
     reports.push({ behavior: 'real-card-close-failure-retains-claim-retry', result: 'passed' });
+
+    const ownership = createExecutionOwnership(options.ownershipDirectory);
+    for (const fault of ['lost-release-reply', 'failed-witness-removal']) {
+      const released = await browser(fault);
+      behaviors.set(released.profileId, 'cards-hold');
+      const oldTask = value(await coordinator.start({ browserId: released.id }));
+      await until(
+        async () =>
+          (await cards()).some(
+            (card) => card.status === 'processing' && card.extra === 'controlled-committed',
+          ),
+        `${fault} committed current Card`,
+      );
+      const committed = (await cards()).find((card) => card.status === 'processing');
+      assert(committed);
+      const count = value(await data.request('browsers.list', undefined)).find(
+        (row) => row.id === released.id,
+      )?.count;
+      if (fault === 'lost-release-reply') lostReleaseReplies.add(oldTask.id);
+      else failedWitnessRemovals.add(released.profileId);
+      assert.equal(
+        value(await coordinator.stop({ browserId: released.id })).kind,
+        'recovery_required',
+      );
+      assert(await emptyTasks(), 'release committed before the injected failure');
+      const reclaimed = (await cards()).find((card) => card.id === committed.id);
+      assert.deepEqual(
+        reclaimed && { ...reclaimed, status: committed.status, updatedAt: committed.updatedAt },
+        committed,
+      );
+      assert.equal(reclaimed?.status, 'pending');
+      assert(ownership.list().some((witness) => witness.execution.taskId === oldTask.id));
+      const raw = value(await data.request('browsers.list', undefined));
+      assert.equal(raw.find((row) => row.id === released.id)?.count, count);
+      assert.equal(raw.find((row) => row.id === released.id)?.status, 'idle');
+      assert.equal(
+        coordinator.projectBrowsers(raw).find((row) => row.id === released.id)?.status,
+        'recovery_required',
+      );
+      const startDuringCleanup = await coordinator.start({ browserId: released.id });
+      const retry = value(await coordinator.stop({ browserId: released.id }));
+      assert.deepEqual(
+        { startBlocked: !startDuringCleanup.ok, retry: retry.kind },
+        { startBlocked: true, retry: 'stopped' },
+        `${fault} must reconcile the old release before accepting a replacement`,
+      );
+      assert(!ownership.list().some((witness) => witness.execution.taskId === oldTask.id));
+      assert(!coordinator.live.some((entry) => entry.taskId === oldTask.id));
+      assert.equal(
+        coordinator
+          .projectBrowsers(value(await data.request('browsers.list', undefined)))
+          .find((row) => row.id === released.id)?.status,
+        'idle',
+      );
+      const fresh = value(await coordinator.start({ browserId: released.id }));
+      assert.notEqual(fresh.id, oldTask.id);
+      await until(
+        () =>
+          coordinator.live.some(
+            (entry) => entry.taskId === fresh.id && entry.state?.kind === 'running',
+          ),
+        `${fault} replacement running`,
+      );
+      assert.equal(value(await coordinator.start({ browserId: released.id })).id, fresh.id);
+      assert.equal(value(await coordinator.stop({ browserId: released.id })).kind, 'stopped');
+      assert(await emptyTasks());
+      reports.push({ behavior: `real-data-service-${fault}-retry`, result: 'passed' });
+    }
 
     const fenced = await browser('fence-pending');
     behaviors.set(fenced.profileId, 'cards-hold');
