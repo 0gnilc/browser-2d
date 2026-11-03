@@ -11,6 +11,7 @@ const require = createRequire(resolve('apps/backend/package.json'));
 
 test('standalone UI uses the unavailable desktop boundary and preserves a rejected draft', async () => {
   const child = spawn(process.execPath, ['scripts/dev/dev-ui.mjs'], {
+    env: { ...process.env, FORCE_COLOR: '1', NO_COLOR: undefined },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
