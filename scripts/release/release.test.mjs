@@ -42,6 +42,13 @@ test('builder receives the installed updater version instead of the pnpm catalog
   );
 });
 
+test('Linux distribution packages use a package-safe identity distinct from their display name', () => {
+  assert.equal(builderConfiguration.productName, 'Browser 2D');
+  assert.equal(builderConfiguration.linux.packageName, identity.executableName);
+  assert.match(builderConfiguration.linux.packageName, /^[a-z0-9][a-z0-9+.-]+$/);
+  assert.deepEqual(builderConfiguration.linux.target, ['AppImage', 'deb', 'rpm']);
+});
+
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-release-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
