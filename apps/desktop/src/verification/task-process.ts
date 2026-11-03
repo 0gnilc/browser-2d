@@ -373,8 +373,10 @@ export async function verifyTaskProcesses(reportPath: string) {
     let releaseCloseCalls = 0;
     let releaseCalls = 0;
     let released = false;
+    const releaseFence = dbRequest('write').then(() => undefined);
     const pendingRelease = launch('healthy', {
       deadlineMs: 100,
+      fence: () => releaseFence,
       environment: {
         async open() {
           return {
@@ -399,6 +401,7 @@ export async function verifyTaskProcesses(reportPath: string) {
       },
     });
     await until(() => pendingRelease.worker.state.kind === 'running', 'pending release ready');
+    await releaseFence;
     const firstRelease = pendingRelease.worker.stop();
     await releaseStarted.promise;
     await pendingRelease.worker.exited;
