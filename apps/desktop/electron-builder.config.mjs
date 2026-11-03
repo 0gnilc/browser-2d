@@ -36,7 +36,7 @@ export default {
   files: [
     'dist/**',
     'package.json',
-    '!node_modules/@browser-2d/worker-runtime/!(dist|package.json){,/**}',
+    '!node_modules/@browser-2d/backend/!(dist|package.json){,/**}',
   ],
   directories: { output: process.env.BROWSER2D_RELEASE_DIR || '../../release/local' },
   artifactName: 'browser-2d-foundation-${version}-${os}-${arch}.${ext}',

@@ -8,7 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { observeChrome } from './chrome-observer.mjs';
 import { root } from './process.mjs';
 
-const require = createRequire(join(root, 'apps/worker/package.json'));
+const require = createRequire(join(root, 'apps/backend/package.json'));
 const puppeteer = require('puppeteer-core');
 
 test('Chrome observation preserves the actual workload viewport', { timeout: 30_000 }, async () => {

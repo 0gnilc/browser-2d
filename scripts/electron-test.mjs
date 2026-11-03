@@ -5,10 +5,10 @@ import { desktopRequire, resolveNativeBinding } from './native.mjs';
 await pnpm(['build']);
 const nativeBinding = await resolveNativeBinding();
 desktopRequire('electron');
-const workerRequire = createRequire(new URL('../apps/worker/package.json', import.meta.url));
+const backendRequire = createRequire(new URL('../apps/backend/package.json', import.meta.url));
 const chromeExecutable =
   process.env.BROWSER2D_CHROME_EXECUTABLE ||
-  (await workerRequire('puppeteer-core').executablePath('chrome'));
+  (await backendRequire('puppeteer-core').executablePath('chrome'));
 await pnpm(['exec', 'playwright', 'test'], {
   env: {
     ...process.env,

@@ -7,7 +7,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 
 const desktop = resolve('apps/desktop');
 const desktopRequire = createRequire(join(desktop, 'package.json'));
-const workerRequire = createRequire(resolve('apps/worker/package.json'));
+const backendRequire = createRequire(resolve('apps/backend/package.json'));
 
 test('initialization rejects stale receipts and cooperatively shuts down while awaiting consent', async () => {
   const root = await mkdtemp(join(tmpdir(), 'browser-2d-bootstrap-'));
@@ -22,7 +22,7 @@ test('initialization rejects stale receipts and cooperatively shuts down while a
       const dataDir = join(root, mode);
       await mkdir(dataDir);
       const path = join(dataDir, 'data.db');
-      const Database = workerRequire('better-sqlite3');
+      const Database = backendRequire('better-sqlite3');
       const legacy = new Database(path);
       legacy.exec(await readFile('tests/fixtures/legacy-schema.sql', 'utf8'));
       legacy.prepare('INSERT INTO device(symbol) VALUES (?)').run('unchanged');
@@ -82,7 +82,7 @@ test('initialization rejects stale receipts and cooperatively shuts down while a
           });
         },
         {
-          entry: desktopRequire.resolve('@browser-2d/worker-runtime/entry'),
+          entry: desktopRequire.resolve('@browser-2d/backend/data-service'),
           path,
           dataDir,
           mode,

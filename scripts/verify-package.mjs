@@ -19,10 +19,13 @@ import { pathToFileURL } from 'node:url';
 import { root } from './process.mjs';
 import { desktopRequire } from './native.mjs';
 import { observeChrome } from './chrome-observer.mjs';
+import { runtimeArtifacts } from './runtime-artifacts.mjs';
+import { verifyTaskProcessExecutable } from './task-process-proof.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
   pathToFileURL(desktopRequire.resolve('@electron/fuses')).href
 );
+const processOnly = process.argv.includes('--process-only');
 
 const target =
   process.argv.find((arg) => arg.startsWith('--target='))?.slice(9) ||
@@ -78,11 +81,21 @@ const archive =
   process.platform === 'darwin'
     ? join(installedApp, 'Contents/Resources/app.asar')
     : join(installedApp, 'resources/app.asar');
-const workerPrefix = '/node_modules/@browser-2d/worker-runtime';
+const backendPrefix = '/node_modules/@browser-2d/backend';
 const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 const packagedManifest = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
+const runtimeManifest = JSON.parse(
+  asar
+    .extractFile(archive, join(backendPrefix.slice(1), 'dist/.vite/manifest.json'))
+    .toString('utf8'),
+);
+for (const file of runtimeArtifacts(runtimeManifest))
+  assert(
+    archiveFiles.includes(`${backendPrefix}/dist/${file}`),
+    `Missing packaged runtime dependency ${file}`,
+  );
 assert(
-  archiveFiles.includes(`${workerPrefix}/dist/entry.cjs`),
+  archiveFiles.includes(`${backendPrefix}/dist/data-service.cjs`),
   'Compiled worker entry missing from archive',
 );
 assert(
@@ -92,17 +105,17 @@ assert(
 assert(
   archiveFiles.some(
     (entry) =>
-      entry.startsWith(`${workerPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
+      entry.startsWith(`${backendPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
   ),
   'Business migration SQL missing from archive',
 );
 for (const entry of archiveFiles) {
   if (!entry.startsWith('/node_modules/@browser-2d/')) continue;
   assert(
-    entry === workerPrefix ||
-      entry === `${workerPrefix}/package.json` ||
-      entry === `${workerPrefix}/dist` ||
-      entry.startsWith(`${workerPrefix}/dist/`),
+    entry === backendPrefix ||
+      entry === `${backendPrefix}/package.json` ||
+      entry === `${backendPrefix}/dist` ||
+      entry.startsWith(`${backendPrefix}/dist/`),
     `Unexpected workspace file in package: ${entry}`,
   );
 }
@@ -144,6 +157,31 @@ assert(
 const reportPath = join(dataDir, 'report.json');
 const evidenceDir = resolve(process.env.BROWSER2D_EVIDENCE_DIR || join(root, 'artifacts', target));
 await mkdir(evidenceDir, { recursive: true });
+const taskProcessReport = join(evidenceDir, 'task-processes.json');
+const taskProcesses = await verifyTaskProcessExecutable(launchExecutable, {
+  packaged: true,
+  env: process.env,
+  evidence: taskProcessReport,
+});
+if (processOnly) {
+  const summary = {
+    scope: 'task-process',
+    target,
+    executable: launchExecutable,
+    staticExecutable: executable,
+    fuses,
+    taskProcessReport,
+    runtime: taskProcesses.runtime,
+    scenarios: taskProcesses.reports.length,
+    result: 'VERIFIED',
+  };
+  await writeFile(
+    join(evidenceDir, 'process-package-summary.json'),
+    JSON.stringify(summary, null, 2),
+  );
+  console.log(JSON.stringify(summary, null, 2));
+  process.exit(0);
+}
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
   const readyPath = join(dataDir, 'chrome-pages-ready');

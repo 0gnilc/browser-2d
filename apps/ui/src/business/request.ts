@@ -30,6 +30,6 @@ export function nullableNumber(value: string) {
   return value === '' ? null : Number(value);
 }
 
-export function fieldProps(testId: string, attributes: InputHTMLAttributes = {}) {
+export function fieldProps(testId: string, attributes: Pick<InputHTMLAttributes, 'required'> = {}) {
   return { ...attributes, 'data-testid': testId };
 }

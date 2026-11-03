@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { NAlert } from 'naive-ui';
+import { ElAlert } from 'element-plus';
 defineProps<{ title: string; error: string }>();
 </script>
-
 <template>
   <main class="workspace business-page">
-    <header class="intro">
+    <header class="page-heading">
       <h1>{{ title }}</h1>
     </header>
-    <NAlert
+    <ElAlert
       v-if="error"
+      :title="error"
       type="error"
+      :closable="false"
+      show-icon
       role="alert"
       data-testid="business-error"
       class="error-message"
-    >
-      {{ error }}
-    </NAlert>
+    />
     <slot />
   </main>
 </template>

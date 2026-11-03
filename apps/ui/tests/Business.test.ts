@@ -6,13 +6,20 @@ import type {
   SettingsView,
 } from '@browser-2d/contracts/public';
 import { flushPromises, mount } from '@vue/test-utils';
-import { NSelect, NCheckbox } from 'naive-ui';
+import {
+  ElSelect,
+  ElCheckbox,
+  ElPopconfirm,
+  ElMessageBox,
+  type MessageBoxInputData,
+} from 'element-plus';
 import { createPinia } from 'pinia';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import Devices from '../src/business/Devices.vue';
 import Materials from '../src/business/Materials.vue';
 import HistoryPage from '../src/business/History.vue';
 import Settings from '../src/business/Settings.vue';
+import { createRouter, createMemoryHistory, RouterView } from 'vue-router';
 import { bridgeKey } from '../src/bridge';
 import { createFixtureBridge } from '../src/fixture';
 
@@ -104,6 +111,8 @@ function fixture(): Browser2dApi {
   return api;
 }
 
+afterEach(() => vi.restoreAllMocks());
+
 describe('business screens', () => {
   it('preserves zero, null and an existing empty string when editing a device', async () => {
     const api = fixture();
@@ -151,6 +160,8 @@ describe('business screens', () => {
     });
     await flushPromises();
     const text = 'test-card|01|2030|123\n\ninvalid\ntest-card|01|2030|123';
+    await wrapper.get('[data-testid="material-import-open"]').trigger('click');
+    await flushPromises();
     await wrapper.get('[data-testid="material-import-text"]').setValue(text);
     await wrapper.get('.import-form').trigger('submit');
     await flushPromises();
@@ -162,6 +173,98 @@ describe('business screens', () => {
     wrapper.unmount();
   });
 
+  it('locks import text until both the import and its page refresh finish', async () => {
+    const api = fixture();
+    let finishImport = () => {};
+    const importing = new Promise<void>((resolve) => {
+      finishImport = resolve;
+    });
+    api.materials.importText = vi.fn<Browser2dApi['materials']['importText']>(async () => {
+      await importing;
+      return { ok: true, value: { committed: 1, lines: [{ line: 1, outcome: 'inserted' }] } };
+    });
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    let finishRefresh = () => {};
+    const refreshing = new Promise<void>((resolve) => {
+      finishRefresh = resolve;
+    });
+    api.materials.page = vi.fn<Browser2dApi['materials']['page']>(async () => {
+      await refreshing;
+      return { ok: true, value: { items: [material], total: 1, page: 1, pageSize: 20 } };
+    });
+    await wrapper.get('[data-testid="material-import-open"]').trigger('click');
+    await flushPromises();
+    const input = wrapper.get<HTMLTextAreaElement>('[data-testid="material-import-text"]');
+    const text = 'test-card|01|2030|123';
+    await input.setValue(text);
+    expect(input.element.disabled).toBe(false);
+    await wrapper.get('.import-form').trigger('submit');
+    expect(api.materials.importText).toHaveBeenCalledWith({ text });
+    expect(input.element.disabled).toBe(true);
+    expect(input.element.value).toBe(text);
+    finishImport();
+    await flushPromises();
+    expect(api.materials.page).toHaveBeenCalledOnce();
+    expect(input.element.disabled).toBe(true);
+    expect(input.element.value).toBe(text);
+    finishRefresh();
+    await flushPromises();
+    expect(wrapper.get('[data-testid="import-report"]').text()).toContain('实际提交 1 条');
+    await wrapper.get('[data-testid="material-import-open"]').trigger('click');
+    await flushPromises();
+    const reopened = wrapper.get<HTMLTextAreaElement>('[data-testid="material-import-text"]');
+    expect(reopened.element.disabled).toBe(false);
+    expect(reopened.element.value).toBe('');
+    wrapper.unmount();
+  });
+
+  it('retains failed import text and locks it while a discard decision is pending', async () => {
+    const api = fixture();
+    let finishImport = () => {};
+    const importing = new Promise<void>((resolve) => {
+      finishImport = resolve;
+    });
+    api.materials.importText = vi.fn<Browser2dApi['materials']['importText']>(async () => {
+      await importing;
+      return { ok: false, error: { code: 'CONFLICT', message: '导入失败' } };
+    });
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="material-import-open"]').trigger('click');
+    await flushPromises();
+    const input = wrapper.get<HTMLTextAreaElement>('[data-testid="material-import-text"]');
+    const text = 'test-card|01|2030|123';
+    await input.setValue(text);
+    await wrapper.get('.import-form').trigger('submit');
+    expect(input.element.disabled).toBe(true);
+    finishImport();
+    await flushPromises();
+    expect(input.element.disabled).toBe(false);
+    expect(input.element.value).toBe(text);
+    expect(wrapper.get('.el-drawer [role="alert"]').text()).toContain('导入失败');
+    let cancelDiscard = () => {};
+    const deciding = new Promise<never>((_resolve, reject) => {
+      cancelDiscard = () => reject('cancel');
+    });
+    const confirm = vi.spyOn(ElMessageBox, 'confirm').mockReturnValue(deciding);
+    await wrapper.get('.import-form').get('button:last-child').trigger('click');
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(input.element.disabled).toBe(true);
+    cancelDiscard();
+    await flushPromises();
+    expect(input.element.disabled).toBe(false);
+    expect(input.element.value).toBe(text);
+    await input.setValue(`${text}\nnext-card|02|2031|456`);
+    await flushPromises();
+    expect(input.element.value).toContain('next-card');
+    wrapper.unmount();
+  });
+
   it('filters status zero, changes pages, and preserves nullable material fields on edit', async () => {
     const api = fixture();
     const wrapper = mount(Materials, {
@@ -169,8 +272,8 @@ describe('business screens', () => {
     });
     await flushPromises();
     wrapper
-      .getComponent<typeof NSelect>('[data-testid="material-filter-status"]')
-      .vm.$emit('update:value', 0);
+      .getComponent<typeof ElSelect>('[data-testid="material-filter-status"]')
+      .vm.$emit('update:modelValue', 0);
     await wrapper.get('[data-testid="material-filter"]').trigger('submit');
     await flushPromises();
     expect(api.materials.page).toHaveBeenLastCalledWith({
@@ -192,7 +295,7 @@ describe('business screens', () => {
       amount: 12.5,
       note: 'updated note',
     });
-    const nextPage = wrapper.findAll('.n-pagination-item').find((item) => item.text() === '2');
+    const nextPage = wrapper.findAll('.el-pager li').find((item) => item.text() === '2');
     expect(nextPage).toBeDefined();
     await nextPage?.trigger('click');
     await flushPromises();
@@ -215,10 +318,14 @@ describe('business screens', () => {
       global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
     });
     await flushPromises();
-    await wrapper.get('[data-testid="material-reset-2"]').trigger('click');
+    wrapper
+      .findAllComponents(ElPopconfirm)
+      .find((popup) => popup.props('title')?.includes('重置将清除'))
+      ?.vm.$emit('confirm');
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('CONFLICT · 处理中材料不可重置。');
-    expect(wrapper.get('[data-testid="material-2"]').text()).toContain('test-card');
+    expect(wrapper.get('[data-testid="material-2"]').text()).toContain('•••• card');
+    expect(wrapper.get('[data-testid="materials-table"]').text()).not.toContain('test-card');
     wrapper.unmount();
   });
 
@@ -233,10 +340,12 @@ describe('business screens', () => {
     });
     await flushPromises();
     expect(api.history.page).toHaveBeenCalledWith({ page: 1, pageSize: 20 });
-    expect(wrapper.get('[data-testid="history-3"]').text()).toContain('01 / 17 / 2030');
+    expect(wrapper.get('[data-testid="history-3"]').element.closest('tr')?.textContent).toContain(
+      '01 / 17 / 2030',
+    );
     wrapper
-      .getComponent<typeof NSelect>('[data-testid="history-filter-status"]')
-      .vm.$emit('update:value', 0);
+      .getComponent<typeof ElSelect>('[data-testid="history-filter-status"]')
+      .vm.$emit('update:modelValue', 0);
     await wrapper.get('[data-testid="history-start-time"]').setValue('2026-10-01 00:00:00');
     await wrapper.get('[data-testid="history-end-time"]').setValue('2026-10-31 23:59:59');
     await wrapper.get('[data-testid="history-export"]').trigger('click');
@@ -261,12 +370,12 @@ describe('business screens', () => {
     await flushPromises();
     expect(wrapper.html()).not.toMatch(/AdsPower|API Key|settings-secret/);
     expect(wrapper.get('[data-testid="settings-revision"]').text()).toContain('7');
-    await wrapper.get('[data-testid="settings-width"]').setValue('1440');
-    await wrapper.get('[data-testid="settings-width"]').trigger('blur');
+    await wrapper.get('[data-testid="settings-width"] input').setValue('1440');
+    await wrapper.get('[data-testid="settings-width"] input').trigger('blur');
     await wrapper.get('[data-testid="settings-executable-path"]').setValue('/opt/chrome');
     wrapper
-      .getComponent<typeof NCheckbox>('[data-testid="settings-headless"]')
-      .vm.$emit('update:checked', true);
+      .getComponent<typeof ElCheckbox>('[data-testid="settings-headless"]')
+      .vm.$emit('update:modelValue', true);
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
     await flushPromises();
     expect(api.settings.save).toHaveBeenCalledWith({
@@ -279,8 +388,8 @@ describe('business screens', () => {
       },
     });
     wrapper
-      .getComponent<typeof NSelect>('[data-testid="settings-browser-mode"]')
-      .vm.$emit('update:value', 'connect');
+      .getComponent<typeof ElSelect>('[data-testid="settings-browser-mode"]')
+      .vm.$emit('update:modelValue', 'connect');
     await flushPromises();
     expect(wrapper.find('[data-testid="settings-executable-path"]').exists()).toBe(false);
     await wrapper.get('[data-testid="settings-endpoint"]').setValue('http://localhost:9333');
@@ -309,15 +418,170 @@ describe('business screens', () => {
       global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
     });
     await flushPromises();
-    await wrapper.get('[data-testid="settings-width"]').setValue('1440');
-    await wrapper.get('[data-testid="settings-width"]').trigger('blur');
+    await wrapper.get('[data-testid="settings-width"] input').setValue('1440');
+    await wrapper.get('[data-testid="settings-width"] input').trigger('blur');
     await wrapper.get('[data-testid="settings-form"]').trigger('submit');
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('CONFLICT');
-    expect(wrapper.get<HTMLInputElement>('[data-testid="settings-width"]').element.value).toBe(
-      '1440',
-    );
+    expect(
+      wrapper.get<HTMLInputElement>('[data-testid="settings-width"] input').element.value,
+    ).toBe('1440');
     expect(wrapper.find('[data-testid="settings-saved"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('preserves selection across complete-list search and reconciles removed devices after refresh', async () => {
+    const api = fixture();
+    api.devices.list = vi
+      .fn<Browser2dApi['devices']['list']>()
+      .mockResolvedValueOnce({
+        ok: true,
+        value: [device, { ...device, id: 4, symbol: 'second-device' }],
+      })
+      .mockResolvedValue({ ok: true, value: [device] });
+    const wrapper = mount(Devices, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="device-select-1"] input').setValue(true);
+    await wrapper.get('[data-testid="device-search"]').setValue('second');
+    expect(wrapper.find('[data-testid="device-1"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="device-select-4"] input').setValue(true);
+    expect(wrapper.text()).toContain('已选 2 台，当前视图 1 台');
+    await wrapper.get('[data-testid="device-search"]').setValue('');
+    expect(
+      wrapper.get<HTMLInputElement>('[data-testid="device-select-1"] input').element.checked,
+    ).toBe(true);
+    await wrapper.get('[data-testid="devices-refresh"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('已选 1 台，当前视图 1 台');
+    wrapper.unmount();
+  });
+
+  it('retains unsaved device values after cancelled dismissal and a failed save', async () => {
+    const api = fixture();
+    api.devices.update = vi.fn<Browser2dApi['devices']['update']>(async () => ({
+      ok: false,
+      error: { code: 'CONFLICT', message: '设备已被占用' },
+    }));
+    const confirm = vi.spyOn(ElMessageBox, 'confirm').mockRejectedValue('cancel');
+    const wrapper = mount(Devices, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="device-edit-1"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="device-note"]').setValue('unsaved value');
+    await wrapper
+      .get('.drawer-form')
+      .findAll('button')
+      .find((button) => button.text() === '取消编辑')
+      ?.trigger('click');
+    await flushPromises();
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(wrapper.get<HTMLInputElement>('[data-testid="device-note"]').element.value).toBe(
+      'unsaved value',
+    );
+    await wrapper.get('[data-testid="device-form"]').trigger('submit');
+    await flushPromises();
+    expect(wrapper.get('.el-drawer [role="alert"]').text()).toContain('设备已被占用');
+    expect(wrapper.get<HTMLInputElement>('[data-testid="device-note"]').element.value).toBe(
+      'unsaved value',
+    );
+    wrapper.unmount();
+  });
+
+  it('applies material query drafts only on submit and retains the previous query after a failed load', async () => {
+    const api = fixture();
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="material-filter-card"]').setValue('pending-filter');
+    await wrapper
+      .findAll('.el-pager li')
+      .find((item) => item.text() === '2')
+      ?.trigger('click');
+    await flushPromises();
+    expect(api.materials.page).toHaveBeenLastCalledWith({ card: '', page: 2, pageSize: 20 });
+    api.materials.page = vi.fn<Browser2dApi['materials']['page']>(async () => ({
+      ok: false,
+      error: { code: 'INTERNAL', message: '查询失败' },
+    }));
+    await wrapper.get('[data-testid="material-filter"]').trigger('submit');
+    await flushPromises();
+    expect(api.materials.page).toHaveBeenCalledWith({
+      card: 'pending-filter',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(wrapper.text()).toContain('已应用卡号 全部');
+    expect(wrapper.find('.el-pager .is-active').text()).toBe('2');
+    wrapper.unmount();
+  });
+
+  it('disables processing materials and preserves untouched unknown statuses and nullable text', async () => {
+    const api = fixture();
+    api.materials.page = vi.fn<Browser2dApi['materials']['page']>(async () => ({
+      ok: true,
+      value: {
+        items: [
+          { ...material, status: 1 },
+          { ...material, id: 5, status: 87 },
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      },
+    }));
+    const wrapper = mount(Materials, {
+      global: { plugins: [createPinia()], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    for (const action of ['edit', 'reset', 'delete'])
+      expect(
+        wrapper.get(`[data-testid="material-${action}-2"]`).attributes('disabled'),
+      ).toBeDefined();
+    await wrapper.get('[data-testid="material-edit-5"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="material-note"]').setValue('changed');
+    await wrapper.get('[data-testid="material-form"]').trigger('submit');
+    await flushPromises();
+    expect(api.materials.update).toHaveBeenCalledWith({ id: 5, note: 'changed' });
+    wrapper.unmount();
+  });
+
+  it('keeps a dirty device editor on cancelled route navigation and discards only after confirmation', async () => {
+    const api = fixture();
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: Devices },
+        { path: '/materials', component: Materials },
+      ],
+    });
+    await router.push('/');
+    const wrapper = mount(RouterView, {
+      global: { plugins: [createPinia(), router], provide: { [bridgeKey]: api } },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="device-edit-1"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="device-note"]').setValue('guarded route draft');
+    const confirm = vi.spyOn(ElMessageBox, 'confirm').mockRejectedValue('cancel');
+    await router.push('/materials');
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/');
+    expect(wrapper.get<HTMLInputElement>('[data-testid="device-note"]').element.value).toBe(
+      'guarded route draft',
+    );
+    confirm.mockResolvedValue(
+      Object.assign('confirm', { value: '', action: 'confirm' } satisfies MessageBoxInputData),
+    );
+    await router.push('/materials');
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/materials');
+    expect(api.devices.update).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

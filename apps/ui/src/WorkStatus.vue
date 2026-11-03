@@ -1,115 +1,99 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { NAlert, NButton, NTable } from 'naive-ui';
+import { ElAlert, ElButton, ElTable, ElTableColumn } from 'element-plus';
 import { useRunsStore } from './runs';
 const store = useRunsStore();
-const connectionLabel = computed(
-  () =>
-    ({ connecting: '连接中', connected: '已连接', unavailable: '连接不可用' })[store.connection],
-);
+const batchLabels = {
+  'not-sent': '未发送',
+  sending: '发送中',
+  accepted: '已受理',
+  rejected: '已拒绝',
+  unknown: '结果未知',
+};
+function batchLabel(status: keyof typeof batchLabels) {
+  return batchLabels[status];
+}
 </script>
 <template>
   <aside class="workspace work-status" aria-label="运行时状态">
-    <p class="business-note verification-scope">
-      本地浏览器验证工作区。任务只运行本地验证页面，不消耗业务材料。
-    </p>
-    <section class="connection-panel" aria-label="运行时状态">
-      <div class="connection" data-testid="connection-status" :data-state="store.connection">
-        <span class="status-dot" :class="store.connection"></span
-        ><strong>{{ connectionLabel }}</strong>
-      </div>
-      <div class="runtime-stat">
-        <span>WORKER PID</span
-        ><strong data-testid="worker-pid">{{ store.snapshot?.workerPid ?? '—' }}</strong>
-      </div>
-      <div class="runtime-stat">
-        <span>快照版本</span><strong>{{ store.snapshot?.revision ?? '—' }}</strong>
-      </div>
-      <NButton
-        secondary
-        data-testid="refresh"
-        :disabled="store.connection === 'connecting'"
-        @click="store.refresh"
-        >刷新快照</NButton
-      >
-    </section>
-    <p v-if="store.snapshot" data-testid="capacity-limits" class="business-note capacity-note">
-      执行上限 {{ store.snapshot.policy.devices }} 台设备 /
-      {{ store.snapshot.policy.pages }} 页。排队任务保留设备，未清理资源继续占用容量。
-    </p>
-    <NAlert v-if="store.error" class="error-message" type="error" title="请求未完成" role="alert">{{
-      store.error
-    }}</NAlert>
-    <NAlert v-if="store.notice" class="error-message" type="info" data-testid="command-receipt">{{
-      store.notice
-    }}</NAlert>
-    <section v-if="store.pending" class="task-panel" data-testid="pending-command">
-      <h2>指令结果待确认</h2>
-      <p>
-        请先查询或用原指令重试。当前指令 ID
-        <code data-testid="command-id">{{ store.pending.input.commandId }}</code>
-      </p>
-      <div class="business-actions">
-        <NButton data-testid="query-command" :disabled="store.busy" @click="store.queryCommand"
-          >查询原指令</NButton
+    <details class="runtime-details">
+      <summary>运行详情</summary>
+      <div class="runtime-content flex flex-wrap items-center gap-5">
+        <span
+          >进程 <span data-testid="worker-pid">{{ store.snapshot?.workerPid ?? '—' }}</span></span
         >
-        <NButton
+        <span>快照 {{ store.snapshot?.revision ?? '—' }}</span>
+        <span v-if="store.snapshot" data-testid="capacity-limits"
+          >上限 {{ store.snapshot.policy.devices }} 台设备 /
+          {{ store.snapshot.policy.pages }} 页</span
+        >
+        <ElButton
+          data-testid="refresh"
+          :disabled="store.connection === 'connecting'"
+          @click="store.refresh"
+          >刷新状态</ElButton
+        >
+      </div>
+    </details>
+    <ElAlert
+      v-if="store.error"
+      class="error-message"
+      type="error"
+      :title="store.error"
+      :closable="false"
+      show-icon
+      role="alert"
+    />
+    <details v-if="store.notice" :open="!!store.pending" class="receipt-details">
+      <summary>{{ store.pending ? '查询结果' : '指令已受理，查看回执' }}</summary>
+      <p data-testid="command-receipt">{{ store.notice }}</p>
+    </details>
+    <section
+      v-if="store.pending"
+      class="pending-panel"
+      data-testid="pending-command"
+      aria-live="polite"
+    >
+      <h2>指令结果待确认</h2>
+      <p>请查询结果，或使用原指令重试。</p>
+      <code data-testid="command-id">{{ store.pending.input.commandId }}</code>
+      <div class="business-actions mt-4">
+        <ElButton data-testid="query-command" :disabled="store.busy" @click="store.queryCommand"
+          >查询原指令</ElButton
+        >
+        <ElButton
           data-testid="retry-command"
           :disabled="store.busy || store.connection !== 'connected'"
           @click="store.retryCommand"
-          >使用相同 ID 重试</NButton
+          >使用相同 ID 重试</ElButton
         >
       </div>
     </section>
     <details
       v-if="store.batch.length"
       :open="store.batch.some((item) => item.status === 'unknown' || item.status === 'rejected')"
-      class="task-panel batch-results"
+      class="batch-results"
       data-testid="batch-results"
       aria-live="polite"
     >
       <summary>
-        批量操作结果 · 已受理
-        {{ store.batch.filter((item) => item.status === 'accepted').length }} /
-        {{ store.batch.length }} 项<span class="batch-summary-hint">查看每项指令</span>
+        批量操作 · 已受理 {{ store.batch.filter((item) => item.status === 'accepted').length }} /
+        {{ store.batch.length }} 项
       </summary>
-      <p class="business-note">
-        受理回执表示指令已记录。最终状态以任务快照为准。结果未知时，请查询或用原指令重试。
-      </p>
-      <div class="table-scroll">
-        <NTable :bordered="false"
-          ><thead>
-            <tr>
-              <th>项目</th>
-              <th>指令状态</th>
-              <th>结果 / 指令 ID</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="item in store.batch"
-              :key="item.command.input.commandId"
-              :data-status="item.status"
-            >
-              <td>{{ item.label }}</td>
-              <td>
-                {{
-                  {
-                    'not-sent': '未发送',
-                    sending: '发送中',
-                    accepted: '已受理',
-                    rejected: '已拒绝',
-                    unknown: '结果未知',
-                  }[item.status]
-                }}
-              </td>
-              <td>
-                {{ item.message }}<code class="run-id">{{ item.command.input.commandId }}</code>
-              </td>
-            </tr>
-          </tbody></NTable
+      <p>受理不代表完成。结果未知时，请查询或用原指令重试。</p>
+      <ElTable :data="store.batch" border :row-key="(item) => item.command.input.commandId">
+        <ElTableColumn prop="label" label="项目" min-width="180" />
+        <ElTableColumn label="状态" min-width="120"
+          ><template #default="{ row: item }"
+            ><span :data-status="item.status">{{ batchLabel(item.status) }}</span></template
+          ></ElTableColumn
         >
-      </div>
+        <ElTableColumn label="结果" min-width="300"
+          ><template #default="{ row: item }"
+            >{{ item.message
+            }}<code class="run-id">{{ item.command.input.commandId }}</code></template
+          ></ElTableColumn
+        >
+      </ElTable>
     </details>
   </aside>
 </template>

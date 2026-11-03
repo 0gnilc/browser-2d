@@ -33,7 +33,7 @@ function syncDirectory(directory: string) {
     closeSync(fd);
   }
 }
-export function claimWorkerOwnership(businessPath: string) {
+export function claimDataServiceOwnership(businessPath: string) {
   const directory = join(dirname(businessPath), 'worker-owners');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const ownerNonce = randomUUID();

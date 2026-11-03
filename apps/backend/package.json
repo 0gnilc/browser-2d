@@ -1,10 +1,11 @@
 {
-  "name": "@browser-2d/worker-runtime",
+  "name": "@browser-2d/backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    "./entry": "./dist/entry.cjs"
+    "./data-service": "./dist/data-service.cjs",
+    "./browser-worker": "./dist/browser-worker.cjs"
   },
   "files": [
     "dist"

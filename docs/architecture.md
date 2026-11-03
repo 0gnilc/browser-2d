@@ -1,6 +1,6 @@
 # 架构与技术选型
 
-三个应用共享一个桌面生命周期。`apps/ui` 负责展示和交互，`apps/desktop` 管理窗口与进程，`apps/worker` 执行业务、调度任务并管理浏览器资源。工作进程随桌面关闭，不作为独立后台服务。
+三个应用共享一个桌面生命周期。`apps/ui` 负责展示和交互，`apps/desktop` 管理窗口与进程，`apps/backend` 执行业务、调度任务并管理浏览器资源。工作进程随桌面关闭，不作为独立后台服务。
 
 ## 技术选型图
 
@@ -8,10 +8,10 @@
 
 ```mermaid
 flowchart TB
-    UI["apps/ui<br/>Vue 3 · Vue Router · Pinia · Naive UI"]
+    UI["apps/ui<br/>Vue 3 · Vue Router · Pinia · Element Plus · Tailwind CSS"]
     Bridge["apps/desktop preload<br/>具名公共 API · contextBridge"]
     Main["apps/desktop main<br/>Electron · 生命周期 · IPC 校验"]
-    Worker["apps/worker<br/>utilityProcess · 业务仓储 · 调度与恢复"]
+    Worker["apps/backend<br/>utilityProcess · 业务仓储 · 调度与恢复"]
     DB["SQLite · better-sqlite3<br/>事务 · 备份 · SQL 迁移"]
     Chrome["本机 Google Chrome<br/>puppeteer-core · CDP · 隔离上下文"]
     Platform["平台能力<br/>safeStorage · electron-log · electron-updater"]
@@ -41,18 +41,18 @@ flowchart TB
 | -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
 | `apps/ui`            | 五个业务路由、表单、状态及订阅                   | Vue 生态及 `contracts/public`。不访问 Node、SQL、Chrome 或 host 协议   |
 | `apps/desktop`       | 主进程、preload、来源校验、凭据、更新与退出协调  | contracts 及 worker 的已编译入口。不导入 worker 业务源码，不打开业务库 |
-| `apps/worker`        | 数据迁移、CRUD、调度、取消、恢复和浏览器清理     | contracts、better-sqlite3 和 puppeteer-core。不导入 UI 或 desktop 源码 |
+| `apps/backend`       | 数据迁移、CRUD、调度、取消、恢复和浏览器清理     | contracts、better-sqlite3 和 puppeteer-core。不导入 UI 或 desktop 源码 |
 | `packages/contracts` | 公共 DTO、具名 API、结果类型、Zod 校验及私有消息 | 不依赖应用或工程配置。public 与 host 分开导出                          |
 | `internal`           | build-config、tsconfig、lint-config、test-utils  | 只供配置和测试使用，不承载业务逻辑                                     |
 | `scripts`            | 根命令协调、隔离打包、产物与发布验收             | 调用应用入口和工程配置                                                 |
 
-边界由 [check-boundaries.mjs](../scripts/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/worker-runtime/entry`，指向构建后的 `dist/entry.cjs`。
+边界由 [check-boundaries.mjs](../scripts/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/backend/data-service`，指向构建后的 `dist/data-service.cjs`。
 
 ## 工具与构建
 
 TypeScript 统一应用和契约类型。Node 的范围由根清单约束，CI 使用 `.node-version`。pnpm workspace 管理三个目录层级，catalog 固定共享版本，锁文件固定完整依赖树。精确版本只维护在 [package.json](../package.json)、[pnpm-workspace.yaml](../pnpm-workspace.yaml) 和 [pnpm-lock.yaml](../pnpm-lock.yaml)。
 
-worker 使用 Vite 的 Node 构建。desktop 使用 electron-vite 一次构建 main、preload 和来自 `apps/ui` 的 renderer。contracts 随调用方打包，SQL 迁移复制到 worker 的构建目录。UI 没有第二条独立生产构建链。
+worker 使用 Vite 的 Node 构建。desktop 使用 electron-vite 一次构建 main、preload 和来自 `apps/ui` 的 renderer。contracts 随调用方打包，SQL 迁移复制到 worker 的构建目录。UI 提供独立 dev/build/preview/test/typecheck，用于前端验收；根发行构建只构建一次 renderer。
 
 better-sqlite3 使用锁定版本提供的 Node-API 二进制。打包前检查其预构建策略，不在开发依赖上反复执行 Node 与 Electron ABI rebuild。electron-builder 在隔离目录内生成应用和安装包。正式包使用 ASAR 与 Electron fuses，成品测试在源码仓库之外运行。
 
@@ -78,6 +78,22 @@ desktop 通过操作系统 safeStorage 保存加密凭据。当前 Chrome 设置
 
 重启把旧非终态任务标记为 interrupted，核对并清理资源，不自动重放任务。退出先停止接纳，再取消、清理、关库并等待 worker 退出。协作关闭预算为十秒，强制终止和退出确认另有五秒。强制或不确定退出不会报告为干净关闭，也不会允许开发协调器启动替代写入者。
 
+## 独立任务进程停止验证
+
+S1 增加 `TaskSupervisor` 和 `browser-worker.cjs`。每个 BrowserWorker 是独立的 Electron utility process，内部固定的控制线程只处理启动、心跳和停止。自动化与 Puppeteer 在 Node Worker 线程执行。控制线程调用 `Worker.terminate()` 后退出，Main 必须观察 utility process 的 `exit` 事件才接受退出证据。生产停止不调用 `utilityProcess.kill()`，不把磁盘 PID 当作终止权限。
+
+故障模型覆盖自动化 JavaScript 死循环、忽略取消和 POSIX SIGTERM。它不保证终止冻结的控制线程、不可中断的原生扩展或恶意进程代码。未确认退出会进入 `blocked`，保留清理义务。Main 同步关闭绑定真实进程来源的请求入口，随后并行发起停止、平台关闭和数据库 fence。最终释放还要求全部已发启动结束、退出后的平台关闭确认，以及 fence 完成。重复停止共享清理请求。超时未完成的环境关闭继续共享原请求，只有已完成的失败才允许重新关闭。utility process 的 error 事件进入同一清理流程。
+
+`pnpm test:process` 运行真实 Electron、两个独立任务进程及专用 SQLite DataService 测试进程，输出 `artifacts/process/<platform>-<arch>.json`。测试 SQL 长查询期间仍须观察选中任务退出，另一个任务继续通信，数据库继续提交。另一用例从正式 BrowserWorker 入口连接隔离 Chrome，打开本机测试页面并验证页面心跳和浏览器退出。构建与成品检查遍历 Vite 生成的依赖清单，覆盖自动化私有 chunk。延迟启动、关闭失败、未确认退出、线程崩溃、父进程租约失效与伪造任务身份均有实际进程检查。POSIX SIGTERM 测试由测试进程向自身发信号，Windows 报告该信号用例不适用。成品验收在源码仓库外重跑同一验证，同时保留四原生目标 CI。测试 fixture 只存在于独立验证入口，renderer 无法选择执行文件或测试行为。
+
+当前界面和旧数据服务仍使用原有设备、物料和调度 API。S1 不切换旧任务，不创建新业务表，不重建数据库，也不实施真实卡处理。新数据模型与正式任务接入属于后续阶段。
+
 ## 安装身份
 
 安装标识由 [release.mjs](../internal/build-config/release.mjs) 的 `identity` 定义，运行时名称由 [main 入口](../apps/desktop/src/main/index.ts)设置。更改身份会影响安装与数据路径，需要单独验收。旧 Squirrel 分发及升级兼容性进展见 [Issue #6](https://github.com/0gnilc/browser-2d/issues/6)。
+
+## S2 foundation
+
+Backend exports `@browser-2d/backend/data-service` and `@browser-2d/backend/browser-worker` resolve compiled CJS entries. Contracts and the pure `@browser-2d/amount` package are bundled into desktop/preload/backend artifacts. Public Browser/Card/WorkTask/application-settings DTOs are strict and separate from the retained legacy API; host snapshots derive the entire Browser shape and override only amount with exact integer units.
+
+BrowserWorker cannot reach SQLite or legacy storage. DataService remains the single writer and retains legacy execution dependencies until S4 so current routes remain functional. New database tables, card import/scheduling and replacement pages are not implemented in S2. See [the execution decision](adr/0001-isolated-browser-execution.md).

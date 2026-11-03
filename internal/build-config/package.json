@@ -8,7 +8,8 @@
     "./release": "./release.mjs"
   },
   "dependencies": {
-    "@vitejs/plugin-vue": "catalog:"
+    "@vitejs/plugin-vue": "catalog:",
+    "@tailwindcss/vite": "catalog:"
   },
   "devDependencies": {
     "vite": "catalog:"

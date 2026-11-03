@@ -4,11 +4,11 @@
 
 ## 开发流程
 
-对应 [scripts/dev.mjs](../scripts/dev.mjs) 的 `pnpm dev` 和 `pnpm dev:worker`。先构建 worker，再构建 desktop。构建及配置加载成功后才停止旧应用。停止失败时不启动替代进程。
+对应 [scripts/dev.mjs](../scripts/dev.mjs) 的 `pnpm dev` 和 `pnpm dev:backend`。先构建 worker，再构建 desktop。构建及配置加载成功后才停止旧应用。停止失败时不启动替代进程。
 
 ```mermaid
 ---
-title: "开发协调器 pnpm dev / dev:worker"
+title: "开发协调器 pnpm dev / dev:backend"
 ---
 stateDiagram-v2
   state "Legend" as legend {
@@ -66,7 +66,7 @@ stateDiagram-v2
   class s10 orange
 ```
 
-Vue 模板和样式的 HMR 保持原 worker，不经过整应用重启。`dev:worker` 不创建 UI 服务，`dev:ui` 是独立的浏览器预览入口。首次启动前先完成依赖安装，三个入口的操作步骤见[开发指南](development.md)。
+Vue 模板和样式的 HMR 保持原 worker，不经过整应用重启。`dev:backend` 不创建 UI 服务，`dev:ui` 是独立的浏览器预览入口。首次启动前先完成依赖安装，三个入口的操作步骤见[开发指南](development.md)。
 
 图省略重复文件事件和防抖等内部步骤，保留构建、重启与退出的主要失败分支。具体异常和并发处理以开发脚本为准。
 

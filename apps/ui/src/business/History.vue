@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { History, HistoryFilter } from '@browser-2d/contracts/public';
 import { onMounted, reactive, ref } from 'vue';
-import { NButton, NPagination, NPopconfirm, NInput, NSelect, NForm, NTable } from 'naive-ui';
+import {
+  ElButton,
+  ElPagination,
+  ElPopconfirm,
+  ElInput,
+  ElSelect,
+  ElTable,
+  ElTableColumn,
+} from 'element-plus';
 import BusinessPage from './BusinessPage.vue';
 import { fieldProps, useBusinessRequest } from './request';
 
@@ -70,116 +78,120 @@ onMounted(load);
 <template>
   <BusinessPage title="历史" :error="error">
     <section class="task-panel">
-      <NForm class="business-form" data-testid="history-filter" @submit.prevent="filter">
+      <form class="business-form" data-testid="history-filter" @submit.prevent="filter">
         <label class="field"
-          >卡号<NInput v-model:value="form.card" :input-props="fieldProps('history-filter-card')"
+          >卡号<ElInput v-model="form.card" v-bind="fieldProps('history-filter-card')"
         /></label>
         <div class="field">
           <span>状态</span
-          ><NSelect
+          ><ElSelect
             aria-label="状态"
-            :value="status ?? null"
-            @update:value="status = $event ?? undefined"
+            :model-value="status ?? null"
+            @update:model-value="status = $event ?? undefined"
             clearable
+            :empty-values="[undefined, null]"
+            :value-on-clear="null"
             placeholder="全部"
             data-testid="history-filter-status"
             :options="Array.from({ length: 7 }, (_, value) => ({ label: String(value), value }))"
           />
         </div>
         <label class="field"
-          >备注<NInput v-model:value="form.note" :input-props="fieldProps('history-filter-note')"
+          >备注<ElInput v-model="form.note" v-bind="fieldProps('history-filter-note')"
         /></label>
         <label class="field"
-          >开始时间，含边界<NInput
-            v-model:value="form.startTime"
-            :input-props="fieldProps('history-start-time')"
+          >开始时间<ElInput
+            v-model="form.startTime"
+            v-bind="fieldProps('history-start-time')"
             placeholder="YYYY-MM-DD HH:mm:ss"
         /></label>
         <label class="field"
-          >结束时间，含边界<NInput
-            v-model:value="form.endTime"
-            :input-props="fieldProps('history-end-time')"
+          >结束时间<ElInput
+            v-model="form.endTime"
+            v-bind="fieldProps('history-end-time')"
             placeholder="YYYY-MM-DD HH:mm:ss"
         /></label>
         <div class="business-actions">
-          <NButton attr-type="submit" :disabled="busy" data-testid="history-filter-submit"
-            >筛选</NButton
-          ><NButton :disabled="busy" @click="resetFilter">重置筛选</NButton
-          ><NButton :disabled="busy" data-testid="history-export" @click="exportText"
-            >导出全部匹配记录</NButton
-          ><NPopconfirm positive-text="确认" negative-text="取消" @positive-click="clear"
-            ><template #trigger
-              ><NButton :disabled="busy" data-testid="history-clear">清空历史</NButton></template
-            >清空全部历史？</NPopconfirm
+          <ElButton native-type="submit" :disabled="busy" data-testid="history-filter-submit"
+            >筛选</ElButton
+          ><ElButton :disabled="busy" @click="resetFilter">重置筛选</ElButton
+          ><ElButton :disabled="busy" data-testid="history-export" @click="exportText"
+            >导出全部匹配记录</ElButton
+          ><ElPopconfirm
+            title="清空全部历史？"
+            confirm-button-text="确认"
+            cancel-button-text="取消"
+            @confirm="clear"
+            ><template #reference
+              ><ElButton :disabled="busy" data-testid="history-clear">清空历史</ElButton></template
+            ></ElPopconfirm
           >
         </div>
-      </NForm>
+      </form>
       <div v-if="exported" class="export-result" data-testid="history-export-result">
-        <p>已导出 {{ exported.count }} 条。旧格式 card|month|day|cvv。</p>
+        <p>已导出 {{ exported.count }} 条</p>
         <label class="field"
-          >导出文本<NInput
+          >导出文本<ElInput
             type="textarea"
-            :value="exported.text"
+            :model-value="exported.text"
             readonly
-            :input-props="fieldProps('history-export-text')"
+            v-bind="fieldProps('history-export-text')"
             :autosize="{ minRows: 4, maxRows: 10 }" /></label
-        ><NButton @click="download" data-testid="history-download">下载 history.txt</NButton>
+        ><ElButton @click="download" data-testid="history-download">下载 history.txt</ElButton>
       </div>
     </section>
     <section class="history-panel">
-      <div class="table-scroll">
-        <NTable :bordered="false" :single-line="false" data-testid="history-table">
-          <thead>
-            <tr>
-              <th>卡号</th>
-              <th>月 / 日 / 年</th>
-              <th>金额</th>
-              <th>状态</th>
-              <th>备注</th>
-              <th>时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id" :data-testid="`history-${row.id}`">
-              <td>{{ row.card }}</td>
-              <td>{{ row.month }} / {{ row.day }} / {{ row.year }}</td>
-              <td>{{ row.amount ?? '未设置' }}</td>
-              <td>{{ row.status ?? '未设置' }}</td>
-              <td>{{ row.note }}</td>
-              <td>{{ row.createTime }}</td>
-              <td>
-                <NPopconfirm
-                  positive-text="确认"
-                  negative-text="取消"
-                  @positive-click="remove(row.id)"
-                  ><template #trigger
-                    ><NButton
-                      size="small"
-                      :disabled="busy"
-                      :data-testid="`history-delete-${row.id}`"
-                      >删除</NButton
-                    ></template
-                  >删除此历史记录？</NPopconfirm
-                >
-              </td>
-            </tr>
-            <tr v-if="!rows.length">
-              <td colspan="7" class="empty-state">暂无匹配历史</td>
-            </tr>
-          </tbody>
-        </NTable>
-      </div>
+      <ElTable
+        :data="rows"
+        border
+        row-key="id"
+        data-testid="history-table"
+        empty-text="暂无匹配历史记录"
+      >
+        <ElTableColumn label="卡号" min-width="180"
+          ><template #default="{ row }"
+            ><span :data-testid="`history-${row.id}`">{{ row.card }}</span></template
+          ></ElTableColumn
+        >
+        <ElTableColumn label="月 / 日 / 年" min-width="160"
+          ><template #default="{ row }"
+            >{{ row.month }} / {{ row.day }} / {{ row.year }}</template
+          ></ElTableColumn
+        >
+        <ElTableColumn label="金额" min-width="100"
+          ><template #default="{ row }">{{ row.amount ?? '未设置' }}</template></ElTableColumn
+        >
+        <ElTableColumn label="状态" min-width="90"
+          ><template #default="{ row }">{{ row.status ?? '未设置' }}</template></ElTableColumn
+        >
+        <ElTableColumn prop="note" label="备注" min-width="160" />
+        <ElTableColumn prop="createTime" label="时间" min-width="180" />
+        <ElTableColumn label="操作" width="100" fixed="right"
+          ><template #default="{ row }"
+            ><ElPopconfirm
+              title="删除此历史记录？"
+              confirm-button-text="确认"
+              cancel-button-text="取消"
+              @confirm="remove(row.id)"
+              ><template #reference
+                ><ElButton :disabled="busy" :data-testid="`history-delete-${row.id}`"
+                  >删除</ElButton
+                ></template
+              ></ElPopconfirm
+            ></template
+          ></ElTableColumn
+        >
+      </ElTable>
       <div class="business-toolbar">
         <span data-testid="history-total">共 {{ total }} 条</span
-        ><NPagination
-          v-model:page="page"
+        ><ElPagination
+          v-model:current-page="page"
           v-model:page-size="pageSize"
-          :item-count="total"
+          :total="total"
           :page-sizes="[20, 50, 100]"
-          show-size-picker
+          layout="sizes, prev, pager, next"
           :disabled="busy"
-          @update:page="load"
+          @update:current-page="load"
           @update:page-size="filter"
         />
       </div>

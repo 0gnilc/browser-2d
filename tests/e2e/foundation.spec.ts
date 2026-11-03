@@ -62,6 +62,7 @@ test('UI, isolated preload, real worker, SQLite persistence and graceful shutdow
       ok: false,
       error: { code: 'INVALID_INPUT', message: 'Untrusted application frame' },
     });
+    await page.getByTestId('task-new').click();
     await page.getByTestId('create-fixture-device').click();
     await expect(page.getByTestId('start-run')).toBeEnabled();
     await page.getByTestId('start-run').click();
@@ -73,6 +74,8 @@ test('UI, isolated preload, real worker, SQLite persistence and graceful shutdow
       return window.browser2d.work.getSnapshot();
     });
     expect(before.ok).toBe(true);
+    await page.getByTestId('task-new').click();
+    await page.locator('[data-testid^="task-device-select-"]').first().click();
     await page.getByTestId('start-run').click();
     await expect(page.locator('[data-testid^="cancel-"]').first()).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath('foundation.png'), fullPage: true });
@@ -110,6 +113,7 @@ test('worker crash fails shutdown and recovery never resumes the interrupted tas
   try {
     const page = await application.firstWindow();
     await expect(page.getByTestId('connection-status')).toHaveAttribute('data-state', 'connected');
+    await page.getByTestId('task-new').click();
     await page.getByTestId('create-fixture-device').click();
     await expect(page.getByTestId('start-run')).toBeEnabled();
     await page.getByTestId('start-run').click();

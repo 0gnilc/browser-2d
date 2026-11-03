@@ -26,9 +26,11 @@ import {
 import { createApplicationLifecycle } from './lifecycle';
 import { createUpdates, updatePolicy } from './updates';
 import { createUpdateDriver } from './update-driver';
-import { launchWorker } from './worker-client';
+import { launchDataService } from './data-service-client';
 import { createCredentialVault } from '../platform/credentials';
 import { createBusinessCoordinator } from '../bridge/business';
+import { verifyTaskProcesses } from '../verification/task-process';
+import { verifyAdsPower } from '../verification/adspower';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -40,7 +42,7 @@ mkdirSync(dataDir, { recursive: true });
 app.setPath('userData', dataDir);
 const reportArgument = process.argv.find((value) => value.startsWith('--verify-p1='));
 const reportPath = reportArgument?.slice('--verify-p1='.length);
-let worker: ReturnType<typeof launchWorker> | undefined;
+let worker: ReturnType<typeof launchDataService> | undefined;
 let window: BrowserWindow | undefined;
 let latestSnapshot: WorkSnapshot | undefined;
 let workState: WorkState = { status: 'unavailable', generation: 0, reason: 'Worker is starting' };
@@ -224,7 +226,7 @@ async function verifyPackagedWindow() {
       `(async () => {
     const assert = (value, message) => { if (!value) throw new Error(message); };
     assert(typeof require === 'undefined' && typeof process === 'undefined', 'Renderer has Node access');
-    assert(document.querySelector('[data-testid="start-run"]'), 'Vue application missing');
+    assert(document.querySelector('[data-testid="task-new"]') && document.querySelector('[data-testid="run-table"]'), 'Vue application missing');
     const api = window.browser2d;
     const initial = await api.work.getSnapshot(); assert(initial.ok, 'Snapshot failed');
     const initialDevices = await api.devices.list(); assert(initialDevices.ok, 'Business device read failed');
@@ -317,6 +319,32 @@ async function verifyPackagedWindow() {
 }
 
 async function startApplication() {
+  const adspowerArgument = process.argv
+    .find((value) => value.startsWith('--verify-adspower='))
+    ?.slice('--verify-adspower='.length);
+  if (adspowerArgument) {
+    try {
+      await verifyAdsPower(JSON.parse(adspowerArgument));
+      app.exit(0);
+    } catch {
+      log.error('AdsPower verification failed; inspect the redacted report');
+      app.exit(1);
+    }
+    return;
+  }
+  const processReport = process.argv
+    .find((value) => value.startsWith('--verify-task-processes='))
+    ?.slice('--verify-task-processes='.length);
+  if (processReport) {
+    try {
+      await verifyTaskProcesses(processReport);
+      app.exit(0);
+    } catch (error) {
+      log.error('Task process verification failed', error);
+      app.exit(1);
+    }
+    return;
+  }
   await mkdir(dataDir, { recursive: true });
   if (!app.requestSingleInstanceLock()) {
     app.exit(0);
@@ -373,7 +401,7 @@ async function startApplication() {
     },
   });
   const generation = workState.generation + 1;
-  worker = launchWorker({
+  worker = launchDataService({
     dataDir,
     browserFixture:
       reportPath && process.env.BROWSER2D_VERIFY_CHROME === '1'
@@ -438,7 +466,7 @@ async function startApplication() {
   });
   await worker.ready;
   if (!lifecycle.acceptingWork) return;
-  if (process.argv.includes('--worker-only')) {
+  if (process.argv.includes('--backend-only')) {
     log.info('Worker ready', { pid: worker.pid });
     return;
   }
@@ -476,7 +504,7 @@ void app
     );
     const code = parsed.success ? parsed.data : 'INITIALIZATION_FAILED';
     log.error('startup failed', code);
-    if (lifecycle.acceptingWork && !reportPath && !process.argv.includes('--worker-only'))
+    if (lifecycle.acceptingWork && !reportPath && !process.argv.includes('--backend-only'))
       dialog.showErrorBox(
         'Business storage is unavailable',
         `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,

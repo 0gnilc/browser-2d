@@ -16,9 +16,19 @@ const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.
 const evaluate = (value, context) =>
   runInNewContext(
     value.startsWith('${{') ? value.slice(3, -2) : value,
-    { startsWith: (a, b) => a.startsWith(b), always: () => true, ...context },
+    {
+      startsWith: (a, b) => a.startsWith(b),
+      always: () => true,
+      inputs: {},
+      github: { event_name: 'push' },
+      ...context,
+    },
     { timeout: 100 },
   );
+const interpolate = (value, context) =>
+  value.replace(/\$\{\{[\s\S]*?\}\}/g, (expression) => evaluate(expression, context));
+const nativeSteps = (workflow, context) =>
+  workflow.jobs.native.steps.filter((step) => step.if === undefined || evaluate(step.if, context));
 
 function completeMatrix(workflow, job) {
   const rows = workflow.jobs[job].strategy.matrix.include;
@@ -119,9 +129,8 @@ function nativeCoverage(workflow) {
   assert.equal(workflow.jobs.native.if, undefined);
   for (const [target, config] of Object.entries(targets)) {
     const os = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[config.platform];
-    const steps = workflow.jobs.native.steps.filter(
-      (step) => step.if === undefined || evaluate(step.if, { runner: { os }, matrix: { target } }),
-    );
+    const context = { runner: { os }, matrix: { target } };
+    const steps = nativeSteps(workflow, context);
     const commands = steps.map((step) => step.run || '').join('\n');
     for (const command of manifest.scripts.verify.split(' && '))
       assert(commands.includes(command), `Missing native suite on ${target}: ${command}`);
@@ -130,8 +139,57 @@ function nativeCoverage(workflow) {
     if (os === 'Linux') required.push('scripts/verify-rpm.sh');
     for (const command of required)
       assert(commands.includes(command), `Missing native acceptance on ${target}: ${command}`);
+    assert(!commands.includes('--process-only'), `Full acceptance narrowed on ${target}`);
+    assert.equal(interpolate(workflow.jobs.native.name, context), `Native (${target})`);
   }
+  assert.equal(interpolate(workflow.jobs.acceptance.name), 'Native acceptance');
   assert(!JSON.stringify(workflow).includes('continue-on-error'));
+}
+
+function processCoverage(workflow) {
+  for (const [target, config] of Object.entries(targets)) {
+    const os = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[config.platform];
+    const context = {
+      github: {
+        event_name: 'workflow_dispatch',
+        event: { pull_request: {} },
+        workflow: 'CI',
+        ref: 'refs/heads/test',
+      },
+      inputs: { acceptance_scope: 'process' },
+      runner: { os },
+      matrix: { target },
+    };
+    const steps = nativeSteps(workflow, context);
+    const commands = steps.map((step) => interpolate(step.run || '', context)).join('\n');
+    for (const command of [
+      'pnpm check',
+      'pnpm test:workflows',
+      'pnpm test:process',
+      `pnpm package -- --target=${target}`,
+      `pnpm verify:package -- --target=${target} --process-only`,
+    ])
+      assert(
+        commands.includes(command),
+        `Missing task process acceptance on ${target}: ${command}`,
+      );
+    for (const command of [
+      /^pnpm test$/m,
+      /pnpm test:(release|storage|observer|credentials|updates|electron)/,
+      /pnpm dist|pnpm verify:(installation|formats)|scripts\/verify-rpm\.sh/,
+    ])
+      assert(!command.test(commands), `Unrelated full acceptance in process scope on ${target}`);
+    assert(steps.some((step) => step.uses === './.github/actions/setup-dependencies'));
+    assert(steps.some((step) => step.uses?.startsWith('browser-actions/setup-chrome@')));
+    assert.equal(interpolate(workflow.jobs.native.name, context), `Task process (${target})`);
+    assert.equal(interpolate(workflow.jobs.acceptance.name, context), 'Task process acceptance');
+    const upload = steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'));
+    assert.equal(interpolate(upload.with.name, context), `task-process-${target}`);
+    const processGroup = interpolate(workflow.concurrency.group, context);
+    const fullGroup = interpolate(workflow.concurrency.group, { ...context, inputs: {} });
+    assert.notEqual(processGroup, fullGroup, 'Process acceptance must not cancel full acceptance');
+  }
+  assert(!JSON.stringify(workflow).includes('secrets.'));
 }
 
 function storeSelection(action) {
@@ -157,10 +215,45 @@ test('both workflows cover the release targets on matching native runners', () =
   assert.deepEqual(Object.keys(ci.on).sort(), ['pull_request', 'push', 'workflow_dispatch']);
   assert.deepEqual(ci.on.push, { branches: ['main'] });
   assert.equal(ci.on.pull_request, null);
-  assert.equal(ci.on.workflow_dispatch, null);
+  assert.deepEqual(ci.on.workflow_dispatch.inputs.acceptance_scope, {
+    description: 'Native acceptance scope',
+    type: 'choice',
+    options: ['full', 'process'],
+    default: 'full',
+  });
   assert.deepEqual(Object.keys(release.on), ['workflow_dispatch']);
   assert.equal(release.concurrency['cancel-in-progress'], false);
   nativeCoverage(ci);
+});
+
+test('explicit process acceptance has separate checks and only the source and fused process gates', () => {
+  completeMatrix(ci, 'native');
+  processCoverage(ci);
+});
+
+test('push, pull request and default dispatch retain every full acceptance gate', () => {
+  for (const event_name of ['push', 'pull_request', 'workflow_dispatch']) {
+    for (const inputs of [
+      {},
+      { acceptance_scope: 'full' },
+      ...(event_name === 'workflow_dispatch' ? [] : [{ acceptance_scope: 'process' }]),
+    ]) {
+      const context = { github: { event_name }, inputs };
+      assert.equal(interpolate(ci.jobs.acceptance.name, context), 'Native acceptance');
+      for (const [target, config] of Object.entries(targets)) {
+        const os = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[config.platform];
+        const commands = nativeSteps(ci, { ...context, runner: { os } })
+          .map((step) => step.run || '')
+          .join('\n');
+        for (const command of manifest.scripts.verify.split(' && '))
+          assert(commands.includes(command), `${event_name} is missing ${command} on ${target}`);
+        assert(commands.includes('pnpm dist'));
+        assert(commands.includes('pnpm verify:package'));
+        assert(commands.includes('pnpm verify:installation'));
+        assert(!commands.includes('--process-only'));
+      }
+    }
+  }
 });
 
 test('acceptance fails for failed, cancelled or skipped native matrices', () => {
@@ -268,6 +361,18 @@ test('policy rejects missing coverage, late preflight and leaked signing scope',
   const skipped = structuredClone(ci);
   skipped.jobs.native.steps.find((step) => step.run?.includes('pnpm verify:package')).if = 'false';
   assert.throws(() => nativeCoverage(skipped), /Missing native acceptance/);
+  const missingProcessProof = structuredClone(ci);
+  missingProcessProof.jobs.native.steps = missingProcessProof.jobs.native.steps.filter(
+    (step) => !step.run?.includes('--process-only'),
+  );
+  assert.throws(() => processCoverage(missingProcessProof), /Missing task process acceptance/);
+  const reusedCheck = structuredClone(ci);
+  reusedCheck.jobs.acceptance.name = 'Native acceptance';
+  assert.throws(() => processCoverage(reusedCheck), assert.AssertionError);
+  const narrowedFull = structuredClone(ci);
+  narrowedFull.jobs.native.steps.find((step) => step.run?.includes('--process-only')).if =
+    undefined;
+  assert.throws(() => nativeCoverage(narrowedFull), /Full acceptance narrowed/);
   const noStore = structuredClone(setup);
   noStore.runs.steps = noStore.runs.steps.filter(
     (step) => !step.run?.includes('PNPM_CONFIG_STORE_DIR'),

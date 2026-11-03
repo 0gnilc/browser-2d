@@ -1,0 +1,1 @@
+{ "extends": "@browser-2d/tsconfig/base.json", "include": ["src/**/*.ts"] }

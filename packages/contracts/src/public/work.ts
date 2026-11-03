@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { idInputSchema, resultSchema } from './business';
+import { idInputSchema } from './business';
+import { resultSchema } from './result';
 
 export const runStateSchema = z.enum([
   'queued',

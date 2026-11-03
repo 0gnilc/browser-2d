@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { app, utilityProcess } from 'electron';
-import { claimWorkerOwnership } from './worker-ownership';
+import { claimDataServiceOwnership } from './data-service-ownership';
 import {
   shutdownResultSchema,
   workerEventSchema,
@@ -14,8 +14,9 @@ import {
 } from '@browser-2d/contracts/host';
 import type { WorkSnapshot } from '@browser-2d/contracts/public';
 
-export function launchWorker(options: {
+export function launchDataService(options: {
   dataDir: string;
+  childEnvironment?: NodeJS.ProcessEnv;
   businessPath: string;
   execution: 'controlled' | 'chrome';
   onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
@@ -25,11 +26,14 @@ export function launchWorker(options: {
   onUnavailable: (message: string) => void;
 }) {
   const require = createRequire(join(app.getAppPath(), 'package.json'));
-  const entry = require.resolve('@browser-2d/worker-runtime/entry');
-  const ownership = claimWorkerOwnership(options.businessPath);
+  const entry = require.resolve('@browser-2d/backend/data-service');
+  const ownership = claimDataServiceOwnership(options.businessPath);
   let child: Electron.UtilityProcess;
   try {
-    child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker' });
+    child = utilityProcess.fork(entry, [], {
+      serviceName: 'browser-2d-data-service',
+      ...(options.childEnvironment ? { env: options.childEnvironment } : {}),
+    });
   } catch (error) {
     ownership.release();
     throw error;

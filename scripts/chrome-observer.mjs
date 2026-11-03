@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from './process.mjs';
 
-const workerRequire = createRequire(join(root, 'apps/worker/package.json'));
-const puppeteer = workerRequire('puppeteer-core');
+const backendRequire = createRequire(join(root, 'apps/backend/package.json'));
+const puppeteer = backendRequire('puppeteer-core');
 
 export async function observeChrome(rootDirectory, signal, readyPath) {
   const pids = new Set();

@@ -9,14 +9,22 @@ export default defineConfig({
   },
   build: {
     target: 'node22',
-    ssr: 'src/entry.ts',
+    ssr: true,
+    manifest: true,
     outDir: 'dist',
     rollupOptions: {
+      input: {
+        'data-service': 'src/data-service.ts',
+        'browser-worker': 'src/browser-worker/entry.ts',
+        'verification/browser-worker': 'tests/process/browser-worker.ts',
+        'verification/data-service': 'tests/process/data-service.ts',
+        'verification/browser-platform': 'tests/process/browser-platform.ts',
+      },
       external: ['better-sqlite3', 'puppeteer-core'],
-      output: { format: 'cjs', entryFileNames: 'entry.cjs', inlineDynamicImports: true },
+      output: { format: 'cjs', entryFileNames: '[name].cjs', chunkFileNames: '[name]-[hash].cjs' },
     },
   },
-  ssr: { noExternal: ['@browser-2d/contracts', 'zod'] },
+  ssr: { noExternal: ['@browser-2d/contracts', '@browser-2d/amount', 'zod'] },
   plugins: [
     {
       name: 'worker-migrations',

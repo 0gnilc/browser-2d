@@ -144,7 +144,7 @@ export async function workerHarness(
     {
       ...options,
       initialize: options.initialize ?? true,
-      entry: desktopRequire.resolve('@browser-2d/worker-runtime/entry'),
+      entry: desktopRequire.resolve('@browser-2d/backend/data-service'),
       businessPath: join(options.dataDir, 'data.db'),
       ownerNonce: randomUUID(),
       requestIds: Array.from({ length: 256 }, () => randomUUID()),

@@ -11,10 +11,11 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit",
     "test:credentials": "vitest run --config vitest.credentials.config.ts",
-    "test:updates": "vitest run --config vitest.updates.config.ts"
+    "test:updates": "vitest run --config vitest.updates.config.ts",
+    "test:platform": "vitest run --config vitest.platform.config.ts"
   },
   "dependencies": {
-    "@browser-2d/worker-runtime": "workspace:*",
+    "@browser-2d/backend": "workspace:*",
     "electron-log": "catalog:",
     "electron-updater": "catalog:"
   },
@@ -30,7 +31,8 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
   },
   "homepage": "https://github.com/0gnilc/browser-2d",
   "repository": {

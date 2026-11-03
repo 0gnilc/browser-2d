@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
-import { NButton, NPopconfirm } from 'naive-ui';
+import { ElButton, ElPopconfirm } from 'element-plus';
 import type { UpdateState } from '@browser-2d/contracts/public';
 import { bridgeKey } from '../bridge';
 
@@ -84,13 +84,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="task-panel" aria-labelledby="updates-title" data-testid="updates-panel">
+  <section
+    class="task-panel settings-section"
+    aria-labelledby="updates-title"
+    data-testid="updates-panel"
+  >
     <div class="business-toolbar">
       <h2 id="updates-title">应用更新</h2>
-      <span v-if="state">当前版本 {{ state.currentVersion }}</span>
     </div>
-    <p v-if="state && state.status !== 'unavailable'">
-      更新渠道：{{ state.channel === 'stable' ? '稳定版' : '测试版' }}
+    <p v-if="state" class="business-note">
+      当前版本 {{ state.currentVersion }}
+      <span v-if="state.status !== 'unavailable'">
+        · {{ state.channel === 'stable' ? '稳定版' : '测试版' }}
+      </span>
     </p>
     <p role="status" aria-live="polite" data-testid="update-status">{{ description }}</p>
     <progress
@@ -101,30 +107,35 @@ onUnmounted(() => {
     />
     <p v-if="error" role="alert">{{ error }}</p>
     <div class="business-actions">
-      <NButton v-if="canCheck" :disabled="busy" data-testid="update-check" @click="perform('check')"
-        >检查更新</NButton
+      <ElButton
+        v-if="canCheck"
+        :disabled="busy"
+        data-testid="update-check"
+        @click="perform('check')"
+        >检查更新</ElButton
       >
-      <NButton
+      <ElButton
         v-if="state?.status === 'available'"
         type="primary"
         :disabled="busy"
         data-testid="update-download"
         @click="perform('download')"
-        >下载更新</NButton
+        >下载更新</ElButton
       >
-      <NPopconfirm
+      <ElPopconfirm
         v-if="state?.status === 'downloaded'"
-        positive-text="停止任务并安装"
-        negative-text="暂不安装"
-        @positive-click="perform('install')"
+        title="当前任务将停止，应用拥有的浏览器资源将关闭。是否现在安装并重启？"
+        :width="320"
+        confirm-button-text="停止任务并安装"
+        cancel-button-text="暂不安装"
+        @confirm="perform('install')"
       >
-        <template #trigger
-          ><NButton type="primary" :disabled="busy" data-testid="update-install"
-            >安装并重启</NButton
+        <template #reference
+          ><ElButton type="primary" :disabled="busy" data-testid="update-install"
+            >安装并重启</ElButton
           ></template
         >
-        当前任务将停止，应用拥有的浏览器资源将关闭。是否现在安装并重启？
-      </NPopconfirm>
+      </ElPopconfirm>
     </div>
   </section>
 </template>

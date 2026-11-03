@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T08:53:07.295728+00:00",
+  "title": "Design System: Browser 2D",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Muted purple",
+        "canonical": "#7045a5",
+        "tonalRamp": ["#5a3784", "#7045a5", "#9b7dc0", "#b8a2d2", "#d4c7e4", "#e2daed", "#f1ecf6"]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page heading",
+        "purpose": "Route title."
+      },
+      "title": {
+        "displayName": "Section heading",
+        "purpose": "Operational groups."
+      },
+      "body": {
+        "displayName": "Business content",
+        "purpose": "Labels, tables, and descriptions."
+      }
+    },
+    "shadows": [
+      {
+        "name": "drawer",
+        "value": "0px 16px 48px 16px #00000014, 0px 12px 32px #0000001f, 0px 8px 16px -8px #00000029",
+        "purpose": "Installed Element Plus dark shadow used by drawers."
+      },
+      {
+        "name": "popover",
+        "value": "0px 0px 12px #0000001f",
+        "purpose": "Installed Element Plus light elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "navigation",
+        "value": "background-color 160ms ease-out",
+        "purpose": "Navigation background changes. Disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "medium",
+        "value": "1000px"
+      },
+      {
+        "name": "compact",
+        "value": "760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Element Plus default-size principal action.",
+      "html": "<button class=\"ds-primary\">新增设备</button>",
+      "css": ".ds-primary{box-sizing:border-box;height:32px;padding:8px 15px;border:1px solid var(--el-border-color,#dcdfe6);border-radius:var(--el-border-radius-base,4px);font:500 14px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;line-height:1;display:inline-flex;align-items:center;cursor:pointer;transition:all .1s;background:var(--el-color-primary,#7045a5);border-color:var(--el-color-primary,#7045a5);color:#fff}.ds-primary:hover{background:var(--el-color-primary-light-3,#9b7dc0);border-color:var(--el-color-primary-light-3,#9b7dc0)}.ds-primary:active{background:var(--el-color-primary-dark-2,#5a3784);border-color:var(--el-color-primary-dark-2,#5a3784)}.ds-primary:focus-visible{outline:2px solid var(--el-color-primary-light-5,#b8a2d2);outline-offset:1px;}"
+    },
+    {
+      "name": "Default button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Element Plus secondary action.",
+      "html": "<button class=\"ds-default\">刷新</button>",
+      "css": ".ds-default{box-sizing:border-box;height:32px;padding:8px 15px;border:1px solid var(--el-border-color,#dcdfe6);border-radius:var(--el-border-radius-base,4px);font:500 14px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;line-height:1;display:inline-flex;align-items:center;cursor:pointer;transition:all .1s;background:#fff;color:var(--el-text-color-regular,#606266)}.ds-default:hover{background:var(--el-color-primary-light-9,#f1ecf6);border-color:var(--el-color-primary-light-7,#d4c7e4);color:var(--el-color-primary,#7045a5)}.ds-default:active{border-color:var(--el-color-primary,#7045a5)}.ds-default:focus-visible{outline:2px solid var(--el-color-primary-light-5,#b8a2d2);outline-offset:1px;}"
+    },
+    {
+      "name": "Search input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled search using the default input dimensions.",
+      "html": "<label class=\"ds-field\">搜索设备<input class=\"ds-search\" placeholder=\"搜索设备、账户或备注\"></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:8px;font:14px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;color:var(--el-text-color-regular,#606266)}.ds-search{box-sizing:border-box;height:32px;padding:1px 11px;border:0;border-radius:var(--el-border-radius-base,4px);background:#fff;color:var(--el-text-color-regular,#606266);font:14px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;box-shadow:0 0 0 1px var(--el-border-color,#dcdfe6) inset}.ds-search:hover{box-shadow:0 0 0 1px var(--el-border-color-hover,#c0c4cc) inset}.ds-search:focus-visible{outline:none;box-shadow:0 0 0 1px var(--el-color-primary,#7045a5) inset}"
+    },
+    {
+      "name": "Selected navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Persistent navigation shows text when expanded and accessible icon links with hover and focus tooltips when collapsed.",
+      "html": "<nav aria-label=\"页面导航\"><a class=\"ds-nav\" href=\"#/devices\" aria-current=\"page\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M544 768v128h192a32 32 0 1 1 0 64H288a32 32 0 1 1 0-64h192V768H192A128 128 0 0 1 64 640V256a128 128 0 0 1 128-128h640a128 128 0 0 1 128 128v384a128 128 0 0 1-128 128zM192 192a64 64 0 0 0-64 64v384a64 64 0 0 0 64 64h640a64 64 0 0 0 64-64V256a64 64 0 0 0-64-64z\"/></svg><span>设备</span></a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:var(--el-border-radius-base,4px);font:500 14px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;text-decoration:none;background:var(--el-color-primary-light-9,#f1ecf6);color:var(--el-color-primary,#7045a5);transition:background-color 160ms ease-out}.ds-nav:hover{background:var(--el-color-primary-light-9,#f1ecf6)}.ds-nav:focus-visible{outline:2px solid var(--el-color-primary,#7045a5);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav{transition:none}}"
+    },
+    {
+      "name": "Information tag",
+      "kind": "chip",
+      "refersTo": "tag-info",
+      "description": "Read-only labeled state using the Element Plus info variant.",
+      "html": "<span class=\"ds-tag\">无活动任务</span>",
+      "css": ".ds-tag{box-sizing:border-box;display:inline-flex;align-items:center;height:24px;padding:0 9px;border:1px solid var(--el-color-info-light-8,#e9e9eb);border-radius:var(--el-border-radius-base,4px);background:var(--el-color-info-light-9,#f4f4f5);color:var(--el-color-info,#909399);font:12px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;line-height:1}"
+    },
+    {
+      "name": "Bordered data table",
+      "kind": "custom",
+      "refersTo": "table",
+      "description": "Static preview of bordered rows and masked material identity. Production tables use ElTable.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>卡号</th><th>状态</th></tr></thead><tbody><tr><td>•••• 1234</td><td>可领取 · 0</td></tr></tbody></table>",
+      "css": ".ds-table{width:100%;border-collapse:collapse;background:#fff;color:var(--el-text-color-regular,#606266);font:14px \"Helvetica Neue\", Helvetica, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif}.ds-table th,.ds-table td{border:1px solid var(--el-border-color-lighter,#ebeef5);padding:8px 12px;text-align:left;line-height:23px}.ds-table th{font-weight:600;color:var(--el-text-color-secondary,#909399)}.ds-table tbody tr:hover{background:var(--el-fill-color-light,#f6f5f8)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Operational workspace",
+    "overview": "The approved Airtable-inspired direction organizes Chinese business labels around visible navigation, table views, and focused drawers. The reference defines layout and flow. Element Plus supplies the controls and their geometry.\n\nColor identifies primary actions and selected navigation. Tables retain visible borders, while secondary information uses disclosures and drawers. Task scope, command uncertainty, and resource cleanup remain visible where they affect an operation.",
+    "keyCharacteristics": [
+      "Text and icon navigation with persistent connection status.",
+      "Bordered Element Plus tables with views and labeled operations.",
+      "Purple color theming with default control geometry.",
+      "Drawers for task selection, business editing, and import."
+    ],
+    "rules": [
+      {
+        "name": "The Color-Only Rule",
+        "body": "Theme Element Plus internals through color variables. Preserve default control dimensions, radii, padding, and interaction styling.",
+        "section": "colors"
+      },
+      {
+        "name": "Sidebar layout",
+        "body": "CSS owns shell grid tracks. Expanded navigation is 190px, or 150px up to 760px. The explicit Element Plus toggle persists a 68px collapsed rail when storage is available, with centered icons and connection dot. Collapsed tooltips support hover and focus without consuming Enter.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do retain Element Plus default geometry and use color variables for control theming.",
+      "Do use bordered ElTable for every data table.",
+      "Do retain Chinese accessible navigation labels, keyboard focus, and labeled state feedback in both sidebar states.",
+      "Do retain draft guards, full editing fields, and resource or command recovery controls."
+    ],
+    "donts": [
+      "Don't replace operational controls with prototype-specific custom controls.",
+      "Don't expose full card numbers or CVV in table content, tooltips, or accessible labels.",
+      "Don't describe recent snapshots as a complete task archive.",
+      "Don't add decorative card shadows or collapse navigation without the explicit sidebar toggle."
+    ]
+  }
+}

@@ -6,7 +6,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 
 const desktop = resolve('apps/desktop');
 const desktopRequire = createRequire(join(desktop, 'package.json'));
-const workerRequire = createRequire(resolve('apps/worker/package.json'));
+const backendRequire = createRequire(resolve('apps/backend/package.json'));
 
 test('business screens save through the real bridge and display refreshed records', async ({
   browserName: _browserName,
@@ -20,6 +20,7 @@ test('business screens save through the real bridge and display refreshed record
   try {
     const page = await application.firstWindow();
     await page.getByTestId('nav-devices').click();
+    await page.getByTestId('device-new').click();
     await expect(page.getByTestId('device-save')).toBeEnabled();
     await page.getByTestId('device-symbol').fill('ui-fixture-device');
     await page.getByTestId('device-amount').fill('0');
@@ -27,15 +28,17 @@ test('business screens save through the real bridge and display refreshed record
     await expect(page.getByTestId('devices-table')).toContainText('ui-fixture-device');
     await page.screenshot({ path: testInfo.outputPath('devices.png'), fullPage: true });
     await page.getByTestId('nav-materials').click();
+    await page.getByTestId('material-import-open').click();
     await expect(page.getByTestId('material-import')).toBeEnabled();
     await page.getByTestId('material-import-text').fill('0000000000000009|09|2030|000\ninvalid');
     await page.getByTestId('material-import').click();
     await expect(page.getByTestId('import-report')).toContainText('实际提交 1 条');
     await expect(page.getByTestId('import-line-2')).toContainText('无效');
     await page.getByTestId('material-filter-status').click();
-    await page.locator('.n-base-select-option').getByText('0', { exact: true }).click();
+    await page.getByRole('option').getByText('0', { exact: true }).click();
     await page.getByTestId('material-filter-submit').click();
-    await expect(page.getByTestId('materials-table')).toContainText('0000000000000009');
+    await expect(page.getByTestId('materials-table')).toContainText('•••• 0009');
+    await expect(page.getByTestId('materials-table')).not.toContainText('0000000000000009');
     await page.screenshot({ path: testInfo.outputPath('materials.png'), fullPage: true });
     await page.getByTestId('nav-history').click();
     await expect(page.getByTestId('history-export')).toBeEnabled();
@@ -45,16 +48,13 @@ test('business screens save through the real bridge and display refreshed record
     await expect(page.getByTestId('settings-save')).toBeEnabled();
     await expect(page.getByTestId('settings-browser-mode')).toContainText('启动新 Chrome');
     await page.getByTestId('settings-browser-mode').click();
-    await page
-      .locator('.n-base-select-option')
-      .getByText('连接现有 Chrome', { exact: true })
-      .click();
+    await page.getByRole('option').getByText('连接现有 Chrome', { exact: true }).click();
     await page.getByTestId('settings-endpoint').fill('http://127.0.0.1:9222');
-    await page.getByTestId('settings-width').fill('900');
+    await page.getByTestId('settings-width').getByRole('spinbutton').fill('900');
     await page.getByTestId('settings-save').click();
     await expect(page.getByTestId('settings-saved')).toBeVisible();
     await page.getByTestId('settings-reload').click();
-    await expect(page.getByTestId('settings-width')).toHaveValue('900');
+    await expect(page.getByTestId('settings-width').getByRole('spinbutton')).toHaveValue('900');
     await page.screenshot({ path: testInfo.outputPath('settings.png'), fullPage: true });
     await page.getByTestId('nav-devices').click();
     await expect(page.getByTestId('devices-table')).toContainText('ui-fixture-device');
@@ -66,7 +66,7 @@ test('business screens save through the real bridge and display refreshed record
 
 test('legacy CRUD crosses the public bridge, commits, refreshes and survives restart', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-business-'));
-  const Database = workerRequire('better-sqlite3');
+  const Database = backendRequire('better-sqlite3');
   const legacy = new Database(join(dataDir, 'data.db'));
   legacy.exec(await readFile('tests/fixtures/legacy-schema.sql', 'utf8'));
   legacy.exec(`
@@ -261,7 +261,7 @@ test('legacy CRUD crosses the public bridge, commits, refreshes and survives res
 test('legacy plaintext migrates only after OS-encrypted persistence and remains in the recovery backup', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-legacy-secret-'));
   const sentinel = 'p2-artificial-legacy-key-749287';
-  const Database = workerRequire('better-sqlite3');
+  const Database = backendRequire('better-sqlite3');
   const legacy = new Database(join(dataDir, 'data.db'));
   legacy.exec(await readFile('tests/fixtures/legacy-schema.sql', 'utf8'));
   legacy.prepare('INSERT INTO config(key,value) VALUES(?,?)').run('adsPowerApiKey', sentinel);

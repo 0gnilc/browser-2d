@@ -1,9 +1,6 @@
 import { z } from 'zod';
-import { failureSchema } from './result';
+import type { Result } from './result';
 
-export type Result<T> = { ok: true; value: T } | z.infer<typeof failureSchema>;
-export const resultSchema = <T extends z.ZodType>(value: T) =>
-  z.union([z.strictObject({ ok: z.literal(true), value }), failureSchema]);
 export const idInputSchema = z.strictObject({
   id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 });
