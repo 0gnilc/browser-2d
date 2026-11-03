@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { utilityProcess } from 'electron';
+import log from 'electron-log/main';
 import { z } from 'zod';
 import {
   taskIdSchema,
@@ -43,9 +44,11 @@ export async function verifyProductionWorker(options: {
         platform = utilityProcess.fork(
           join(options.runtime, 'verification/browser-platform.cjs'),
           [],
-          { env: { BROWSER2D_ROLE: 'test-browser-platform', TEMP: tmpdir() } },
+          { env: { BROWSER2D_ROLE: 'test-browser-platform', TEMP: tmpdir() }, stdio: 'pipe' },
         );
         const child = platform;
+        child.stderr?.on('data', (chunk: Buffer) => log.info(chunk.toString('utf8')));
+        child.stdout?.on('data', (chunk: Buffer) => log.info(chunk.toString('utf8')));
         platformExit = new Promise<void>((resolve) =>
           child.once('exit', () => {
             platformExited = true;

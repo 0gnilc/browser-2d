@@ -17,7 +17,15 @@ port.once('message', ({ data }: { data: unknown }) => {
       timeout: 10_000,
       protocolTimeout: 10_000,
       dumpio: true,
+      logger:
+        (prefix) =>
+        (...args: unknown[]) => {
+          process.stderr.write(`${prefix} ${args.map(String).join(' ')}\n`);
+        },
     } satisfies LaunchOptions;
+    process.stderr.write(
+      `Test Chrome SystemRoot candidate present: ${Boolean(input.systemRoot)}\n`,
+    );
     process.stderr.write('Test Chrome bootstrap attempt: minimal environment\n');
     const browser = await launch(launchOptions).catch(async (error: unknown) => {
       process.stderr.write(
