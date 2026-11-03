@@ -35,6 +35,7 @@ type LiveTask = {
   platform?: BrowserPlatform;
   requestId?: string;
   closure?: CleanupProof['environment'];
+  cleanup?: CleanupProof;
 };
 function requireSuccess<T>(result: Result<T>): T {
   if (!result.ok) throw new Error(result.error.message);
@@ -149,18 +150,18 @@ export function createTaskCoordinator(options: {
       throw new Error('Environment ownership contradicts witness');
   }
   async function finish(current: LiveTask) {
-    const witness = ownership.read(current.execution);
-    if (!witness.pid || !witness.exitedAt || !current.closure) throw new Error(recoveryMessage);
-    requireSuccess(
-      await options.data.request('tasks.authorize', {
-        execution: current.execution,
-        pid: witness.pid,
-      }),
-    );
-    if (current.closure.kind === 'owned_session_closed')
-      await reconcileOwned(current.execution, current.closure.requestId, current.closure.session);
-    requireSuccess(
-      await options.data.request('tasks.finish', {
+    if (!current.cleanup) {
+      const witness = ownership.read(current.execution);
+      if (!witness.pid || !witness.exitedAt || !current.closure) throw new Error(recoveryMessage);
+      requireSuccess(
+        await options.data.request('tasks.authorize', {
+          execution: current.execution,
+          pid: witness.pid,
+        }),
+      );
+      if (current.closure.kind === 'owned_session_closed')
+        await reconcileOwned(current.execution, current.closure.requestId, current.closure.session);
+      current.cleanup = {
         execution: current.execution,
         exit: {
           kind: 'observed_exit',
@@ -170,8 +171,9 @@ export function createTaskCoordinator(options: {
         },
         environment: current.closure,
         outcome: current.outcome,
-      }),
-    );
+      };
+    }
+    requireSuccess(await options.data.request('tasks.finish', current.cleanup));
     options.checkpoint?.('post-release-pre-unlink', current.task);
     ownership.remove(current.execution);
     live.delete(current.task.id);
@@ -268,6 +270,7 @@ export function createTaskCoordinator(options: {
         options.changed();
       },
       async fence() {
+        if (current.cleanup) return;
         requireSuccess(await options.data.request('tasks.fence', { taskId: task.id, reason: '' }));
       },
       release: () => finish(current),
@@ -467,6 +470,12 @@ export function createTaskCoordinator(options: {
     async start(input: { browserId: BrowserId }): Promise<Result<WorkTask>> {
       if (!accepting || !options.data.available)
         return failure('UNAVAILABLE', 'Work is unavailable');
+      if (
+        [...live.values()].some(
+          (entry) => entry.task.browserId === input.browserId && entry.gate !== 'open',
+        )
+      )
+        return failure('CONFLICT', recoveryMessage, 'RECOVERY_REQUIRED');
       stoppedBrowsers.delete(input.browserId);
       const accepted = await options.data.request('tasks.accept', input);
       if (accepted.ok) {

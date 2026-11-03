@@ -83,6 +83,7 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
   const heldFences = new Map<string, Promise<void>>();
   const lostReleaseReplies = new Set<string>();
   const failedWitnessRemovals = new Set<string>();
+  const failedAfterUnlink = new Set<string>();
   const coordinatorData: DataClient = {
     get available() {
       return data.available;
@@ -93,6 +94,7 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
       const result = await data.request(method, input);
       if (
         method === 'tasks.finish' &&
+        'ok' in result &&
         result.ok &&
         lostReleaseReplies.delete(
           dataOperations['tasks.finish'].input.parse(input).execution.taskId,
@@ -109,6 +111,13 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     changed() {},
     platform: () => platform,
     checkpoint(point: string, task: PreparedTask) {
+      if (point === 'post-release-pre-unlink' && failedAfterUnlink.delete(task.browser.profileId)) {
+        createExecutionOwnership(join(root, 'execution-owners')).remove({
+          taskId: task.id,
+          executionNonce: task.execution.nonce,
+        });
+        throw new Error('Fixture failed after witness unlink');
+      }
       if (
         point === 'post-release-pre-unlink' &&
         failedWitnessRemovals.delete(task.browser.profileId)
@@ -271,7 +280,7 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     reports.push({ behavior: 'real-card-close-failure-retains-claim-retry', result: 'passed' });
 
     const ownership = createExecutionOwnership(options.ownershipDirectory);
-    for (const fault of ['lost-release-reply', 'failed-witness-removal']) {
+    for (const fault of ['lost-release-reply', 'failed-witness-removal', 'failed-after-unlink']) {
       const released = await browser(fault);
       behaviors.set(released.profileId, 'cards-hold');
       const oldTask = value(await coordinator.start({ browserId: released.id }));
@@ -288,7 +297,8 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
         (row) => row.id === released.id,
       )?.count;
       if (fault === 'lost-release-reply') lostReleaseReplies.add(oldTask.id);
-      else failedWitnessRemovals.add(released.profileId);
+      else if (fault === 'failed-witness-removal') failedWitnessRemovals.add(released.profileId);
+      else failedAfterUnlink.add(released.profileId);
       assert.equal(
         value(await coordinator.stop({ browserId: released.id })).kind,
         'recovery_required',
@@ -300,7 +310,10 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
         committed,
       );
       assert.equal(reclaimed?.status, 'pending');
-      assert(ownership.list().some((witness) => witness.execution.taskId === oldTask.id));
+      assert.equal(
+        ownership.list().some((witness) => witness.execution.taskId === oldTask.id),
+        fault !== 'failed-after-unlink',
+      );
       const raw = value(await data.request('browsers.list', undefined));
       assert.equal(raw.find((row) => row.id === released.id)?.count, count);
       assert.equal(raw.find((row) => row.id === released.id)?.status, 'idle');

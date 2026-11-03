@@ -113,7 +113,15 @@ export function createExecutionOwnership(directory: string) {
         });
     },
     remove(execution: BoundExecution) {
-      read(execution);
+      try {
+        read(execution);
+      } catch (error) {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          syncDirectory();
+          return;
+        }
+        throw error;
+      }
       rmSync(path(execution));
       syncDirectory();
     },
