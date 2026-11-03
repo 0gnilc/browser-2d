@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { lstat, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -12,6 +12,7 @@ import type { SessionFingerprint } from '@browser-2d/contracts/host';
 import type { BrowserPlatform } from '../main/browser-platforms/adspower';
 import { superviseTask, type TaskOptions } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
+import { verificationApplicationStorage, verificationEntries } from './storage';
 
 declare global {
   interface Window {
@@ -33,24 +34,11 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
   );
   assert.equal(basename(reportPath), 'report.json');
   assert.equal(await realpath(dataDir), directory);
-  for (const [path, kind] of [
-    ['data', 'directory'],
-    ['data/data-service-owners', 'directory'],
-    ['data/execution-owners', 'directory'],
+  await verificationApplicationStorage(join(directory, 'data'));
+  await verificationEntries(directory, [
     ['report.json', 'file'],
     ['credentials.enc', 'file'],
-    ['data/app.sqlite', 'file'],
-    ['data/app.sqlite-wal', 'file'],
-    ['data/app.sqlite-shm', 'file'],
-    ['data/app.sqlite-journal', 'file'],
-  ] as const) {
-    const entry = await lstat(join(directory, path)).catch((error: unknown) => {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return;
-      throw error;
-    });
-    if (entry)
-      assert(kind === 'directory' ? entry.isDirectory() : entry.isFile() && entry.nlink === 1);
-  }
+  ]);
   const require = createRequire(join(app.getAppPath(), 'package.json'));
   const entry = join(
     dirname(require.resolve('@browser-2d/backend/browser-worker')),

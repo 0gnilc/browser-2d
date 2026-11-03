@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { join, dirname, relative, isAbsolute, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { join, dirname, resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { app, utilityProcess } from 'electron';
@@ -14,7 +13,13 @@ import {
   type TaskProcessEvent,
 } from '@browser-2d/contracts/host';
 import { verifyDataServiceCrash } from './data-service-crash';
-import { verifyCrashRecovery } from './crash-owner';
+import { crashPoints, verifyCrashRecovery } from './crash-owner';
+import {
+  verificationDirectory,
+  verificationDatabase,
+  verificationApplicationStorage,
+  verificationEntries,
+} from './storage';
 import { verifyApplicationProcesses } from './application-process';
 import { verifyProductionWorker } from './production-worker';
 import { superviseTask, type TaskOptions } from '../main/task-supervisor';
@@ -45,12 +50,25 @@ const responseSchema = z.discriminatedUnion('kind', [
 ]);
 
 export async function verifyTaskProcesses(reportPath: string) {
-  const directory = dirname(resolve(reportPath));
-  const suffix = relative(tmpdir(), directory);
-  assert(
-    !isAbsolute(suffix) && !suffix.startsWith('..') && suffix.startsWith('browser-2d-process-'),
+  const directory = await verificationDirectory(
+    dirname(resolve(reportPath)),
+    'browser-2d-process-',
   );
   assert.equal(join(directory, 'report.json'), resolve(reportPath));
+  await verificationEntries(directory, [['report.json', 'file']]);
+  await verificationDatabase(directory, 'proof.sqlite');
+  for (const name of [
+    'application',
+    'data-service-crash',
+    ...crashPoints.map((point) => `crash-${point}`),
+  ]) {
+    await verificationApplicationStorage(join(directory, name));
+    if (name.startsWith('crash-'))
+      await verificationEntries(join(directory, name), [
+        ['provider-session.json', 'file'],
+        ['crashed.json', 'file'],
+      ]);
+  }
   process.env.BROWSER2D_TEST_SECRET = 'environment-isolation-probe';
   const require = createRequire(join(app.getAppPath(), 'package.json'));
   const runtime = dirname(require.resolve('@browser-2d/backend/browser-worker'));

@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { app, utilityProcess } from 'electron';
@@ -15,8 +14,13 @@ import { createTaskCoordinator } from '../main/task-coordinator';
 import { superviseTask } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
 import { processAbsent, createExecutionOwnership } from '../main/execution-ownership';
+import {
+  verificationDirectory,
+  verificationApplicationStorage,
+  verificationEntries,
+} from './storage';
 import type { BrowserPlatform } from '../main/browser-platforms/adspower';
-const points = [
+export const crashPoints = [
   'pre-fork-intent',
   'post-fork-pre-pid',
   'post-pid-pre-db-ack',
@@ -25,9 +29,9 @@ const points = [
   'running-current-card',
   'post-release-pre-unlink',
 ] as const;
-const inputSchema = z.strictObject({ directory: z.string(), point: z.enum(points) });
+const inputSchema = z.strictObject({ directory: z.string(), point: z.enum(crashPoints) });
 const reportSchema = z.strictObject({
-  point: z.enum(points),
+  point: z.enum(crashPoints),
   mainPid: z.number().int(),
   dataPid: z.number().int(),
 });
@@ -72,15 +76,13 @@ function controlledPlatform(directory: string): BrowserPlatform {
 export async function runCrashOwner(raw: unknown) {
   const input = inputSchema.parse(raw);
   const directory = resolve(input.directory);
-  const parent = dirname(directory);
-  const suffix = relative(tmpdir(), parent);
-  assert(
-    !isAbsolute(suffix) &&
-      !suffix.startsWith('..') &&
-      suffix.startsWith('browser-2d-process-') &&
-      dirname(parent) === resolve(tmpdir()),
-  );
+  const parent = await verificationDirectory(dirname(directory), 'browser-2d-process-');
   assert.equal(directory, join(parent, `crash-${input.point}`));
+  await verificationApplicationStorage(directory);
+  await verificationEntries(directory, [
+    ['provider-session.json', 'file'],
+    ['crashed.json', 'file'],
+  ]);
   const require = createRequire(join(app.getAppPath(), 'package.json'));
   const runtime = dirname(require.resolve('@browser-2d/backend/browser-worker'));
   const data = launchDataService({
@@ -143,7 +145,7 @@ export async function runCrashOwner(raw: unknown) {
 }
 export async function verifyCrashRecovery(directory: string, runtime: string) {
   const reports: object[] = [];
-  for (const point of points) {
+  for (const point of crashPoints) {
     const root = join(directory, `crash-${point}`);
     await mkdir(root, { recursive: true });
     const args = [

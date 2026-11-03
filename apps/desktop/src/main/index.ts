@@ -170,7 +170,12 @@ async function startApplication() {
     .find((value) => value.startsWith('--verify-task-owner='))
     ?.slice('--verify-task-owner='.length);
   if (ownerArgument) {
-    await runCrashOwner(JSON.parse(ownerArgument));
+    try {
+      await runCrashOwner(JSON.parse(ownerArgument));
+    } catch (error) {
+      log.error('Task owner verification failed', error);
+      app.exit(1);
+    }
     return;
   }
 
