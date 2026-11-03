@@ -179,12 +179,14 @@ export function createAdsPowerClient(options: {
           await new Promise<void>((resolve, reject) => {
             trace({ kind: 'stage', stage: 'ws-connect' });
             const ws = new WebSocket(session.endpoint);
+            let settled = false;
             const timer = setTimeout(() => {
               trace({ kind: 'stage', stage: 'ws-timeout' });
-              ws.close();
-              reject(new Error('Owned session close not confirmed'));
+              finish(new Error('Owned session close not confirmed'));
             }, 10_000);
             const finish = (error?: Error) => {
+              if (settled) return;
+              settled = true;
               clearTimeout(timer);
               ws.close();
               if (error) reject(error);
@@ -192,14 +194,16 @@ export function createAdsPowerClient(options: {
             };
             ws.addEventListener('error', () => {
               trace({ kind: 'stage', stage: 'ws-error' });
-              finish(new Error('Owned session unavailable'));
+              finish(commandSent ? undefined : new Error('Owned session unavailable'));
             });
             ws.addEventListener('open', () => {
+              if (settled) return;
               trace({ kind: 'stage', stage: 'ws-open' });
               ws.send(JSON.stringify({ id: 1, method: 'Browser.getVersion' }));
               trace({ kind: 'stage', stage: 'get-version-sent' });
             });
             ws.addEventListener('message', ({ data }) => {
+              if (settled) return;
               let raw: unknown;
               try {
                 raw = JSON.parse(String(data));
@@ -233,13 +237,17 @@ export function createAdsPowerClient(options: {
                 finish(new Error('Owned session identity unavailable'));
                 return;
               }
-              if (parsed.data.id === 1) {
+              if (parsed.data.id === 2 && parsed.data.error !== undefined) {
+                finish(new Error('Owned session close rejected'));
+                return;
+              }
+              if (parsed.data.id === 1 && !commandSent) {
                 if (!parsed.data.result || parsed.data.error) {
                   finish(new Error('Owned session identity unavailable'));
                   return;
                 }
-                commandSent = true;
                 ws.send(JSON.stringify({ id: 2, method: 'Browser.close' }));
+                commandSent = true;
                 trace({ kind: 'stage', stage: 'close-sent' });
               }
             });
