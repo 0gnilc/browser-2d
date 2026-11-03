@@ -78,6 +78,7 @@ export async function verifyProductionWorker(options: {
             child.postMessage({
               kind: 'open',
               executablePath: process.env.BROWSER2D_CHROME_EXECUTABLE,
+              systemRoot: process.platform === 'win32' ? process.env.SystemRoot : undefined,
             }),
           );
         });
