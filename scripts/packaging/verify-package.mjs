@@ -213,24 +213,40 @@ async function verifyWorkbench(directory, pass, defaultBase) {
       `--verify-workbench=${reportPath}`,
       ...(defaultBase ? [`--verify-app-data=${defaultBase}`] : []),
     ],
-    { cwd: tmpdir(), stdio: 'inherit', env: environment },
+    { cwd: tmpdir(), stdio: ['ignore', 'pipe', 'pipe'], env: environment },
   );
-  const code = await new Promise((resolve, reject) => {
+  const logPath = join(evidenceDir, defaultBase ? 'default-path.log' : `package-pass-${pass}.log`);
+  let output = '';
+  child.stdout.on('data', (chunk) => {
+    output = (output + chunk.toString()).slice(-1024 * 1024);
+  });
+  child.stderr.on('data', (chunk) => {
+    output = (output + chunk.toString()).slice(-1024 * 1024);
+  });
+  let timedOut = false;
+  const outcome = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error('Packaged workbench verification timed out'));
+      timedOut = true;
+      child.kill('SIGTERM');
     }, 60_000);
     child.once('error', (error) => {
       clearTimeout(timer);
       reject(error);
     });
-    child.once('exit', (code) => {
+    child.once('exit', (code, signal) => {
       clearTimeout(timer);
-      resolve(code);
+      resolve({ code, signal });
     });
   });
-  assert.equal(code, 0, 'Packaged workbench process failed');
-  const report = JSON.parse(await readFile(reportPath, 'utf8'));
+  await writeFile(logPath, output);
+  const diagnostic = `exit=${outcome.code}, signal=${outcome.signal}, timeout=${timedOut}, log=${logPath}`;
+  let report;
+  try {
+    report = JSON.parse(await readFile(reportPath, 'utf8'));
+  } catch {
+    throw new Error(`Packaged workbench report is missing or invalid; ${diagnostic}`);
+  }
+  assert(!timedOut && outcome.code === 0, `Packaged workbench process failed; ${diagnostic}`);
   assert.equal(report.result, 'VERIFIED');
   assert.equal(report.appVersion, packagedManifest.version);
   assert.equal(report.appName, identity.productName);

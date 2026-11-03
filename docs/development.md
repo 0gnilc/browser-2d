@@ -18,7 +18,7 @@ pnpm --filter @browser-2d/ui build
 
 ## Change running code
 
-Renderer changes use Vite HMR and preserve the DataService and open database. Backend, Main, preload, contract, migration, and shared preset changes trigger a coordinated restart. The coordinator builds first, preserves the running application when the build fails, then asks the old app to shut down before launching its replacement. An unclean exit blocks replacement.
+Renderer changes use Vite HMR and preserve the DataService and open database. Backend, Main, preload, contract, migration, and shared preset changes trigger a coordinated restart. The coordinator builds first, preserves the running application when the build fails, then asks the old app to shut down before launching its replacement. An unclean exit blocks replacement. The private `--inspect-ui` driver hides its owned windows and supports a deterministic nonzero predecessor-exit fault. Its test proves that later rebuilds also refuse replacement.
 
 Do not run source-mutating development tests while a watcher, another source build, or package copy is active. `pnpm test:electron` runs Playwright with one worker. Its development tests restore every changed source file and stop their coordinator before returning.
 
@@ -29,7 +29,7 @@ pnpm check
 pnpm verify
 ```
 
-`check` runs formatting, lint, all workspace and Electron-test type checks, source boundaries, negative boundary fixtures, and the script path map check. `verify` adds workflow contracts, domain and Vue tests, application storage, credentials, updates, release tooling, platform and process isolation, and real Electron UI and development behavior.
+`check` runs formatting, lint, all workspace and Electron-test type checks, source boundaries, negative boundary fixtures, and the script path migration proof. `verify` adds workflow contracts, domain and Vue tests, application storage, credentials, updates, release tooling, platform and process isolation, and real Electron UI and development behavior.
 
 Use these commands for focused checks.
 
@@ -44,7 +44,7 @@ pnpm test:electron
 
 `test:process` builds and runs the real Electron utility processes. It checks cancellation, late starts, crashes, uncertain ownership, replay protection, DataService loss, recovery, and a production BrowserWorker connected to local test Chrome. `BROWSER2D_CHROME_EXECUTABLE` selects an installed test Chrome binary. CI provisions this binary explicitly.
 
-Electron UI checks use temporary userData directories. They cover actual Browser and Card forms, text and UTF-8 TXT import, raw fields, draft protection, settings persistence, manual updates, and foreign-frame rejection. The fixed `--verify-workbench` workflow uses the same window, preload, DataService, coordinator, and real utility-process fixture to check queued work, immediate stop, committed Card values, and input locks. It cannot contact the user's AdsPower instance.
+Electron UI checks use temporary userData directories. They cover actual Browser and Card forms, text and UTF-8 TXT import, raw fields, draft protection, settings key keep, replace, and clear, binding confirmation, stale settings conflicts, ascending filtered pages, manual updates, and foreign-frame rejection. The fixed `--verify-workbench` workflow uses the same window, preload, DataService, coordinator, and real utility-process fixture to check queued work, immediate stop, committed Card values, disabled input fields, visible stopping and recovery states, and retry stop. Automated windows stay hidden through the fixed workflow or an external test bootstrap. It cannot contact the user's AdsPower instance.
 
 `pnpm test:adspower` is a separate, explicitly provisioned real-platform acceptance command. Ordinary CI never uses port 50325 or a real AdsPower key. Keep real-platform credentials and profiles under the root acceptance owner's control.
 
@@ -52,7 +52,7 @@ Electron UI checks use temporary userData directories. They cover actual Browser
 
 `scripts/dev` owns development coordinators. `scripts/checks` owns graph and artifact checks. `scripts/testing` owns test orchestration and native helpers. `scripts/packaging` owns preview artifacts and installation checks. `scripts/release` owns production candidate verification and staging. `scripts/process.mjs` is the shared command runner.
 
-`scripts/checks/script-paths.json` is the exact migration map. `node scripts/checks/script-paths.mjs` rejects retired script paths. Its `--apply` option applies the recorded move to an unmigrated checkout and updates consumers.
+`scripts/checks/script-paths.json` is the exact migration map. `node scripts/checks/script-paths.mjs` rejects retired script paths. Its `--apply` option applies the recorded move to an unmigrated checkout and updates consumers. The canonical check applies the map to a disposable unmigrated repository, checks moved JavaScript syntax, preserves import-like fixture text, and proves idempotence and destination collision refusal.
 
 ## Retired coverage
 

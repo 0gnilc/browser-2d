@@ -114,7 +114,7 @@ for (const [target, hardlink] of [
   ['data/app.sqlite-wal', false],
   ['data/app.sqlite-shm', false],
   ['data/app.sqlite-journal', false],
-  ['data/worker-owners', false],
+  ['data/data-service-owners', false],
   ['data/execution-owners', false],
   ['credentials.enc', false],
   ['report.json', true],
@@ -136,7 +136,9 @@ for (const [target, hardlink] of [
       await writeFile(sentinel, 'owned scratch sentinel');
       const before = await readFile(victimDatabase);
       await mkdir(join(directory, 'data'));
-      const isDirectory = ['data', 'data/worker-owners', 'data/execution-owners'].includes(target);
+      const isDirectory = ['data', 'data/data-service-owners', 'data/execution-owners'].includes(
+        target,
+      );
       const source = isDirectory
         ? victim
         : target === 'data/app.sqlite'
@@ -199,7 +201,9 @@ require(${JSON.stringify(join(desktop, 'dist/main/index.cjs'))});
             code: 'ENOENT',
           });
         if (!isDirectory)
-          await expect(readFile(join(directory, 'data', 'worker-owners'))).rejects.toMatchObject({
+          await expect(
+            readFile(join(directory, 'data', 'data-service-owners')),
+          ).rejects.toMatchObject({
             code: 'ENOENT',
           });
       } finally {

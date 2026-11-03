@@ -230,7 +230,6 @@ export function createTaskCoordinator(options: {
           const requestId = randomUUID();
           current.requestId = requestId;
           requireSuccess(await options.data.request('tasks.startIntent', { execution, requestId }));
-          // No HTTP start may cross a source gate closed while its DB acknowledgment was pending.
           if (current.gate !== 'open' || !accepting) {
             ownership.update(execution, { environment: { kind: 'not_started', requestId } });
             throw new Error('Execution stopped before start');
@@ -454,7 +453,6 @@ export function createTaskCoordinator(options: {
     async recover() {
       accepting = false;
       const tasks = requireSuccess(await options.data.request('tasks.list', undefined));
-      // Fence every old execution before doing any potentially slow provider cleanup.
       for (const task of tasks)
         requireSuccess(await options.data.request('tasks.fence', { taskId: task.id, reason: '' }));
       const witnesses = ownership.list();
@@ -496,7 +494,6 @@ export function createTaskCoordinator(options: {
           stoppedBrowsers.delete(input.browserId);
           return { ok: true, value: { kind: 'stopped', browserId: input.browserId } };
         }
-        // The scheduling pump may have promoted this row while the list reply was in flight.
         const promoted = live.get(task.id);
         if (promoted) return stopLive(promoted);
         if (task.execution)

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { lstat, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { setTimeout as delay } from 'node:timers/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { app, BrowserWindow, utilityProcess } from 'electron';
 import { z } from 'zod';
@@ -34,7 +35,7 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
   assert.equal(await realpath(dataDir), directory);
   for (const [path, kind] of [
     ['data', 'directory'],
-    ['data/worker-owners', 'directory'],
+    ['data/data-service-owners', 'directory'],
     ['data/execution-owners', 'directory'],
     ['report.json', 'file'],
     ['credentials.enc', 'file'],
@@ -56,6 +57,7 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
     'verification/card-worker.cjs',
   );
   const sessions = new Map<string, SessionFingerprint>();
+  let uncertainClose = true;
   const platform: BrowserPlatform = {
     inspect: async (id) =>
       sessions.has(id)
@@ -72,6 +74,11 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
     },
     async closeOwned({ profileId, session }) {
       assert.equal(sessions.get(profileId)?.endpoint, session.endpoint);
+      await delay(300);
+      if (uncertainClose) {
+        uncertainClose = false;
+        return { kind: 'uncertain', message: 'Controlled close requires confirmation' };
+      }
       sessions.delete(profileId);
       return { kind: 'closed', session };
     },
@@ -116,10 +123,13 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
           sandbox: true,
           contextIsolation: true,
           nodeIntegration: false,
+          nodeIntegrationInSubFrames: true,
         },
       });
       try {
-        await foreign.loadURL('data:text/html,foreign');
+        await foreign.loadURL(
+          'data:text/html,<iframe src="data:text/html,foreign-child"></iframe>',
+        );
         const denied: unknown = await foreign.webContents.executeJavaScript(
           'window.browser2d.browsers.list()',
         );
@@ -127,6 +137,14 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
           z
             .object({ ok: z.literal(false), error: z.object({ code: z.literal('INVALID_INPUT') }) })
             .safeParse(denied).success,
+        );
+        const child = foreign.webContents.mainFrame.frames[0];
+        assert(child, 'Foreign subframe loaded');
+        const subframe: unknown = await child.executeJavaScript('window.browser2d.browsers.list()');
+        assert(
+          z
+            .object({ ok: z.literal(false), error: z.object({ code: z.literal('INVALID_INPUT') }) })
+            .safeParse(subframe).success,
         );
       } finally {
         foreign.destroy();
@@ -302,8 +320,20 @@ async function rendererVerification() {
   check(second.ok, 'Second Browser');
   click('[data-testid="nav-browsers"]');
   await until(() => !!document.querySelector('[data-testid="browsers-table"]'));
-  const start = await api.workTasks.start({ browserId: browser.id });
-  check(start.ok, 'Task start');
+  function row(name: string) {
+    return Array.from(
+      document.querySelectorAll('[data-testid="browsers-table"] .el-table__body-wrapper tbody tr'),
+    ).find((element) => element.textContent?.includes(name));
+  }
+  function control(name: string, label: string) {
+    const button = Array.from(row(name)?.querySelectorAll('button') ?? []).find(
+      (element) => element.textContent?.trim() === label,
+    );
+    check(button instanceof HTMLButtonElement && !button.disabled, `Row control ${name} ${label}`);
+    button.click();
+  }
+  await until(() => !!row(profileId) && !!row(`${profileId}-queued`));
+  control(profileId, '开始工作');
   await until(async () => {
     const result = await api.cards.list({ page: 1, pageSize: 100, search: number });
     const current = result.ok && result.value.items[0];
@@ -314,12 +344,21 @@ async function rendererVerification() {
       current.amount === '1.00'
     );
   });
-  const queued = await api.workTasks.start({ browserId: second.value.id });
-  check(queued.ok && queued.value.state === 'queued', 'Task queue');
-  const stopQueued = await api.workTasks.stop({ browserId: second.value.id });
-  check(stopQueued.ok, 'Stop queued');
-  const stop = await api.workTasks.stop({ browserId: browser.id });
-  check(stop.ok, 'Task stop');
+  await until(() => row(profileId)?.textContent?.includes('工作中') ?? false);
+  control(`${profileId}-queued`, '开始工作');
+  await until(() => row(`${profileId}-queued`)?.textContent?.includes('排队中') ?? false);
+  check(
+    Array.from(row(profileId)?.querySelectorAll('button') ?? []).some(
+      (button) => button.textContent?.trim() === '编辑' && button.disabled,
+    ),
+    'Working Browser editor disabled',
+  );
+  control(`${profileId}-queued`, '停止工作');
+  await until(() => row(`${profileId}-queued`)?.textContent?.includes('空闲') ?? false);
+  control(profileId, '停止工作');
+  await until(() => row(profileId)?.textContent?.includes('停止中') ?? false);
+  await until(() => row(profileId)?.textContent?.includes('待恢复') ?? false);
+  control(profileId, '重试停止');
   await until(async () => {
     const result = await api.workTasks.list();
     return result.ok && result.value.length === 0;
@@ -332,6 +371,35 @@ async function rendererVerification() {
       after.value.items[0].amount === '1.00',
     'Stop preserves committed values and input lock',
   );
+  click('[data-testid="nav-cards"]');
+  await until(
+    () => !!document.querySelector('[data-testid="cards-table"] .el-table__body-wrapper button'),
+  );
+  const edit = Array.from(document.querySelectorAll('[data-testid="cards-table"] button')).find(
+    (button) => button.textContent?.trim() === '编辑',
+  );
+  check(edit instanceof HTMLButtonElement && !edit.disabled, 'Stopped Card editable');
+  edit.click();
+  await until(() => !!document.querySelector('#card-number'));
+  const locked = document.querySelector('#card-number');
+  const notes = document.querySelector('#card-notes');
+  check(
+    locked instanceof HTMLInputElement &&
+      locked.disabled &&
+      notes instanceof HTMLTextAreaElement &&
+      !notes.disabled,
+    'Committed Card input lock in DOM',
+  );
+  check(
+    !document.querySelector('#card-amount') && !document.querySelector('#card-status'),
+    'Card amount and status are readonly',
+  );
+  const cancel = Array.from(document.querySelectorAll('.el-drawer button')).find(
+    (button) => button.textContent?.trim() === '取消',
+  );
+  check(cancel instanceof HTMLElement, 'Card cancel');
+  cancel.click();
+  await until(() => !document.querySelector('#card-number'));
   click('[data-testid="sidebar-toggle"]');
   await until(async () => {
     const result = await api.settings.get();

@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline';
 import { createServer, runnerImport } from 'vite';
 import { desktopRequire, resolveNativeBinding } from '../testing/native.mjs';
 import { pnpm, root } from '../process.mjs';
+import { inspectionMainSource } from '../testing/inspect-main.mjs';
 
 const control = await mkdtemp(join(tmpdir(), 'browser-2d-dev-'));
 const dataDir = process.env.BROWSER2D_DATA_DIR || join(root, 'artifacts/dev-data');
@@ -14,6 +15,8 @@ await mkdir(dataDir, { recursive: true });
 const nativeBinding = await resolveNativeBinding();
 const backendOnly = process.argv.includes('--backend-only');
 const inspectUi = process.argv.includes('--inspect-ui');
+const entry = inspectUi ? join(control, 'main.cjs') : join(root, 'apps/desktop');
+if (inspectUi) await writeFile(entry, inspectionMainSource(join(root, 'apps/desktop'), control));
 let server;
 let child;
 let exit;
@@ -25,6 +28,7 @@ const watchers = [];
 const commands = inspectUi ? createInterface({ input: process.stdin }) : undefined;
 commands?.on('line', (line) => {
   if (line === 'stop') void close();
+  if (line === 'fail-stop') void writeFile(join(control, 'fail-stop'), 'fail');
 });
 
 async function stop() {
@@ -85,7 +89,7 @@ async function restart() {
           ...(inspectUi
             ? ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1']
             : []),
-          join(root, 'apps/desktop'),
+          entry,
           ...(backendOnly ? ['--backend-only'] : []),
         ],
         {

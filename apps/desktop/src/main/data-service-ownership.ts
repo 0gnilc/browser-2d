@@ -39,8 +39,8 @@ function syncDirectory(directory: string) {
     closeSync(fd);
   }
 }
-export function claimDataServiceOwnership(businessPath: string) {
-  const directory = join(dirname(businessPath), 'worker-owners');
+export function claimDataServiceOwnership(databasePath: string) {
+  const directory = join(dirname(databasePath), 'data-service-owners');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const ownerNonce = randomUUID();
   const path = join(directory, `${ownerNonce}.json`);

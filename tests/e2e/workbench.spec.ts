@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type Page } from '@playwright/test';
+import { hiddenMain } from './hidden-main';
 const desktop = resolve('apps/desktop');
 const require = createRequire(join(desktop, 'package.json'));
 async function ready(page: Page) {
@@ -16,10 +17,11 @@ async function discard(page: Page) {
 
 test('Browser and Card UI preserves raw text, protects drafts and persists settings across restart', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-ui-'));
+  const bootstrap = await hiddenMain(directory);
   const launch = () =>
     electron.launch({
       executablePath: require('electron'),
-      args: [desktop],
+      args: [bootstrap],
       env: { ...process.env, BROWSER2D_DATA_DIR: directory },
     });
   let application = await launch();
@@ -192,3 +194,154 @@ for (const mode of ['override', 'default'] as const) {
     }
   });
 }
+
+test('Card filters and ascending pages use persisted rows, and Settings keeps, replaces, clears and fences stale drafts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'browser-2d-ui-'));
+  const application = await electron.launch({
+    executablePath: require('electron'),
+    args: [await hiddenMain(directory)],
+    env: { ...process.env, BROWSER2D_DATA_DIR: directory },
+  });
+  try {
+    const page = await application.firstWindow();
+    await ready(page);
+    await page.getByTestId('browser-add').click();
+    await page.getByLabel('环境 ID', { exact: true }).fill('binding-proof');
+    await page.getByTestId('browser-save').click();
+    await expect(page.getByLabel('环境 ID', { exact: true })).toBeHidden();
+    await page.getByTestId('nav-cards').click();
+    await page.getByTestId('card-import-open').click();
+    const numbers = Array.from(
+      { length: 25 },
+      (_, index) => `000${String(index).padStart(2, '0')}`,
+    );
+    await page
+      .getByLabel('卡文本', { exact: true })
+      .fill(numbers.map((number) => `${number} | 01 | 29 | 007 | | | | | | |`).join('\n'));
+    await page.getByTestId('card-import-submit').click();
+    await expect(page.getByText('已插入 25，重复 0，无效 0，空行 0。')).toBeVisible();
+    await page.getByRole('button', { name: '关闭', exact: true }).click();
+    await discard(page);
+    const rows = page.getByTestId('cards-table').locator('.el-table__body-wrapper tbody tr');
+    await expect(rows).toHaveCount(20);
+    expect(await rows.locator('td:first-child').allTextContents()).toEqual(numbers.slice(0, 20));
+    await page.getByRole('button', { name: '下一页' }).click();
+    await expect(rows).toHaveCount(5);
+    expect(await rows.locator('td:first-child').allTextContents()).toEqual(numbers.slice(20));
+    await page.getByRole('combobox', { name: '卡状态' }).press('Enter');
+    await page.getByRole('option', { name: '已处理', exact: true }).click();
+    await page.getByTestId('card-filter').click();
+    await expect(page.getByText('没有符合筛选条件的卡', { exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: '卡状态' }).press('Enter');
+    await page.getByRole('option', { name: '待处理', exact: true }).click();
+    await page.getByTestId('card-filter').click();
+    await expect(rows).toHaveCount(20);
+    expect(await rows.locator('td:first-child').allTextContents()).toEqual(numbers.slice(0, 20));
+    await page.getByRole('textbox', { name: '搜索卡' }).fill(numbers[24] ?? '');
+    await page.getByTestId('card-filter').click();
+    await expect(rows).toHaveCount(1);
+    await expect(rows).toContainText(numbers[24] ?? '');
+    await page.getByTestId('nav-settings').click();
+    await page.locator('#settings-api-key-action').press('Enter');
+    await page.getByRole('option', { name: '替换密钥', exact: true }).click();
+    await page.getByLabel('新 API 密钥', { exact: true }).fill('isolated-synthetic-credential');
+    await page.getByLabel('API 地址', { exact: true }).fill('http://127.0.0.1:1');
+    await page.getByTestId('settings-save').click();
+    await expect(page.getByText('重新确认环境绑定', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '取消保存', exact: true }).click();
+    await expect(page.getByLabel('新 API 密钥', { exact: true })).toHaveValue(
+      'isolated-synthetic-credential',
+    );
+    await page.getByTestId('settings-save').click();
+    await page.getByRole('button', { name: '确认绑定并保存', exact: true }).click();
+    await expect(page.getByText('已配置密钥', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('新 API 密钥', { exact: true })).toHaveCount(0);
+    expect(
+      (await readFile(join(directory, 'credentials.enc'), 'utf8')).includes(
+        'isolated-synthetic-credential',
+      ),
+    ).toBe(false);
+    await page.getByLabel('最大并发浏览器数', { exact: true }).fill('4');
+    await page.getByTestId('settings-save').click();
+    await expect(page.getByText('设置已保存。', { exact: true })).toBeVisible();
+    const retained = await page.evaluate(async () => window.browser2d?.settings.get());
+    expect(retained).toMatchObject({
+      ok: true,
+      value: { values: { apiKeyConfigured: true, maxConcurrentTasks: 4 } },
+    });
+    await page.getByLabel('最大并发浏览器数', { exact: true }).fill('5');
+    const external = await page.evaluate(async () => {
+      const api = window.browser2d;
+      const view = await api?.settings.get();
+      if (!api || !view?.ok) throw new Error('Settings unavailable');
+      return api.settings.save({
+        values: {
+          apiBaseUrl: view.value.values.apiBaseUrl,
+          sidebarCollapsed: view.value.values.sidebarCollapsed,
+          maxConcurrentTasks: 6,
+        },
+        apiKey: { kind: 'keep' },
+        expectedRevision: view.value.revision,
+      });
+    });
+    expect(external).toMatchObject({ ok: true, value: { kind: 'saved' } });
+    await page.getByTestId('settings-save').click();
+    await expect(page.getByRole('alert')).toContainText('当前草稿已保留');
+    await expect(page.getByLabel('最大并发浏览器数', { exact: true })).toHaveValue('5');
+    await page.getByRole('button', { name: '重新读取设置', exact: true }).click();
+    await discard(page);
+    await expect(page.getByLabel('最大并发浏览器数', { exact: true })).toHaveValue('6');
+    await page.locator('#settings-api-key-action').press('Enter');
+    await page.getByRole('option', { name: '清除密钥', exact: true }).click();
+    await page.getByTestId('settings-save').click();
+    await page.getByRole('button', { name: '确认绑定并保存', exact: true }).click();
+    await expect(page.getByText('未配置密钥', { exact: true })).toBeVisible();
+    expect(await page.evaluate(async () => window.browser2d?.settings.get())).toMatchObject({
+      ok: true,
+      value: { values: { apiKeyConfigured: false } },
+    });
+  } finally {
+    await application.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('lost control replies keep the row visibly unconfirmed until a real refresh', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'browser-2d-ui-'));
+  const application = await electron.launch({
+    executablePath: require('electron'),
+    args: [await hiddenMain(directory, true)],
+    env: { ...process.env, BROWSER2D_DATA_DIR: directory },
+  });
+  try {
+    const page = await application.firstWindow();
+    await ready(page);
+    await page.getByTestId('browser-add').click();
+    await page.getByLabel('环境 ID', { exact: true }).fill('unconfirmed-control');
+    await page.getByTestId('browser-save').click();
+    const row = page
+      .getByTestId('browsers-table')
+      .locator('.el-table__body-wrapper tbody tr')
+      .filter({ hasText: 'unconfirmed-control' });
+    await row.getByRole('button', { name: '开始工作', exact: true }).click();
+    await expect(row).toContainText('工作状态待确认');
+    await expect(row.getByRole('button', { name: '开始工作', exact: true })).toHaveCount(0);
+    await expect(row.getByRole('button', { name: '编辑', exact: true })).toBeDisabled();
+    await expect(row.getByRole('button', { name: '移除', exact: true })).toBeDisabled();
+    await expect(page.getByTestId('connection-status')).toHaveAttribute(
+      'data-state',
+      'unavailable',
+    );
+    await page.getByRole('button', { name: '刷新', exact: true }).click();
+    await ready(page);
+    await expect(row).toContainText('空闲');
+    await expect(row.getByRole('button', { name: '开始工作', exact: true })).toBeEnabled();
+    expect(await page.evaluate(async () => window.browser2d?.workTasks.list())).toEqual({
+      ok: true,
+      value: [],
+    });
+  } finally {
+    await application.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

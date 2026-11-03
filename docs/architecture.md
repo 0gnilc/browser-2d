@@ -50,3 +50,5 @@ The renderer receives only named, schema-validated operations. Main accepts call
 Runtime processes receive a minimal environment. Windows retains its absolute `SystemRoot`. Backend workspace contracts and amount utilities are bundled. Native SQLite binaries are unpacked from ASAR. Electron fuses disable RunAsNode, Node options, and command-line inspection, and require loading the application from ASAR.
 
 Boundary checks traverse source imports, manifests, conditional exports, and helpers. Negative fixtures prove the restrictions. Private verification entry points accept fixed operations and dedicated temporary directories; they do not load arbitrary modules or change the public API.
+
+DataService ownership witnesses live under `data/data-service-owners`. Browser execution witnesses live under `data/execution-owners`. A running predecessor must be stopped before a renamed ownership directory is used. The current cutover does not read the retired directory.

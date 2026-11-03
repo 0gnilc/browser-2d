@@ -81,6 +81,9 @@ export async function developer(
     original,
     page,
     output: () => output,
+    failStop() {
+      child.stdin.write('fail-stop\n');
+    },
     async close() {
       child.stdin.write('stop\n');
       let timer: ReturnType<typeof setTimeout> | undefined;

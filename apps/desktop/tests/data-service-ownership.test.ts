@@ -41,7 +41,7 @@ afterAll(() => rmSync(compiled, { recursive: true, force: true }));
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'browser-2d-ownership-'));
   path = join(directory, 'data.db');
-  owners = join(directory, 'worker-owners');
+  owners = join(directory, 'data-service-owners');
   mkdirSync(owners);
 });
 afterEach(() => {

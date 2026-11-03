@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { absent, developer } from './development-helper';
 async function owner(directory: string) {
-  const folder = join(directory, 'data', 'worker-owners');
+  const folder = join(directory, 'data', 'data-service-owners');
   const files = await readdir(folder);
   expect(files).toHaveLength(1);
   const path = files[0];
@@ -113,3 +113,34 @@ for (const source of ['internal/tsconfig/base.json', 'internal/build-config/inde
     }
   });
 }
+
+test('a nonzero predecessor exit refuses replacement on every rebuild', async ({
+  browserName: _browserName,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const dev = await developer(testInfo);
+  let closed = false;
+  try {
+    const first = await dev.page();
+    const pid = await owner(dev.directory);
+    dev.failStop();
+    await writeFile(dev.source, `${dev.original}\n`);
+    await expect
+      .poll(() => dev.output(), { timeout: 45_000 })
+      .toContain('Development shutdown exited 23');
+    expect(absent(pid)).toBe(true);
+    const firstFailure = dev.output().length;
+    await writeFile(dev.source, `${dev.original}\n\n`);
+    await expect
+      .poll(() => dev.output().slice(firstFailure), { timeout: 45_000 })
+      .toContain('Previous application exited 23');
+    expect((await readFile(join(dev.directory, 'DevToolsActivePort'), 'utf8')).split('\n')[0]).toBe(
+      first.port,
+    );
+    expect(await readdir(join(dev.directory, 'data', 'data-service-owners'))).toHaveLength(0);
+    expect(await dev.close()).toBe(1);
+    closed = true;
+  } finally {
+    if (!closed) await dev.close();
+  }
+});
