@@ -29,9 +29,10 @@ export function readBrowser(raw: unknown) {
   const row = browserRowSchema.parse(raw);
   return browserSchema.parse({ ...row, amount: from(row.amount) });
 }
-export const cardColumns = `id, number, expiry_month AS expiryMonth, expiry_year AS expiryYear, security_code AS securityCode, cardholder_name AS cardholderName, billing_address AS billingAddress, billing_city AS billingCity, billing_region AS billingRegion, billing_postal_code AS billingPostalCode, billing_country_code AS billingCountryCode, amount, status, extra, notes, last_result AS lastResult, created_at AS createdAt, updated_at AS updatedAt`;
+export const cardColumns = `id, number, expiry_month AS expiryMonth, expiry_year AS expiryYear, security_code AS securityCode, cardholder_name AS cardholderName, billing_address AS billingAddress, billing_city AS billingCity, billing_region AS billingRegion, billing_postal_code AS billingPostalCode, billing_country_code AS billingCountryCode, amount, status, extra, notes, last_result AS lastResult, (EXISTS(SELECT 1 FROM card_claim WHERE card_id = card.id) OR EXISTS(SELECT 1 FROM card_operation WHERE processing_id = card.processing_id AND card_id = card.id)) AS inputLocked, created_at AS createdAt, updated_at AS updatedAt`;
 const cardRowSchema = cardSchema.extend({
   amount: amountUnitsSchema,
+  inputLocked: z.union([z.literal(0), z.literal(1)]),
   lastResult: z.string().nullable(),
 });
 const storedResultSchema = cardSchema.shape.lastResult
@@ -44,7 +45,12 @@ export function readCard(raw: unknown) {
     const stored = storedResultSchema.parse(JSON.parse(row.lastResult));
     lastResult = cardSchema.shape.lastResult.unwrap().strip().parse(stored);
   }
-  return cardSchema.parse({ ...row, amount: from(row.amount), lastResult });
+  return cardSchema.parse({
+    ...row,
+    amount: from(row.amount),
+    lastResult,
+    inputLocked: row.inputLocked === 1,
+  });
 }
 export function browserById(context: RepositoryContext, id: number) {
   const raw = context.db.prepare(`SELECT ${browserColumns} FROM browser WHERE id = ?`).get(id);

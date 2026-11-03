@@ -825,3 +825,30 @@ describe('new application database migration and persistence', () => {
     );
   });
 });
+
+describe('Card input lock projection', () => {
+  it('shows current claims and durable operations without exposing receipt identity', async () => {
+    await importCards('A', 'B');
+    expect(cards().map((card) => card.inputLocked)).toEqual([false, false]);
+    const execution = start();
+    const claim = next(execution);
+    expect(cards().map((card) => card.inputLocked)).toEqual([true, false]);
+    value(finish(execution));
+    expect(cards().map((card) => card.inputLocked)).toEqual([false, false]);
+    const second = start();
+    const reclaimed = next(second);
+    value(add(second, reclaimed).result);
+    value(finish(second));
+    expect(cards().map((card) => card.inputLocked)).toEqual([true, false]);
+    const [locked] = cards();
+    expect(locked).not.toHaveProperty('processingId');
+    if (!locked) throw new Error('Expected imported Card');
+    expect(
+      repo.cards.update(cardUpdateSchema.parse({ id: locked.id, notes: 'Still editable' })),
+    ).toMatchObject({ ok: true, value: { inputLocked: true, notes: 'Still editable' } });
+    expect(
+      repo.cards.update(cardUpdateSchema.parse({ id: locked.id, extra: 'changed' })),
+    ).toMatchObject({ ok: false, error: { reason: 'INPUT_LOCKED' } });
+    expect(claim.card.number).toBe('A');
+  });
+});

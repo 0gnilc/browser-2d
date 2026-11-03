@@ -29,11 +29,19 @@ export const cardSchema = z.strictObject({
   extra: fieldTextSchema,
   notes: fieldTextSchema,
   lastResult: cardResultSchema.nullable(),
+  inputLocked: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
 export const cardUpdateSchema = cardSchema
-  .omit({ amount: true, status: true, lastResult: true, createdAt: true, updatedAt: true })
+  .omit({
+    inputLocked: true,
+    amount: true,
+    status: true,
+    lastResult: true,
+    createdAt: true,
+    updatedAt: true,
+  })
   .partial()
   .extend({ id: cardIdSchema });
 export type Card = z.infer<typeof cardSchema>;
