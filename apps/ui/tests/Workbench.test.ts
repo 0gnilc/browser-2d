@@ -128,6 +128,76 @@ describe('truthful work state', () => {
     stop();
   });
 
+  it.each(['accepted', 'transport lost', 'unavailable response'])(
+    'keeps %s starts occupied after a failed projection and permits Stop through the live bridge',
+    async (outcome) => {
+      const test = createTestApi();
+      test.api.workTasks.start = vi.fn<Browser2dApi['workTasks']['start']>(async () => {
+        if (outcome === 'transport lost') throw new Error('lost after commit');
+        if (outcome === 'unavailable response') return failure('UNAVAILABLE', '连接中断');
+        return { ok: true, value: { ...task, state: 'queued' } };
+      });
+      test.api.workTasks.stop = vi.fn<Browser2dApi['workTasks']['stop']>(async () => ({
+        ok: true,
+        value: { kind: 'stopped', browserId: browser.id },
+      }));
+      const work = useWorkTasksStore();
+      const stop = work.connect(test.api);
+      await flushPromises();
+      const wrapper = mount(BrowsersPage, { global: { provide: { [desktopApiKey]: test.api } } });
+      test.api.browsers.list = async () => failure('UNAVAILABLE', '数据服务不可用');
+      test.api.workTasks.list = async () => failure('UNAVAILABLE', '数据服务不可用');
+      await work.control(browser.id, 'start');
+      await flushPromises();
+      expect(work.label(browser)).toBe('工作状态待确认');
+      expect(work.busy(browser)).toBe(true);
+      expect(work.browsers[0]?.status).toBe('idle');
+      const button = (text: string) =>
+        wrapper.findAll('button').find((item) => item.text() === text);
+      expect(button('开始工作')).toBeUndefined();
+      expect(button('编辑')?.attributes('disabled')).toBeDefined();
+      expect(button('移除')?.attributes('disabled')).toBeDefined();
+      expect(button('停止工作')?.attributes('disabled')).toBeUndefined();
+      await work.control(browser.id, 'start');
+      expect(test.api.workTasks.start).toHaveBeenCalledOnce();
+      await button('停止工作')?.trigger('click');
+      await flushPromises();
+      expect(test.api.workTasks.stop).toHaveBeenCalledOnce();
+      expect(work.label(browser)).toBe('工作状态待确认');
+      test.api.browsers.list = async () => ({ ok: true, value: [browser] });
+      test.api.workTasks.list = async () => ({ ok: true, value: [] });
+      await work.refresh();
+      await flushPromises();
+      expect(work.label(browser)).toBe('空闲');
+      expect(work.busy(browser)).toBe(false);
+      expect(button('编辑')?.attributes('disabled')).toBeUndefined();
+      expect(button('开始工作')?.attributes('disabled')).toBeUndefined();
+      wrapper.unmount();
+      stop();
+    },
+  );
+
+  it('does not let a pre-action projection clear an uncertain start', async () => {
+    const test = createTestApi();
+    const work = useWorkTasksStore();
+    const stop = work.connect(test.api);
+    await flushPromises();
+    const stale = deferred<Result<Browser[]>>();
+    test.api.browsers.list = vi
+      .fn<Browser2dApi['browsers']['list']>()
+      .mockReturnValueOnce(stale.promise)
+      .mockResolvedValue(failure('UNAVAILABLE', '数据服务不可用'));
+    const refresh = work.refresh();
+    test.api.workTasks.start = async () => ({ ok: true, value: task });
+    const request = work.control(browser.id, 'start');
+    await flushPromises();
+    stale.resolve({ ok: true, value: [browser] });
+    await Promise.all([refresh, request]);
+    expect(work.label(browser)).toBe('工作状态待确认');
+    expect(work.busy(browser)).toBe(true);
+    stop();
+  });
+
   it('treats queued and recovery browsers as occupied in the actual row actions', async () => {
     const test = createTestApi();
     test.api.browsers.list = async () => ({
