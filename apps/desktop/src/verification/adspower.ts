@@ -15,7 +15,11 @@ import { launchDataService } from '../main/data-service-client';
 import { createTaskCoordinator } from '../main/task-coordinator';
 import { launchTask, superviseTask, type TaskLifecycle } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
-import { createAdsPowerClient, type BrowserPlatform } from '../main/browser-platforms/adspower';
+import {
+  createAdsPowerClient,
+  type BrowserPlatform,
+  type CloseCheckpoint,
+} from '../main/browser-platforms/adspower';
 const optionsSchema = z.strictObject({
   reportPath: z.string(),
   apiBaseUrl: z.literal('http://127.0.0.1:50325'),
@@ -101,7 +105,19 @@ export async function verifyAdsPower(raw: unknown) {
   );
   const apiKey = result.stdout.trim();
   assert(apiKey);
-  const platform = createAdsPowerClient({ apiBaseUrl: options.apiBaseUrl, apiKey });
+  const closeProtocolCheckpoints: {
+    attempt: number;
+    at: number;
+    checkpoint: CloseCheckpoint;
+  }[] = [];
+  const platform = createAdsPowerClient({
+    apiBaseUrl: options.apiBaseUrl,
+    apiKey,
+    onCloseCheckpoint(attempt, checkpoint) {
+      if (closeProtocolCheckpoints.length < 1024)
+        closeProtocolCheckpoints.push({ attempt, at: performance.now(), checkpoint });
+    },
+  });
   const products = new Set<string>();
   const versionReads: Promise<void>[] = [];
   const providerClosedAt = new Map<string, number>();
@@ -193,6 +209,7 @@ export async function verifyAdsPower(raw: unknown) {
     result: 'FAILED',
     phase: 'data-ready',
     closeAttempts,
+    closeProtocolCheckpoints,
     packaged: app.isPackaged,
     electron: process.versions.electron,
     platform: process.platform,
