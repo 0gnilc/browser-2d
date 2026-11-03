@@ -10,6 +10,7 @@ export default defineConfig({
   build: {
     target: 'node22',
     ssr: true,
+    manifest: true,
     outDir: 'dist',
     rollupOptions: {
       input: {
@@ -17,6 +18,7 @@ export default defineConfig({
         'browser-worker': 'src/browser-worker/entry.ts',
         'verification/browser-worker': 'tests/process/browser-worker.ts',
         'verification/data-service': 'tests/process/data-service.ts',
+        'verification/browser-platform': 'tests/process/browser-platform.ts',
       },
       external: ['better-sqlite3', 'puppeteer-core'],
       output: { format: 'cjs', entryFileNames: '[name].cjs', chunkFileNames: '[name]-[hash].cjs' },

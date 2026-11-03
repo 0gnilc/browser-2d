@@ -19,6 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { root } from './process.mjs';
 import { desktopRequire } from './native.mjs';
 import { observeChrome } from './chrome-observer.mjs';
+import { runtimeArtifacts } from './runtime-artifacts.mjs';
 import { verifyTaskProcessExecutable } from './task-process-proof.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
@@ -82,6 +83,14 @@ const archive =
 const workerPrefix = '/node_modules/@browser-2d/worker-runtime';
 const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 const packagedManifest = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
+const runtimeManifest = JSON.parse(
+  asar.extractFile(archive, `${workerPrefix.slice(1)}/dist/.vite/manifest.json`).toString('utf8'),
+);
+for (const file of runtimeArtifacts(runtimeManifest))
+  assert(
+    archiveFiles.includes(`${workerPrefix}/dist/${file}`),
+    `Missing packaged runtime dependency ${file}`,
+  );
 assert(
   archiveFiles.includes(`${workerPrefix}/dist/entry.cjs`),
   'Compiled worker entry missing from archive',

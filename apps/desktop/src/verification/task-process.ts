@@ -13,6 +13,7 @@ import {
   executionNonceSchema,
   type TaskProcessEvent,
 } from '@browser-2d/contracts/host';
+import { verifyProductionWorker } from './production-worker';
 import { superviseTask, type TaskOptions } from '../main/task-supervisor';
 
 function deferred<T>() {
@@ -153,6 +154,9 @@ export async function verifyTaskProcesses(reportPath: string) {
     workers.push(worker);
     return {
       worker,
+      fatal() {
+        child.emit('error', 'FatalError', 'fixture-location', 'fixture-report');
+      },
       seen,
       get pulses() {
         return pulses;
@@ -311,6 +315,54 @@ export async function verifyTaskProcesses(reportPath: string) {
     assert.equal((await frozen.worker.stop()).kind, 'exited');
     reports.push({ behavior: 'unconfirmed-exit-retains-reservation', result: 'passed' });
 
+    const closeStarted = deferred<void>();
+    const closeFinished = deferred<void>();
+    let closeCalls = 0;
+    const pendingClose = launch('healthy', {
+      deadlineMs: 100,
+      environment: {
+        async open() {
+          return {
+            processor: 'baidu-check',
+            endpoint: 'ws://127.0.0.1:1',
+            url: 'https://www.baidu.com',
+          };
+        },
+        async close() {
+          closeCalls++;
+          closeStarted.resolve();
+          await closeFinished.promise;
+        },
+        async closed() {
+          return true;
+        },
+      },
+    });
+    await until(() => pendingClose.worker.state.kind === 'running', 'pending close fixture ready');
+    const firstClose = pendingClose.worker.stop();
+    await closeStarted.promise;
+    assert.equal((await firstClose).kind, 'blocked');
+    assert.equal((await pendingClose.worker.stop()).kind, 'blocked');
+    assert.equal(closeCalls, 1, 'an unresolved close cannot be repeated');
+    assert.equal(
+      pendingClose.releases,
+      0,
+      'reservation must prevent replacement while close is unresolved',
+    );
+    const finalClose = pendingClose.worker.stop();
+    closeFinished.resolve();
+    assert.equal((await finalClose).kind, 'exited');
+    assert.equal(closeCalls, 1);
+    assert.equal(pendingClose.releases, 1);
+    reports.push({ behavior: 'pending-close-retry-retains-reservation', result: 'passed' });
+
+    const fatal = launch('healthy');
+    await until(() => fatal.worker.state.kind === 'running', 'fatal event fixture ready');
+    assert.doesNotThrow(() => fatal.fatal());
+    await until(() => fatal.worker.state.kind === 'exited', 'fatal error cleanup');
+    assert.equal(fatal.releases, 1);
+    reports.push({ behavior: 'utility-process-fatal-error', result: 'passed' });
+
     const forged = launch('forge-identity');
     await until(() => forged.worker.state.kind === 'exited', 'forged identity stopped');
     assert.equal(forged.requests, 0);
@@ -327,6 +379,15 @@ export async function verifyTaskProcesses(reportPath: string) {
     reports.push({ behavior: 'parent-lease-loss', result: 'passed' });
     assert.equal((await peer.worker.stop()).kind, 'exited');
     assert((await dbRequest('write')) > 1);
+    reports.push(
+      await verifyProductionWorker({
+        runtime,
+        browser: snapshot,
+        commit: async () => {
+          await dbRequest('write');
+        },
+      }),
+    );
     await writeFile(
       reportPath,
       JSON.stringify(

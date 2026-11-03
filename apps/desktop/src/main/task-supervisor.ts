@@ -52,6 +52,7 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
   let inFlight = false;
   let opening: Promise<void> | undefined;
   let stopping: Promise<TaskLifecycle> | undefined;
+  let environmentClose: Promise<void> | undefined;
   let release: Promise<void> | undefined;
   let attempt = 0;
   let resolveExit: (code: number) => void;
@@ -132,6 +133,9 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
     }
     options.observe?.(event);
   });
+  child.on('error', () => {
+    void stop();
+  });
   child.on('exit', (code) => {
     exitCode = code;
     evidence.exitedAt = performance.now();
@@ -140,6 +144,16 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
     resolveExit(code);
     if (state.kind === 'starting' || state.kind === 'running') void stop();
   });
+
+  function closeEnvironment() {
+    environmentClose ??= (async () => {
+      await opening?.catch(() => undefined);
+      await options.environment.close();
+    })().finally(() => {
+      environmentClose = undefined;
+    });
+    return environmentClose;
+  }
 
   function stop(): Promise<TaskLifecycle> {
     if (state.kind === 'exited') return Promise.resolve(state);
@@ -153,8 +167,7 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
     const cleanup = Promise.all([
       Promise.resolve().then(options.fence),
       (async () => {
-        await opening?.catch(() => undefined);
-        await options.environment.close();
+        await closeEnvironment();
         const code = await exited;
         if (!(await options.environment.closed()))
           throw new Error('Environment closure not confirmed');

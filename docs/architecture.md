@@ -82,9 +82,9 @@ desktop 通过操作系统 safeStorage 保存加密凭据。当前 Chrome 设置
 
 S1 增加 `TaskSupervisor` 和 `browser-worker.cjs`。每个 BrowserWorker 是独立的 Electron utility process，内部固定的控制线程只处理启动、心跳和停止。自动化与 Puppeteer 在 Node Worker 线程执行。控制线程调用 `Worker.terminate()` 后退出，Main 必须观察 utility process 的 `exit` 事件才接受退出证据。生产停止不调用 `utilityProcess.kill()`，不把磁盘 PID 当作终止权限。
 
-故障模型覆盖自动化 JavaScript 死循环、忽略取消和 POSIX SIGTERM。它不保证终止冻结的控制线程、不可中断的原生扩展或恶意进程代码。未确认退出会进入 `blocked`，保留清理义务。Main 同步关闭绑定真实进程来源的请求入口，随后并行发起停止、平台关闭和数据库 fence。最终释放还要求全部已发启动结束、退出后的平台关闭确认，以及 fence 完成。重复停止共享清理请求，失败后可重试。
+故障模型覆盖自动化 JavaScript 死循环、忽略取消和 POSIX SIGTERM。它不保证终止冻结的控制线程、不可中断的原生扩展或恶意进程代码。未确认退出会进入 `blocked`，保留清理义务。Main 同步关闭绑定真实进程来源的请求入口，随后并行发起停止、平台关闭和数据库 fence。最终释放还要求全部已发启动结束、退出后的平台关闭确认，以及 fence 完成。重复停止共享清理请求。超时未完成的环境关闭继续共享原请求，只有已完成的失败才允许重新关闭。utility process 的 error 事件进入同一清理流程。
 
-`pnpm test:process` 运行真实 Electron、两个独立任务进程及专用 SQLite DataService 测试进程，输出 `artifacts/process/<platform>-<arch>.json`。测试 SQL 长查询期间仍须观察选中任务退出，另一个任务继续通信，数据库继续提交。延迟启动、关闭失败、未确认退出、线程崩溃、父进程租约失效与伪造任务身份均有实际进程检查。POSIX SIGTERM 测试由测试进程向自身发信号，Windows 报告该信号用例不适用。成品验收在源码仓库外重跑同一验证，同时保留四原生目标 CI。测试 fixture 只存在于独立验证入口，renderer 无法选择执行文件或测试行为。
+`pnpm test:process` 运行真实 Electron、两个独立任务进程及专用 SQLite DataService 测试进程，输出 `artifacts/process/<platform>-<arch>.json`。测试 SQL 长查询期间仍须观察选中任务退出，另一个任务继续通信，数据库继续提交。另一用例从正式 BrowserWorker 入口连接隔离 Chrome，打开本机测试页面并验证页面心跳和浏览器退出。构建与成品检查遍历 Vite 生成的依赖清单，覆盖自动化私有 chunk。延迟启动、关闭失败、未确认退出、线程崩溃、父进程租约失效与伪造任务身份均有实际进程检查。POSIX SIGTERM 测试由测试进程向自身发信号，Windows 报告该信号用例不适用。成品验收在源码仓库外重跑同一验证，同时保留四原生目标 CI。测试 fixture 只存在于独立验证入口，renderer 无法选择执行文件或测试行为。
 
 当前界面和旧数据服务仍使用原有设备、物料和调度 API。S1 不切换旧任务，不创建新业务表，不重建数据库，也不实施真实卡处理。新数据模型与正式任务接入属于后续阶段。
 

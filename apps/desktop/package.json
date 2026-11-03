@@ -11,7 +11,8 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit",
     "test:credentials": "vitest run --config vitest.credentials.config.ts",
-    "test:updates": "vitest run --config vitest.updates.config.ts"
+    "test:updates": "vitest run --config vitest.updates.config.ts",
+    "test:platform": "vitest run --config vitest.platform.config.ts"
   },
   "dependencies": {
     "@browser-2d/worker-runtime": "workspace:*",

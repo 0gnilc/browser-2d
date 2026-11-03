@@ -30,6 +30,7 @@ import { launchWorker } from './worker-client';
 import { createCredentialVault } from '../platform/credentials';
 import { createBusinessCoordinator } from '../bridge/business';
 import { verifyTaskProcesses } from '../verification/task-process';
+import { verifyAdsPower } from '../verification/adspower';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -318,6 +319,19 @@ async function verifyPackagedWindow() {
 }
 
 async function startApplication() {
+  const adspowerArgument = process.argv
+    .find((value) => value.startsWith('--verify-adspower='))
+    ?.slice('--verify-adspower='.length);
+  if (adspowerArgument) {
+    try {
+      await verifyAdsPower(JSON.parse(adspowerArgument));
+      app.exit(0);
+    } catch {
+      log.error('AdsPower verification failed; inspect the redacted report');
+      app.exit(1);
+    }
+    return;
+  }
   const processReport = process.argv
     .find((value) => value.startsWith('--verify-task-processes='))
     ?.slice('--verify-task-processes='.length);

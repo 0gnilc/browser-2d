@@ -16,6 +16,7 @@ import type { WorkSnapshot } from '@browser-2d/contracts/public';
 
 export function launchWorker(options: {
   dataDir: string;
+  childEnvironment?: NodeJS.ProcessEnv;
   businessPath: string;
   execution: 'controlled' | 'chrome';
   onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
@@ -29,7 +30,10 @@ export function launchWorker(options: {
   const ownership = claimWorkerOwnership(options.businessPath);
   let child: Electron.UtilityProcess;
   try {
-    child = utilityProcess.fork(entry, [], { serviceName: 'browser-2d-worker' });
+    child = utilityProcess.fork(entry, [], {
+      serviceName: 'browser-2d-worker',
+      ...(options.childEnvironment ? { env: options.childEnvironment } : {}),
+    });
   } catch (error) {
     ownership.release();
     throw error;

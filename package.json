@@ -36,7 +36,8 @@
     "release:prepare": "node scripts/release-prepare.mjs",
     "release": "node scripts/release-publish.mjs",
     "test:workflows": "node --test scripts/workflows.test.mjs",
-    "test:process": "node scripts/test-process.mjs"
+    "test:process": "node scripts/test-process.mjs",
+    "test:adspower": "node scripts/test-adspower.mjs"
   },
   "devDependencies": {
     "typescript": "catalog:",

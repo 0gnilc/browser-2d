@@ -3,8 +3,13 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { root } from './process.mjs';
 import { resolveNativeBinding } from './native.mjs';
+import { runtimeArtifacts } from './runtime-artifacts.mjs';
 
 await resolveNativeBinding();
+const runtime = join(root, 'apps/worker/dist');
+const manifest = JSON.parse(await readFile(join(runtime, '.vite/manifest.json'), 'utf8'));
+for (const file of runtimeArtifacts(manifest))
+  assert((await stat(join(runtime, file))).size > 0, `Missing runtime dependency ${file}`);
 
 const migrationSource = join(root, 'apps/worker/migrations');
 for (const path of await readdir(migrationSource, { recursive: true })) {

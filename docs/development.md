@@ -45,6 +45,20 @@ dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:e
 
 该脚本用于隔离测试会话，不替换桌面 keyring。测试流程与 CI 的区别见[测试流程图](workflows.md#测试流程)。
 
+## 验证独立任务和 AdsPower
+
+运行 `pnpm test:process` 验证选中任务的外部停止、真实进程退出、SQLite 存活和正式 BrowserWorker 入口。结果写入 `artifacts/process/`。成品验收自动从 ASAR 重跑同一组检查。这里的受控平台结果不代表实际 AdsPower 验收。
+
+真实平台验证只使用两个专用、关闭的测试环境。macOS 开发凭据保存在 Keychain 的 `io.github.0gnilc.browser2d.development.adspower` 服务及 `browser-2d-development` 账户。Main 读取凭据，子进程不继承 Main 环境，命令和报告不包含密钥或浏览器连接地址。
+
+```sh
+pnpm test:adspower -- --profile-a=DEDICATED_A --profile-b=DEDICATED_B
+```
+
+命令逐个检查环境为 Inactive，再启动并打开百度。停止第一个任务时，另一个页面继续响应，DataService 继续提交。最后只关闭本次启动的专用环境，不删除环境，不访问卡。已打开的环境被拒绝接管。未确认的启动或关闭在报告中保留为 BLOCKED。
+
+使用 `--executable=/absolute/path/to/packaged-executable` 验证已构建成品，执行目录位于源码仓库之外。报告位于 `artifacts/adspower/report.json`，包含正式入口路径、导航确认、另一任务的心跳、数据库提交和关闭证据。真实平台验证单独执行，不在公共 CI 中读取开发凭据。
+
 ## 定位运行失败
 
 任务命令返回不确定结果时，保留原 commandId 并查询原命令。设置保存冲突时，重新加载后比较修改。资源占用、恢复和退出规则见[调度与资源归属](architecture.md#调度与资源归属)。
