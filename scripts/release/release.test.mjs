@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   argumentsFor,
   buildEnvironment,
@@ -42,11 +44,31 @@ test('builder receives the installed updater version instead of the pnpm catalog
   );
 });
 
-test('Linux distribution packages use a package-safe identity distinct from their display name', () => {
-  assert.equal(builderConfiguration.productName, 'Browser 2D');
-  assert.equal(builderConfiguration.linux.packageName, identity.executableName);
-  assert.match(builderConfiguration.linux.packageName, /^[a-z0-9][a-z0-9+.-]+$/);
+test('installed builder accepts the configuration and gives Linux packages a safe identity', async (t) => {
+  const desktopRequire = createRequire(new URL('../../apps/desktop/package.json', import.meta.url));
+  const builderRequire = createRequire(desktopRequire.resolve('electron-builder/package.json'));
+  const { Packager } = builderRequire('app-builder-lib');
+  const { LinuxPackager } = builderRequire('app-builder-lib/out/linuxPackager.js');
+  const packager = new Packager({
+    projectDir: fileURLToPath(new URL('../../apps/desktop', import.meta.url)),
+    config: builderConfiguration,
+  });
+  t.after(() => packager.tempDirManager.cleanup());
+  await packager.validateConfig();
+  const linux = new LinuxPackager(packager);
+  assert.equal(linux.appInfo.productName, 'Browser 2D');
+  assert.equal(linux.executableName, identity.executableName);
   assert.deepEqual(builderConfiguration.linux.target, ['AppImage', 'deb', 'rpm']);
+  const targets = [];
+  linux.createTargets(['deb', 'rpm'], (_name, createTarget) => {
+    targets.push(createTarget(tmpdir()));
+  });
+  for (const target of targets) {
+    await target.scriptFiles;
+    const metadata = await target.checkOptions();
+    assert.equal(metadata.name, identity.executableName, target.name);
+    assert.match(metadata.name, /^[a-z0-9][a-z0-9+.-]+$/);
+  }
 });
 
 async function fixture(t) {
