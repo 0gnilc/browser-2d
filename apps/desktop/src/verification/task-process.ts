@@ -329,8 +329,10 @@ export async function verifyTaskProcesses(reportPath: string) {
     const closeStarted = deferred<void>();
     const closeFinished = deferred<void>();
     let closeCalls = 0;
+    const closeFence = dbRequest('write').then(() => undefined);
     const pendingClose = launch('healthy', {
       deadlineMs: 100,
+      fence: () => closeFence,
       environment: {
         async open() {
           return {
@@ -350,6 +352,7 @@ export async function verifyTaskProcesses(reportPath: string) {
       },
     });
     await until(() => pendingClose.worker.state.kind === 'running', 'pending close fixture ready');
+    await closeFence;
     const firstClose = pendingClose.worker.stop();
     await closeStarted.promise;
     assert.equal((await firstClose).kind, 'blocked');
@@ -362,7 +365,8 @@ export async function verifyTaskProcesses(reportPath: string) {
     );
     const finalClose = pendingClose.worker.stop();
     closeFinished.resolve();
-    assert.equal((await finalClose).kind, 'exited');
+    const closeOutcome = await finalClose;
+    assert.equal(closeOutcome.kind, 'exited', JSON.stringify(closeOutcome));
     assert.equal(closeCalls, 1);
     assert.equal(pendingClose.releases, 1);
     reports.push({ behavior: 'pending-close-retry-retains-reservation', result: 'passed' });
