@@ -3,19 +3,25 @@ import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { secretRefSchema, type BusinessRequest } from '@browser-2d/contracts/host';
 import {
-  failure,
-  settingsValuesSchema,
-  type SettingsValues,
-  type SettingsView,
-} from '@browser-2d/contracts/public';
+  bindingSchema,
+  secretRefSchema,
+  applicationSettingsDefaults,
+  dataOperations,
+  type DataMethod,
+  type DataInput,
+  type DataResult,
+  type PrivateSettingsView,
+  type Binding,
+} from '@browser-2d/contracts/host';
+import { failure } from '@browser-2d/contracts/public';
 import {
   createCredentialVault,
   type EncryptionAdapter,
   type VaultStage,
 } from '../src/platform/credentials';
-import { createBusinessCoordinator } from '../src/bridge/business';
+import { createSettingsCoordinator } from '../src/main/settings-coordinator';
+import type { DataClient } from '../src/main/data-service-client';
 
 const key = randomBytes(32);
 function encryption(): EncryptionAdapter {
@@ -113,138 +119,139 @@ describe('credential persistence with an injected encryption adapter', () => {
     expect(decrypts).toBe(2);
   });
 });
-describe('Chrome settings coordination', () => {
-  const values: SettingsValues = {
-    browser: { mode: 'launch', executablePath: '', headless: false },
-    viewportWidth: 1280,
-    viewportHeight: 900,
-    pageCount: 1,
-  };
-  it('serializes saves and allows only one commit for an expected revision', async () => {
-    const requests: BusinessRequest[] = [];
-    let state: SettingsView = { ...values, revision: 0 };
-    let active = 0;
-    let maxActive = 0;
-    const coordinator = createBusinessCoordinator({
-      available: () => true,
-      async request(request) {
-        requests.push(request);
-        active += 1;
-        maxActive = Math.max(maxActive, active);
-        await Promise.resolve();
-        active -= 1;
-        if (request.method !== 'settings.commit')
-          return failure('INVALID_INPUT', 'Unexpected request');
-        if (state.revision !== request.input.expectedRevision)
-          return failure('CONFLICT', 'Settings changed');
-        state = { ...request.input.values, revision: state.revision + 1 };
-        return { ok: true, value: state };
+
+describe('Main settings and credentials', () => {
+  function client() {
+    let settings: PrivateSettingsView = { values: { ...applicationSettingsDefaults }, revision: 0 };
+    let bindings: Binding[] = [];
+    const sent: { method: DataMethod; input: unknown }[] = [];
+    let loseCommit = false;
+    const data: DataClient = {
+      available: true,
+      async request<M extends DataMethod>(method: M, input: DataInput<M>): Promise<DataResult<M>> {
+        sent.push({ method, input });
+        let result: unknown;
+        if (method === 'settings.read') result = { ok: true, value: settings };
+        else if (method === 'settings.bindings') result = { ok: true, value: bindings };
+        else if (method === 'tasks.list') result = { ok: true, value: [] };
+        else if (method === 'settings.commit') {
+          const commit = dataOperations['settings.commit'].input.parse(input);
+          if (commit.expectedRevision !== settings.revision)
+            result = failure('CONFLICT', 'Revision changed');
+          else {
+            settings = { values: commit.values, revision: settings.revision + 1 };
+            if (loseCommit) throw new Error('Reply lost after commit');
+            result = {
+              ok: true,
+              value: {
+                revision: settings.revision,
+                values: {
+                  apiBaseUrl: commit.values['browser.apiBaseUrl'],
+                  apiKeyConfigured: !!commit.values['browser.apiKeyRef'],
+                  maxConcurrentTasks: commit.values['work.maxConcurrentTasks'],
+                  sidebarCollapsed: commit.values['ui.sidebarCollapsed'],
+                },
+              },
+            };
+          }
+        } else throw new Error('Unexpected test request');
+        return dataOperations[method].result.parse(result) as DataResult<M>;
       },
+    };
+    return {
+      data,
+      sent,
+      get settings() {
+        return settings;
+      },
+      set bindings(next: Binding[]) {
+        bindings = next;
+      },
+      set loseCommit(next: boolean) {
+        loseCommit = next;
+      },
+    };
+  }
+  const values = {
+    apiBaseUrl: 'http://127.0.0.1:50325',
+    maxConcurrentTasks: 2,
+    sidebarCollapsed: false,
+  };
+  it('stages encrypted immutable credentials before CAS and resolves only in Main', async () => {
+    const fixture = client();
+    const vault = createCredentialVault({ path, encryption: encryption() });
+    const settings = createSettingsCoordinator(fixture.data, vault);
+    const saved = await settings.save({
+      values,
+      expectedRevision: 0,
+      apiKey: { kind: 'replace', value: 'main-only-key' },
     });
-    const results = await Promise.all(
-      [1440, 1920].map((viewportWidth) =>
-        coordinator.invoke('settings.save', {
-          values: { ...values, viewportWidth },
-          expectedRevision: 0,
+    expect(saved).toMatchObject({
+      ok: true,
+      value: { kind: 'saved', settings: { values: { apiKeyConfigured: true } } },
+    });
+    expect(JSON.stringify(fixture.sent)).not.toContain('main-only-key');
+    expect(await readFile(path, 'utf8')).not.toContain('main-only-key');
+    expect(await settings.connection()).toEqual({
+      apiBaseUrl: values.apiBaseUrl,
+      apiKey: 'main-only-key',
+    });
+    const ref = secretRefSchema.parse(fixture.settings.values['browser.apiKeyRef']);
+    await expect(vault.resolve(ref)).resolves.toBe('main-only-key');
+    const competing = await Promise.all(
+      [true, false].map((sidebarCollapsed) =>
+        settings.save({
+          values: { ...values, sidebarCollapsed },
+          expectedRevision: 1,
+          apiKey: { kind: 'keep' },
         }),
       ),
     );
-    expect(results.filter((result) => result.ok)).toHaveLength(1);
-    expect(results).toContainEqual(
-      expect.objectContaining({ ok: false, error: expect.objectContaining({ code: 'CONFLICT' }) }),
+    expect(competing.filter((result) => result.ok)).toHaveLength(1);
+  });
+  it('binds confirmation to candidate action, revision and exact Browser bindings', async () => {
+    const fixture = client();
+    fixture.bindings = [bindingSchema.parse({ id: 1, provider: 'adspower', profileId: 'A' })];
+    const settings = createSettingsCoordinator(
+      fixture.data,
+      createCredentialVault({ path, encryption: encryption() }),
     );
-    expect(state.revision).toBe(1);
-    expect(maxActive).toBe(1);
-    expect(requests).toHaveLength(2);
-    expect(JSON.stringify(requests)).not.toMatch(/credential|secret/);
+    const input = {
+      values,
+      expectedRevision: 0,
+      apiKey: { kind: 'replace', value: 'candidate-key' },
+    } as const;
+    const prompt = await settings.save(input);
+    if (!prompt.ok || prompt.value.kind !== 'binding_confirmation_required')
+      throw new Error('Expected binding confirmation');
+    expect(await readdir(directory)).toEqual([]);
+    expect(
+      await settings.save({
+        ...input,
+        apiKey: { kind: 'clear' },
+        bindingConfirmationToken: prompt.value.token,
+      }),
+    ).toMatchObject({ ok: false, error: { reason: 'BINDINGS_CHANGED' } });
+    fixture.bindings = [];
+    expect(
+      await settings.save({ ...input, bindingConfirmationToken: prompt.value.token }),
+    ).toMatchObject({ ok: false, error: { reason: 'BINDINGS_CHANGED' } });
+    expect(fixture.sent.filter((request) => request.method === 'settings.commit')).toHaveLength(0);
     expect(await readdir(directory)).toEqual([]);
   });
-  it('does not contact the worker if it exits while a save is queued', async () => {
-    let available = true;
-    const requests: BusinessRequest[] = [];
-    const coordinator = createBusinessCoordinator({
-      available: () => available,
-      async request(request) {
-        requests.push(request);
-        available = false;
-        return failure('UNAVAILABLE', 'Worker exited');
-      },
-    });
-    const results = await Promise.all(
-      [0, 1].map((expectedRevision) =>
-        coordinator.invoke('settings.save', { values, expectedRevision }),
-      ),
-    );
-    expect(results).toEqual([
-      expect.objectContaining({
-        ok: false,
-        error: expect.objectContaining({ code: 'UNAVAILABLE' }),
-      }),
-      expect.objectContaining({
-        ok: false,
-        error: expect.objectContaining({ code: 'UNAVAILABLE' }),
-      }),
-    ]);
-    expect(requests).toHaveLength(1);
-  });
-  it('preserves dormant vault data on failed settings saves and rejects the removed secret API', async () => {
+  it('retains potentially referenced encrypted records after a lost commit acknowledgment', async () => {
+    const fixture = client();
     const vault = createCredentialVault({ path, encryption: encryption() });
-    const oldRef = await vault.preparePersistent('previous');
-    const bytes = await readFile(path);
-    const coordinator = createBusinessCoordinator({
-      available: () => true,
-      async request() {
-        return failure('INTERNAL', 'Commit failed');
-      },
-    });
-    expect(
-      await coordinator.invoke('settings.save', { values, expectedRevision: 0 }),
-    ).toMatchObject({ ok: false });
-    expect(
-      await coordinator.invoke('settings.save', {
-        values,
-        expectedRevision: 0,
-        secret: { action: 'clear' },
-      }),
-    ).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
-    expect(await readFile(path)).toEqual(bytes);
-    await vault.verify(oldRef);
-  });
-  it.each(['http://127.0.0.1:9222', 'http://localhost:80', 'http://[::1]:9333'])(
-    'accepts a local Chrome endpoint %s',
-    (endpoint) => {
-      expect(
-        settingsValuesSchema.safeParse({ ...values, browser: { mode: 'connect', endpoint } })
-          .success,
-      ).toBe(true);
-    },
-  );
-  it.each([
-    'https://127.0.0.1:9222',
-    'http://example.com:9222',
-    'http://127.0.0.2:9222',
-    'http://localhost',
-    'http://localhost:0',
-    'http://localhost:65536',
-    'http://user:pass@localhost:9222',
-    'http://localhost:9222/json',
-    'http://localhost:9222/',
-    'http://localhost:9222?query',
-    'http://localhost:9222#hash',
-  ])('rejects an unsafe or ambiguous Chrome endpoint %s', (endpoint) => {
-    expect(
-      settingsValuesSchema.safeParse({ ...values, browser: { mode: 'connect', endpoint } }).success,
-    ).toBe(false);
-  });
-  it('rejects mixed browser variants and legacy AdsPower fields', () => {
-    expect(
-      settingsValuesSchema.safeParse({
-        ...values,
-        browser: { ...values.browser, endpoint: 'http://localhost:9222' },
-      }).success,
-    ).toBe(false);
-    expect(
-      settingsValuesSchema.safeParse({ ...values, adsPowerUrl: 'http://localhost:50325' }).success,
-    ).toBe(false);
+    const old = await vault.preparePersistent('old-key');
+    const settings = createSettingsCoordinator(fixture.data, vault);
+    fixture.loseCommit = true;
+    await expect(
+      settings.save({ values, expectedRevision: 0, apiKey: { kind: 'replace', value: 'new-key' } }),
+    ).rejects.toThrow('Reply lost');
+    await expect(vault.resolve(old)).resolves.toBe('old-key');
+    await expect(
+      vault.resolve(secretRefSchema.parse(fixture.settings.values['browser.apiKeyRef'])),
+    ).resolves.toBe('new-key');
+    expect(JSON.stringify(fixture.sent)).not.toContain('new-key');
   });
 });

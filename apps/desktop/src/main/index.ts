@@ -63,8 +63,11 @@ for (const method of Object.keys(applicationPublicOperations)) {
 const lifecycle = createApplicationLifecycle({
   stopAcceptingWork: changed,
   async closeWorker() {
-    await tasks?.shutdown();
-    await worker?.close();
+    try {
+      await tasks?.shutdown();
+    } finally {
+      await worker?.close();
+    }
   },
   report: async () => undefined,
   exit: (code) => app.exit(code),

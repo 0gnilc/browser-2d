@@ -32,7 +32,8 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "ws": "catalog:"
   },
   "homepage": "https://github.com/0gnilc/browser-2d",
   "repository": {

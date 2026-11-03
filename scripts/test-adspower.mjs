@@ -22,6 +22,7 @@ const reportPath = join(directory, 'report.json');
 const options = {
   reportPath,
   profiles,
+  ...(argument('client-version') ? { clientVersion: argument('client-version') } : {}),
   apiBaseUrl: 'http://127.0.0.1:50325',
   credentialService: 'io.github.0gnilc.browser2d.development.adspower',
   credentialAccount: 'browser-2d-development',

@@ -5,7 +5,14 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { app, utilityProcess } from 'electron';
 import type { Result, BrowserId } from '@browser-2d/contracts/public';
-import type { SessionFingerprint } from '@browser-2d/contracts/host';
+import {
+  dataOperations,
+  type DataMethod,
+  type DataInput,
+  type DataResult,
+  type SessionFingerprint,
+} from '@browser-2d/contracts/host';
+import type { DataClient } from '../main/data-service-client';
 import { launchDataService } from '../main/data-service-client';
 import { createTaskCoordinator } from '../main/task-coordinator';
 import { superviseTask } from '../main/task-supervisor';
@@ -71,8 +78,19 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
       return { kind: 'closed', session };
     },
   };
+  const heldFences = new Map<string, Promise<void>>();
+  const coordinatorData: DataClient = {
+    get available() {
+      return data.available;
+    },
+    async request<M extends DataMethod>(method: M, input: DataInput<M>): Promise<DataResult<M>> {
+      if (method === 'tasks.fence')
+        await heldFences.get(dataOperations['tasks.fence'].input.parse(input).taskId);
+      return data.request(method, input);
+    },
+  };
   const options = {
-    data,
+    data: coordinatorData,
     ownershipDirectory: join(root, 'execution-owners'),
     connection: async () => ({ apiBaseUrl: 'http://127.0.0.1:1', apiKey: 'isolated-test-only' }),
     changed() {},
@@ -231,6 +249,81 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     assert.equal(retry.kind, 'stopped', JSON.stringify({ retry, live: coordinator.live }));
     assert.equal((await cards()).find((card) => card.number === 'G')?.status, 'pending');
     reports.push({ behavior: 'real-card-close-failure-retains-claim-retry', result: 'passed' });
+
+    const fenced = await browser('fence-pending');
+    behaviors.set(fenced.profileId, 'cards-hold');
+    const fenceTask = value(await coordinator.start({ browserId: fenced.id }));
+    await until(
+      async () =>
+        (await cards()).some(
+          (card) => card.status === 'processing' && card.extra === 'controlled-committed',
+        ),
+      'current Card before held database fence',
+    );
+    let releaseFence!: () => void;
+    const fenceGate = new Promise<void>((resolve) => {
+      releaseFence = resolve;
+    });
+    heldFences.set(fenceTask.id, fenceGate);
+    const heldStop = coordinator.stop({ browserId: fenced.id });
+    await until(
+      () =>
+        coordinator.live.find((entry) => entry.taskId === fenceTask.id)?.evidence?.exitedAt !==
+        undefined,
+      'execution exits before DB fence acknowledgment',
+    );
+    assert.equal(
+      value(await data.request('tasks.list', undefined)).find((task) => task.id === fenceTask.id)
+        ?.state,
+      'running',
+    );
+    assert.equal(
+      value(await coordinator.list()).find((task) => task.id === fenceTask.id)?.state,
+      'stopping',
+    );
+    const rawBrowsers = value(await data.request('browsers.list', undefined));
+    assert.equal(rawBrowsers.find((browser) => browser.id === fenced.id)?.status, 'working');
+    assert.equal(
+      coordinator.projectBrowsers(rawBrowsers).find((browser) => browser.id === fenced.id)?.status,
+      'stopping',
+    );
+    releaseFence();
+    assert.equal(value(await heldStop).kind, 'stopped');
+    reports.push({
+      behavior: 'Main-live-stopping-projection-before-database-fence-ack',
+      result: 'passed',
+    });
+
+    const foreign = await browser('foreign-replacement');
+    behaviors.set(foreign.profileId, 'cards-hold');
+    value(await coordinator.start({ browserId: foreign.id }));
+    await until(() => sessions.has(foreign.profileId), 'owned environment before replacement');
+    await until(
+      async () =>
+        (await cards()).some(
+          (card) => card.status === 'processing' && card.extra === 'controlled-committed',
+        ),
+      'claimed Card before replacement',
+    );
+    const owned = sessions.get(foreign.profileId);
+    assert(owned);
+    const replacementSession = {
+      endpoint: 'ws://127.0.0.1:1/devtools/browser/foreign',
+      browserTargetId: 'foreign',
+    };
+    sessions.set(foreign.profileId, replacementSession);
+    assert.equal(
+      value(await coordinator.stop({ browserId: foreign.id })).kind,
+      'recovery_required',
+    );
+    assert.equal(sessions.get(foreign.profileId), replacementSession);
+    assert((await cards()).some((card) => card.status === 'processing'));
+    sessions.set(foreign.profileId, owned);
+    assert.equal(value(await coordinator.stop({ browserId: foreign.id })).kind, 'stopped');
+    reports.push({
+      behavior: 'foreign-replacement-preserved-with-claim-reserved',
+      result: 'passed',
+    });
 
     const late = await browser('late-start');
     deferStart = late.profileId;

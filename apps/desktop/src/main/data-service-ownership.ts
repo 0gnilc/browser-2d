@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-const workerOwnerSchema = z.strictObject({
+export const dataServiceOwnerSchema = z.strictObject({
   format: z.literal(1),
   hostPid: z.number().int().positive(),
   pid: z.number().int().positive().nullable(),
@@ -46,7 +46,7 @@ export function claimDataServiceOwnership(businessPath: string) {
   const path = join(directory, `${ownerNonce}.json`);
   const pending = { format: 1, hostPid: process.pid, pid: null, ownerNonce } as const;
   function read(file: string) {
-    const record = workerOwnerSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+    const record = dataServiceOwnerSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
     if (file !== join(directory, `${record.ownerNonce}.json`))
       throw new Error('Worker ownership changed');
     return record;

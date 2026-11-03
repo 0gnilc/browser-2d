@@ -13,6 +13,7 @@ import {
   executionNonceSchema,
   type TaskProcessEvent,
 } from '@browser-2d/contracts/host';
+import { verifyDataServiceCrash } from './data-service-crash';
 import { verifyCrashRecovery } from './crash-owner';
 import { verifyApplicationProcesses } from './application-process';
 import { verifyProductionWorker } from './production-worker';
@@ -463,6 +464,7 @@ export async function verifyTaskProcesses(reportPath: string) {
       }),
     );
     reports.push(...(await verifyApplicationProcesses(directory, runtime)));
+    reports.push(await verifyDataServiceCrash(directory, runtime));
     reports.push(...(await verifyCrashRecovery(directory, runtime)));
     await writeFile(
       reportPath,
