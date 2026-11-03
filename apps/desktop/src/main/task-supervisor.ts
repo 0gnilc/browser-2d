@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { app, utilityProcess } from 'electron';
+import { isolatedProcessEnvironment } from './isolated-process-environment';
 import {
   browserSnapshotSchema,
   taskProcessEventSchema,
@@ -39,7 +40,7 @@ export function launchTask(options: TaskOptions) {
   const entry = require.resolve('@browser-2d/worker-runtime/browser-worker');
   const child = utilityProcess.fork(entry, [], {
     serviceName: 'browser-2d-browser-worker',
-    env: { BROWSER2D_ROLE: 'browser-worker' },
+    env: isolatedProcessEnvironment('browser-worker'),
   });
   return superviseTask(child, entry, options);
 }

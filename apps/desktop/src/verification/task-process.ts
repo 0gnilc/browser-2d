@@ -15,6 +15,7 @@ import {
 } from '@browser-2d/contracts/host';
 import { verifyProductionWorker } from './production-worker';
 import { superviseTask, type TaskOptions } from '../main/task-supervisor';
+import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -51,7 +52,7 @@ export async function verifyTaskProcesses(reportPath: string) {
   const require = createRequire(join(app.getAppPath(), 'package.json'));
   const runtime = dirname(require.resolve('@browser-2d/worker-runtime/browser-worker'));
   const database = utilityProcess.fork(join(runtime, 'verification/data-service.cjs'), [], {
-    env: { BROWSER2D_ROLE: 'verification' },
+    env: isolatedProcessEnvironment('verification'),
   });
   const dbReady = deferred<void>();
   const dbExit = deferred<number>();
@@ -108,7 +109,7 @@ export async function verifyTaskProcesses(reportPath: string) {
     const child = utilityProcess.fork(
       join(runtime, 'verification/browser-worker.cjs'),
       [behavior],
-      { env: { BROWSER2D_ROLE: 'verification' } },
+      { env: isolatedProcessEnvironment('verification') },
     );
     const worker = superviseTask(child, join(runtime, 'verification/browser-worker.cjs'), {
       taskId: taskIdSchema.parse(randomUUID()),

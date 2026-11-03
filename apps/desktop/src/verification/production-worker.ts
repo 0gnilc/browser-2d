@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { utilityProcess } from 'electron';
-import log from 'electron-log/main';
 import { z } from 'zod';
 import {
   taskIdSchema,
@@ -13,6 +12,7 @@ import {
   type BrowserSnapshot,
 } from '@browser-2d/contracts/host';
 import { launchTask } from '../main/task-supervisor';
+import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
 
 export async function verifyProductionWorker(options: {
   runtime: string;
@@ -46,16 +46,12 @@ export async function verifyProductionWorker(options: {
           [],
           {
             env: {
-              BROWSER2D_ROLE: 'test-browser-platform',
+              ...isolatedProcessEnvironment('test-browser-platform'),
               TEMP: tmpdir(),
-              ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot } : {}),
             },
-            stdio: 'pipe',
           },
         );
         const child = platform;
-        child.stderr?.on('data', (chunk: Buffer) => log.info(chunk.toString('utf8')));
-        child.stdout?.on('data', (chunk: Buffer) => log.info(chunk.toString('utf8')));
         platformExit = new Promise<void>((resolve) =>
           child.once('exit', () => {
             platformExited = true;
