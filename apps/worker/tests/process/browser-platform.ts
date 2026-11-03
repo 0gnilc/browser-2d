@@ -15,6 +15,7 @@ port.once('message', ({ data }: { data: unknown }) => {
       headless: true,
       args: ['--no-sandbox'],
       timeout: 10_000,
+      protocolTimeout: 10_000,
       dumpio: true,
     } satisfies LaunchOptions;
     process.stderr.write('Test Chrome bootstrap attempt: minimal environment\n');
