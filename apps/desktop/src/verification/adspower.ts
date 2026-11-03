@@ -13,7 +13,7 @@ import { createCredentialVault } from '../platform/credentials';
 import { createSettingsCoordinator } from '../main/settings-coordinator';
 import { launchDataService } from '../main/data-service-client';
 import { createTaskCoordinator } from '../main/task-coordinator';
-import { launchTask, superviseTask } from '../main/task-supervisor';
+import { launchTask, superviseTask, type TaskLifecycle } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
 import { createAdsPowerClient, type BrowserPlatform } from '../main/browser-platforms/adspower';
 const optionsSchema = z.strictObject({
@@ -105,6 +105,12 @@ export async function verifyAdsPower(raw: unknown) {
   const products = new Set<string>();
   const versionReads: Promise<void>[] = [];
   const providerClosedAt = new Map<string, number>();
+  const closeAttempts: {
+    profile: 'selected' | 'peer';
+    startedAt: number;
+    finishedAt?: number;
+    outcome?: Awaited<ReturnType<BrowserPlatform['closeOwned']>>['kind'];
+  }[] = [];
   const observedPlatform: BrowserPlatform = {
     inspect: platform.inspect,
     async start(profileId) {
@@ -120,7 +126,14 @@ export async function verifyAdsPower(raw: unknown) {
       return opened;
     },
     async closeOwned(input) {
+      const attempt: (typeof closeAttempts)[number] = {
+        profile: input.profileId === options.profiles[0] ? 'selected' : 'peer',
+        startedAt: performance.now(),
+      };
+      closeAttempts.push(attempt);
       const closed = await platform.closeOwned(input);
+      attempt.finishedAt = performance.now();
+      attempt.outcome = closed.kind;
       if (closed.kind === 'closed') providerClosedAt.set(input.profileId, performance.now());
       return closed;
     },
@@ -178,6 +191,8 @@ export async function verifyAdsPower(raw: unknown) {
   let data = open(false);
   const report: Record<string, unknown> = {
     result: 'FAILED',
+    phase: 'data-ready',
+    closeAttempts,
     packaged: app.isPackaged,
     electron: process.versions.electron,
     platform: process.platform,
@@ -193,6 +208,7 @@ export async function verifyAdsPower(raw: unknown) {
   let failure: unknown;
   try {
     await data.ready;
+    report.phase = 'settings-save';
     let settings = createSettingsCoordinator(data, vault);
     assert.equal(
       value(
@@ -208,8 +224,12 @@ export async function verifyAdsPower(raw: unknown) {
       ).kind,
       'saved',
     );
-    let productionForks = 0;
-    let baiduVerified = false;
+    const production: {
+      forks: number;
+      baiduVerified: boolean;
+      settled: { at: number; state: TaskLifecycle['kind']; cleanupDeadlineExceeded: boolean }[];
+    } = { forks: 0, baiduVerified: false, settled: [] };
+    report.productionObservations = production;
     tasks = createTaskCoordinator({
       data,
       ownershipDirectory: join(directory, 'data', 'execution-owners'),
@@ -217,17 +237,28 @@ export async function verifyAdsPower(raw: unknown) {
       platform: () => observedPlatform,
       changed() {},
       spawn(task) {
-        productionForks++;
+        production.forks++;
         return launchTask({
           ...task,
+          settled(state) {
+            production.settled.push({
+              at: performance.now(),
+              state: state.kind,
+              cleanupDeadlineExceeded:
+                state.kind === 'blocked' && state.reason === 'Task cleanup deadline exceeded',
+            });
+            task.settled?.(state);
+          },
           observe(event) {
             task.observe?.(event);
-            if (event.kind === 'verified') baiduVerified = true;
+            if (event.kind === 'verified') production.baiduVerified = true;
           },
         });
       },
     });
+    report.phase = 'production-recover';
     await tasks.recover();
+    report.phase = 'production-seed';
     const browsers = [];
     for (const profileId of options.profiles)
       browsers.push(
@@ -249,18 +280,36 @@ export async function verifyAdsPower(raw: unknown) {
         text: ['A', 'B', 'C'].map((id) => `${id}|01|2030|000|||||||`).join('\n'),
       }),
     );
+    report.phase = 'production-start';
     value(await tasks.start({ browserId: selected.id }));
-    await until(
-      async () => value(await data.request('tasks.list', undefined)).length === 0,
-      'Production sequential Card loop did not clean up',
-    );
+    report.phase = 'production-cleanup';
+    await until(async () => {
+      const remaining = value(await data.request('tasks.list', undefined));
+      report.productionTasks = remaining.map((task) => ({
+        state: task.state,
+        environment: task.environment.kind,
+      }));
+      return remaining.length === 0;
+    }, 'Production sequential Card loop did not clean up');
+    report.phase = 'production-card-dto';
     const first = value(await data.request('cards.list', { page: 1, pageSize: 20 })).items;
-    assert.equal(productionForks, 1);
-    assert(baiduVerified);
+    report.productionCards = first.map((card) => ({
+      seed: ['A', 'B', 'C'].includes(card.number) ? card.number : 'unexpected',
+      status: card.status,
+      zeroAmount: card.amount === '0.00',
+      expectedProcessor: card.lastResult?.processor === 'baidu-check',
+      verificationResult: card.lastResult?.kind === 'verification',
+    }));
+    report.phase = 'production-one-worker';
+    assert.equal(production.forks, 1);
+    report.phase = 'production-navigation';
+    assert(production.baiduVerified);
+    report.phase = 'production-card-order';
     assert.deepEqual(
       first.map((card) => card.number),
       ['A', 'B', 'C'],
     );
+    report.phase = 'production-card-results';
     assert(
       first.every(
         (card) =>
@@ -270,6 +319,7 @@ export async function verifyAdsPower(raw: unknown) {
           card.lastResult.kind === 'verification',
       ),
     );
+    report.phase = 'production-browser-count';
     assert.equal(
       value(await data.request('browsers.list', undefined)).find(
         (browser) => browser.id === selected.id,
@@ -283,9 +333,11 @@ export async function verifyAdsPower(raw: unknown) {
       noImplicitAmount: true,
       exactCleanup: true,
     };
+    report.phase = 'production-shutdown';
     await tasks.shutdown();
     await data.close();
 
+    report.phase = 'controlled-data-ready';
     data = open(true);
     await data.ready;
     settings = createSettingsCoordinator(data, vault);
@@ -327,14 +379,17 @@ export async function verifyAdsPower(raw: unknown) {
         });
       },
     });
+    report.phase = 'controlled-recover-and-seed';
     await tasks.recover();
     value(
       await data.request('cards.importText', {
         text: ['D', 'E', 'F'].map((id) => `${id}|01|2030|000|||||||`).join('\n'),
       }),
     );
+    report.phase = 'controlled-start';
     const selectedTask = value(await tasks.start({ browserId: selected.id }));
     value(await tasks.start({ browserId: peer.id }));
+    report.phase = 'controlled-committed-cards';
     await until(
       async () =>
         verified.size === 2 &&
@@ -346,6 +401,7 @@ export async function verifyAdsPower(raw: unknown) {
         ).length === 2,
       'Both dedicated environments must hold committed current Cards',
     );
+    report.phase = 'selected-stop';
     const evidence = tasks.live.find((entry) => entry.taskId === selectedTask.id)?.evidence;
     assert(evidence);
     const acceptedStopAt = performance.now();
@@ -360,11 +416,13 @@ export async function verifyAdsPower(raw: unknown) {
         evidence.releasedAt,
       ].every((time) => typeof time === 'number'),
     );
+    report.phase = 'peer-progress';
     const beforePeer = pulses.get(peer.id) ?? 0;
     await until(
       () => (pulses.get(peer.id) ?? 0) > beforePeer,
       'Peer page must continue after selected stop',
     );
+    report.phase = 'selected-requeue-and-peer-claim';
     const afterStop = value(await data.request('cards.list', { page: 1, pageSize: 20 })).items;
     assert.equal(
       afterStop.find((card) => card.number === processing.get(selected.id))?.status,
@@ -374,6 +432,7 @@ export async function verifyAdsPower(raw: unknown) {
       afterStop.find((card) => card.number === processing.get(peer.id))?.status,
       'processing',
     );
+    report.phase = 'data-service-progress';
     const free = afterStop.find((card) => card.number === 'F');
     assert(free);
     value(
@@ -395,13 +454,16 @@ export async function verifyAdsPower(raw: unknown) {
       unfinishedCardRequeued: true,
       committedAmountRetained: '1.00',
     };
+    report.phase = 'peer-stop';
     assert.equal(value(await tasks.stop({ browserId: peer.id })).kind, 'stopped');
+    report.phase = 'controlled-reclaim';
     hold.clear();
     value(await tasks.start({ browserId: selected.id }));
     await until(
       async () => value(await data.request('tasks.list', undefined)).length === 0,
       'Deliberate reclaim did not complete and clean up',
     );
+    report.phase = 'controlled-final-results';
     const final = value(await data.request('cards.list', { page: 1, pageSize: 20 })).items;
     assert(
       final
@@ -421,30 +483,56 @@ export async function verifyAdsPower(raw: unknown) {
       reclaimReceiptDedupe: true,
       noCardValuesSentToBaidu: true,
     };
+    report.phase = 'final-shutdown';
     await tasks.shutdown();
+    report.phase = 'dedicated-profiles-inactive';
     for (const profileId of options.profiles)
       assert.equal((await platform.inspect(profileId)).kind, 'inactive');
+    report.phase = 'original-sessions-preserved';
     const finalProfiles = new Set(await activeProfiles());
     assert(originalProfiles.every((id) => finalProfiles.has(id)));
+    report.phase = 'browser-version';
     await Promise.all(versionReads);
     assert(products.size > 0, 'An actual browser version must be observed');
     report.originalSessionsPreserved = true;
     report.originalOpenCount = originalProfiles.length;
     report.chromeProducts = [...products];
+    report.phase = 'complete';
     report.result = 'VERIFIED';
   } catch (error) {
     failure = error;
+    report.failure = {
+      errorType:
+        error instanceof assert.AssertionError
+          ? 'AssertionError'
+          : error instanceof z.ZodError
+            ? 'ValidationError'
+            : error instanceof TypeError
+              ? 'TypeError'
+              : error instanceof Error
+                ? 'Error'
+                : 'Unknown',
+      liveTasks: tasks?.live.map((task) => ({
+        gate: task.gate,
+        state: task.state?.kind,
+        evidence: { ...task.evidence },
+      })),
+    };
     report.error =
       'Platform verification did not complete; inspect dedicated task recovery reservations';
   } finally {
     try {
       await tasks?.shutdown();
+      report.finalTaskShutdown = 'completed';
     } catch {
+      report.finalTaskShutdown = 'blocked';
       report.result = 'BLOCKED';
     }
     try {
       await data.close();
+      report.finalDataClose = 'completed';
     } catch {
+      report.finalDataClose = 'blocked';
       report.result = 'BLOCKED';
     }
     report.chromeProducts = [...products];
