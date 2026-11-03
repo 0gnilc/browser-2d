@@ -173,3 +173,32 @@ it('does not allow a public Card to substitute for its private claim capability'
     false,
   );
 });
+it.each([0, publicApi.limits.fieldLength, publicApi.limits.fieldLength + 1])(
+  'bounds lifecycle messages of length %i to the persisted browser field',
+  (length) => {
+    const message = 'x'.repeat(length);
+    const expected = length <= publicApi.limits.fieldLength;
+    const requests = [
+      { method: 'tasks.fence', input: { taskId: execution.taskId, reason: message } },
+      { method: 'tasks.recovery', input: { execution, message } },
+      {
+        method: 'tasks.finish',
+        input: {
+          execution,
+          exit: { kind: 'never_forked', execution, ownerNonce: randomUUID() },
+          environment: { kind: 'never_started' },
+          outcome: { kind: 'failed', message },
+        },
+      },
+    ];
+    for (const request of requests)
+      expect(
+        dataRequestSchema.safeParse({
+          type: 'data-request',
+          requestId: randomUUID(),
+          ...request,
+        }).success,
+        request.method,
+      ).toBe(expected);
+  },
+);

@@ -644,6 +644,53 @@ describe('task claims and durable operations', () => {
   });
 });
 
+describe('lifecycle message persistence', () => {
+  it.each(['fence', 'recovery', 'finish'] as const)(
+    'rejects an oversized %s message without changing persisted state',
+    (method) => {
+      const execution = start();
+      const task = value(repo.tasks.list())[0];
+      if (!task || task.environment.kind !== 'owned') throw new Error('Missing owned task');
+      const environment = task.environment;
+      if (method === 'finish') value(repo.tasks.fence({ taskId: task.id, reason: 'stop' }));
+      const browsersBefore = value(repo.browsers.list());
+      const tasksBefore = value(repo.tasks.list());
+      function submit(message: string) {
+        if (method === 'fence')
+          return repo.tasks.fence({ taskId: execution.taskId, reason: message });
+        if (method === 'recovery') return repo.tasks.recovery({ execution, message });
+        return repo.tasks.finish({
+          execution,
+          exit: { kind: 'observed_exit', execution, pid: 12345, observedAt: stamp },
+          environment: {
+            kind: 'owned_session_closed',
+            requestId: environment.requestId,
+            session: environment.session,
+            observedAt: stamp,
+          },
+          outcome: { kind: 'failed', message },
+        });
+      }
+      expect(submit('x'.repeat(limits.fieldLength + 1))).toMatchObject({
+        ok: false,
+        error: { code: 'INVALID_INPUT' },
+      });
+      expect(value(repo.browsers.list())).toEqual(browsersBefore);
+      expect(value(repo.tasks.list())).toEqual(tasksBefore);
+      const message = 'x'.repeat(limits.fieldLength);
+      expect(submit(message)).toMatchObject({ ok: true });
+      close();
+      repo = open();
+      expect(value(repo.browsers.list())[0]?.lastError).toBe(message);
+      if (method === 'recovery')
+        expect(value(repo.tasks.list())[0]?.environment).toMatchObject({
+          kind: 'recovery_required',
+          message,
+        });
+    },
+  );
+});
+
 describe('atomic settings and binding confirmation', () => {
   it('initializes four keys with one revision and atomically rejects stale CAS', () => {
     const first = settingsInput({ 'ui.sidebarCollapsed': true, 'work.maxConcurrentTasks': 3 });
