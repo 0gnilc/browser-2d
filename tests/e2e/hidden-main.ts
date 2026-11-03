@@ -28,7 +28,13 @@ electron.ipcMain.handle = (channel, listener) => handle(channel, async (...args)
     : ''
 }
 class HiddenBrowserWindow extends electron.BrowserWindow {
-  constructor(options) { super({ ...options, show: false }); }
+  constructor(options) {
+    super({
+      ...options,
+      show: false,
+      webPreferences: { ...options.webPreferences, offscreen: process.platform === 'linux' },
+    });
+  }
 }
 const Module = require('node:module');
 const load = Module._load;
