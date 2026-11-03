@@ -44,7 +44,14 @@ export async function verifyProductionWorker(options: {
         platform = utilityProcess.fork(
           join(options.runtime, 'verification/browser-platform.cjs'),
           [],
-          { env: { BROWSER2D_ROLE: 'test-browser-platform', TEMP: tmpdir() }, stdio: 'pipe' },
+          {
+            env: {
+              BROWSER2D_ROLE: 'test-browser-platform',
+              TEMP: tmpdir(),
+              ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot } : {}),
+            },
+            stdio: 'pipe',
+          },
         );
         const child = platform;
         child.stderr?.on('data', (chunk: Buffer) => log.info(chunk.toString('utf8')));
@@ -81,7 +88,6 @@ export async function verifyProductionWorker(options: {
             child.postMessage({
               kind: 'open',
               executablePath: process.env.BROWSER2D_CHROME_EXECUTABLE,
-              systemRoot: process.platform === 'win32' ? process.env.SystemRoot : undefined,
             }),
           );
         });
