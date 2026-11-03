@@ -3,8 +3,7 @@ import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { promisify } from 'node:util';
 import { writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { app, safeStorage, utilityProcess } from 'electron';
@@ -15,6 +14,11 @@ import { launchDataService } from '../main/data-service-client';
 import { createTaskCoordinator } from '../main/task-coordinator';
 import { launchTask, superviseTask, type TaskLifecycle } from '../main/task-supervisor';
 import { isolatedProcessEnvironment } from '../main/isolated-process-environment';
+import {
+  verificationDirectory,
+  verificationApplicationStorage,
+  verificationEntries,
+} from './storage';
 import {
   createAdsPowerClient,
   type BrowserPlatform,
@@ -84,12 +88,16 @@ async function browserProduct(endpoint: string) {
 }
 export async function verifyAdsPower(raw: unknown) {
   const options = optionsSchema.parse(raw);
-  const directory = dirname(resolve(options.reportPath));
-  const suffix = relative(tmpdir(), directory);
-  assert(
-    !isAbsolute(suffix) && !suffix.startsWith('..') && suffix.startsWith('browser-2d-adspower-'),
+  const directory = await verificationDirectory(
+    dirname(resolve(options.reportPath)),
+    'browser-2d-adspower-',
   );
   assert.equal(resolve(options.reportPath), join(directory, 'report.json'));
+  await verificationApplicationStorage(join(directory, 'data'));
+  await verificationEntries(directory, [
+    ['report.json', 'file'],
+    ['credentials.enc', 'file'],
+  ]);
   if (process.platform !== 'darwin') throw new Error('The configured credential requires Keychain');
   const result = await promisify(execFile)(
     '/usr/bin/security',
