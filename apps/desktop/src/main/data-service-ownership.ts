@@ -11,7 +11,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { workerOwnerSchema } from '@browser-2d/contracts/host';
+import { z } from 'zod';
+export const dataServiceOwnerSchema = z.strictObject({
+  format: z.literal(1),
+  hostPid: z.number().int().positive(),
+  pid: z.number().int().positive().nullable(),
+  ownerNonce: z.uuid(),
+});
 
 function absent(pid: number) {
   try {
@@ -33,14 +39,14 @@ function syncDirectory(directory: string) {
     closeSync(fd);
   }
 }
-export function claimDataServiceOwnership(businessPath: string) {
-  const directory = join(dirname(businessPath), 'worker-owners');
+export function claimDataServiceOwnership(databasePath: string) {
+  const directory = join(dirname(databasePath), 'data-service-owners');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const ownerNonce = randomUUID();
   const path = join(directory, `${ownerNonce}.json`);
   const pending = { format: 1, hostPid: process.pid, pid: null, ownerNonce } as const;
   function read(file: string) {
-    const record = workerOwnerSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+    const record = dataServiceOwnerSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
     if (file !== join(directory, `${record.ownerNonce}.json`))
       throw new Error('Worker ownership changed');
     return record;

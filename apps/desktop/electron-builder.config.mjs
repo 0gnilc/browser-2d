@@ -39,7 +39,7 @@ export default {
     '!node_modules/@browser-2d/backend/!(dist|package.json){,/**}',
   ],
   directories: { output: process.env.BROWSER2D_RELEASE_DIR || '../../release/local' },
-  artifactName: 'browser-2d-foundation-${version}-${os}-${arch}.${ext}',
+  artifactName: identity.executableName + '-${version}-${os}-${arch}.${ext}',
   mac: {
     target: ['dmg', 'zip'],
     category: 'public.app-category.developer-tools',
@@ -69,6 +69,8 @@ export default {
     maintainer: 'browser-2d contributors',
     executableName,
   },
+  deb: { packageName: executableName },
+  rpm: { packageName: executableName },
   publish: production ? { provider: 'generic', url: feedUrl(configuration) } : null,
   async afterPack(context) {
     const executable =

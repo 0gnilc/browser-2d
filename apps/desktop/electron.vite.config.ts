@@ -1,9 +1,11 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'electron-vite';
 import { rendererConfig } from '@browser-2d/build-config';
+import { identity } from '@browser-2d/build-config/release';
 
 export default defineConfig({
   main: {
+    define: { __PRODUCT_IDENTITY__: JSON.stringify(identity) },
     build: {
       outDir: 'dist/main',
       externalizeDeps: { exclude: ['@browser-2d/contracts', '@browser-2d/amount', 'zod'] },

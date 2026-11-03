@@ -10,6 +10,8 @@ import {
   type ExecutionNonce,
   type TaskId,
   type TaskProcessEvent,
+  type CardRequest,
+  type CardReply,
 } from '@browser-2d/contracts/host';
 
 export type TaskLifecycle =
@@ -30,7 +32,12 @@ export interface TaskOptions {
   };
   fence: () => Promise<void>;
   release: () => Promise<void>;
-  request: (sequence: number) => Promise<void>;
+  request: (request: CardRequest, sequence: number) => Promise<CardReply>;
+  onSpawn?: (pid: number) => Promise<void>;
+  running?: () => Promise<void>;
+  stopped?: () => void;
+  onExit?: (pid: number) => void;
+  settled?: (state: TaskLifecycle) => void;
   observe?: (event: TaskProcessEvent) => void;
   deadlineMs?: number;
 }
@@ -49,8 +56,12 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
   const browser = browserSnapshotSchema.parse(options.browser);
   let state: TaskLifecycle = { kind: 'starting' };
   let spawned = false;
+  let authorizedPid: number | undefined;
   let exitCode: number | undefined;
   let inFlight = false;
+  let awaitingRunning = false;
+  let nextSequence = 0;
+  let authorize: Promise<void> | undefined;
   let opening: Promise<void> | undefined;
   let stopping: Promise<TaskLifecycle> | undefined;
   let environmentClose: Promise<void> | undefined;
@@ -74,6 +85,14 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
   }, 40_000);
   child.on('spawn', () => {
     spawned = true;
+    try {
+      if (!child.pid) throw new Error('Worker PID unavailable');
+      authorizedPid = child.pid;
+      authorize = options.onSpawn?.(child.pid) ?? Promise.resolve();
+      void authorize.catch(() => stop());
+    } catch {
+      void stop();
+    }
     if (state.kind === 'stopping' || state.kind === 'blocked') child.postMessage({ kind: 'stop' });
   });
   child.on('message', (raw: unknown) => {
@@ -90,6 +109,8 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
         return;
       }
       opening = (async () => {
+        await authorize;
+        if (!spawned || state.kind !== 'starting') throw new Error('Execution not authorized');
         const automation = await options.environment.open();
         if (state.kind !== 'starting') return;
         child.postMessage({
@@ -102,34 +123,43 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
       })();
       void opening.catch(() => stop());
     } else if (event.kind === 'running') {
-      if (state.kind !== 'starting') {
+      if (state.kind !== 'starting' || awaitingRunning) {
         void stop();
         return;
       }
-      clearTimeout(startupTimer);
-      state = { kind: 'running' };
+      awaitingRunning = true;
+      void (options.running?.() ?? Promise.resolve())
+        .then(() => {
+          if (state.kind !== 'starting') return;
+          clearTimeout(startupTimer);
+          state = { kind: 'running' };
+          child.postMessage({ kind: 'work-ready' });
+        })
+        .catch(() => stop());
     } else if (event.kind === 'request') {
       if (
         state.kind !== 'running' ||
         event.taskId !== options.taskId ||
         event.executionNonce !== options.executionNonce ||
-        inFlight
+        inFlight ||
+        event.sequence !== nextSequence
       ) {
         void stop();
         return;
       }
       inFlight = true;
+      nextSequence++;
       void options
-        .request(event.sequence)
-        .then(() => {
+        .request(event.request, event.sequence)
+        .then((reply) => {
           if (state.kind === 'running')
-            child.postMessage({ kind: 'receipt', sequence: event.sequence });
+            child.postMessage({ kind: 'receipt', sequence: event.sequence, reply });
         })
         .catch(() => stop())
         .finally(() => {
           inFlight = false;
         });
-    } else if (event.kind === 'failed') {
+    } else if (event.kind === 'failed' || event.kind === 'exhausted') {
       void stop();
     }
     options.observe?.(event);
@@ -139,6 +169,7 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
   });
   child.on('exit', (code) => {
     exitCode = code;
+    if (authorizedPid) options.onExit?.(authorizedPid);
     evidence.exitedAt = performance.now();
     clearTimeout(startupTimer);
     clearInterval(heartbeat);
@@ -162,6 +193,7 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
     if (stopping) return stopping;
     state = { kind: 'stopping' };
     evidence.gateClosedAt ??= performance.now();
+    options.stopped?.();
     clearTimeout(startupTimer);
     if (spawned && exitCode === undefined) child.postMessage({ kind: 'stop' });
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -198,6 +230,7 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
     ])
       .then((result) => {
         state = result;
+        options.settled?.(state);
         return result;
       })
       .catch((error: unknown) => {
@@ -205,6 +238,7 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
           kind: 'blocked',
           reason: error instanceof Error ? error.message : 'Task cleanup failed',
         };
+        options.settled?.(state);
         return state;
       })
       .finally(() => {

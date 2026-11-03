@@ -28,6 +28,7 @@ catalog:
   '@tailwindcss/vite': '4.3.3'
   'vue-router': '4.6.4'
   'zod': '4.6.7'
+  'ws': '8.22.0'
   'yaml': '2.9.1'
   'vitest': '5.0.5'
   '@vue/test-utils': '2.5.1'

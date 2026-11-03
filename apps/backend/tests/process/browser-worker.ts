@@ -33,6 +33,7 @@ if (isMainThread) {
   if (launch.kind !== 'launch') throw new Error('Expected launch');
   const cancel = new AbortController();
   let sequence = 0;
+  let requestSequence = 0;
   let receiptSequence: number | undefined;
   port.on('message', (raw: unknown) => {
     const command = taskProcessCommandSchema.parse(raw);
@@ -56,15 +57,16 @@ if (isMainThread) {
   setInterval(() => {
     port.postMessage({ kind: 'pulse', sequence: ++sequence });
     if (receiptSequence !== undefined) return;
-    receiptSequence = sequence;
+    receiptSequence = requestSequence++;
     port.postMessage({
       kind: 'request',
-      sequence,
+      sequence: receiptSequence,
       taskId:
         behavior === 'forge-identity'
           ? taskIdSchema.parse('00000000-0000-4000-8000-000000000001')
           : launch.taskId,
       executionNonce: launch.executionNonce,
+      request: { kind: 'next_card' },
     });
   }, 20);
 }

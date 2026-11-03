@@ -2,7 +2,7 @@
   "name": "@browser-2d/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser 2D foundation verification app",
+  "description": "Browser 2D desktop application",
   "author": "browser-2d contributors",
   "license": "UNLICENSED",
   "main": "dist/main/index.cjs",
@@ -32,7 +32,8 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "ws": "catalog:"
   },
   "homepage": "https://github.com/0gnilc/browser-2d",
   "repository": {

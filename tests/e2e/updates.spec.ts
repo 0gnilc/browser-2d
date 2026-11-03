@@ -3,13 +3,14 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
+import { hiddenMain } from './hidden-main';
 const desktop = resolve('apps/desktop');
 const require = createRequire(join(desktop, 'package.json'));
 test('update API stays manual and disabled in development and rejects untrusted frames', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-updates-e2e-'));
   const application = await electron.launch({
     executablePath: require('electron'),
-    args: [desktop],
+    args: [await hiddenMain(directory)],
     env: { ...process.env, BROWSER2D_DATA_DIR: directory, BROWSER2D_EXECUTION: 'controlled' },
   });
   try {

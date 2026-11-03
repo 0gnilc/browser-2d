@@ -1,18 +1,9 @@
 import { z } from 'zod';
 
-import { browserSchema } from '../public/browsers';
+import { browserSnapshotSchema, executionNonceSchema } from './execution';
 import { taskIdSchema } from '../public/work-tasks';
-import { isAmountUnits, type AmountUnits } from '@browser-2d/amount';
-export { taskIdSchema } from '../public/work-tasks';
-export type { TaskId } from '../public/work-tasks';
-export const executionNonceSchema = z.uuid().brand<'ExecutionNonce'>();
-export type ExecutionNonce = z.infer<typeof executionNonceSchema>;
-export const browserSnapshotSchema = browserSchema
-  .extend({
-    amount: z.custom<AmountUnits>((value) => typeof value === 'number' && isAmountUnits(value)),
-  })
-  .readonly();
-export type BrowserSnapshot = z.infer<typeof browserSnapshotSchema>;
+import { cardRequestSchema, cardReplySchema } from './application';
+export * from './execution';
 
 export const automationSchema = z.strictObject({
   processor: z.literal('baidu-check'),
@@ -32,7 +23,12 @@ export const taskProcessCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('stop') }),
   z.strictObject({ kind: z.literal('heartbeat') }),
   z.strictObject({ kind: z.literal('cancel') }),
-  z.strictObject({ kind: z.literal('receipt'), sequence: z.number().int().nonnegative() }),
+  z.strictObject({ kind: z.literal('work-ready') }),
+  z.strictObject({
+    kind: z.literal('receipt'),
+    sequence: z.number().int().nonnegative().safe(),
+    reply: cardReplySchema,
+  }),
 ]);
 export type TaskProcessCommand = z.infer<typeof taskProcessCommandSchema>;
 
@@ -45,8 +41,10 @@ export const taskProcessEventSchema = z.discriminatedUnion('kind', [
     kind: z.literal('request'),
     taskId: taskIdSchema,
     executionNonce: executionNonceSchema,
-    sequence: z.number().int().nonnegative(),
+    sequence: z.number().int().nonnegative().safe(),
+    request: cardRequestSchema,
   }),
+  z.strictObject({ kind: z.literal('exhausted') }),
   z.strictObject({ kind: z.literal('failed') }),
 ]);
 export type TaskProcessEvent = z.infer<typeof taskProcessEventSchema>;

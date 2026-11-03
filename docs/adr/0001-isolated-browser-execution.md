@@ -1,7 +1,17 @@
-# Isolate browser execution behind a bounded control host
+# Isolated Browser execution
 
-Each active Browser owns an independent BrowserWorker utility process, while one DataService owns SQLite. Main holds the execution handle and environment lifecycle; a bounded control host runs automation on a worker thread so a processor loop cannot prevent thread termination and utility-process exit observation.
+Status: accepted.
 
-Native S1 evidence covers selected-task loops, ignored cancellation and SIGTERM, peer/DataService progress, cleanup races and packaged execution on four native targets. The new stop path does not use raw PID termination or utilityProcess.kill. Missing host exit or environment closure keeps ownership blocked; this is not a general native-hang or descendant-process guarantee.
+## Context
 
-S2 exposes compiled data-service and browser-worker entries and shared public schemas. The existing DataService still imports legacy work execution and Puppeteer to preserve existing routes until S4. BrowserWorker storage isolation is enforced now; final DataService automation isolation follows the S4 migration. S3 tables, import and operation receipts, S4 scheduling and S5 pages are deferred.
+A Browser can process successive Cards while another Browser continues independently. Stop must interrupt execution even when SQLite is busy. Uncertain process or provider state must prevent an unsafe replacement.
+
+## Decision
+
+Electron Main owns task supervision and platform session lifecycle. DataService is the sole SQLite owner. Each active Browser has a BrowserWorker utility process with its automation loop in a worker thread. Main closes the source gate before cancellation and retains ownership records until execution exit and exact session closure are proven.
+
+DataService and BrowserWorker have separate compiled entry points. DataService cannot import automation or platform code. BrowserWorker cannot import database implementation or SQLite. The renderer uses public DTOs and named preload operations only.
+
+## Consequences
+
+Queued work does not create a worker. Stop preserves committed Card writes and stable operation receipts. Unknown forks and unresolved environment starts retain recovery reservations. Recovery does not relaunch work or turn a stored PID into kill authority. Source boundaries, actual process tests, and fused packaged tests enforce these decisions.

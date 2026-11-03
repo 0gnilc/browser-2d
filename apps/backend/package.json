@@ -20,6 +20,7 @@
     "puppeteer-core": "catalog:"
   },
   "devDependencies": {
+    "@browser-2d/amount": "workspace:*",
     "@browser-2d/contracts": "workspace:*",
     "@browser-2d/tsconfig": "workspace:*",
     "@types/better-sqlite3": "catalog:",

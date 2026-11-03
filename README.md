@@ -1,32 +1,25 @@
 # Browser 2D
 
-Browser 2D 是一个 Electron 桌面应用。界面管理设备、材料、历史、设置和任务，工作进程独占 SQLite，并通过 puppeteer-core 控制本机 Google Chrome。关闭桌面端时停止任务并清理自有资源。
+Browser 2D manages local references to AdsPower browser environments and independent Cards. Add an existing environment ID, save its account and task amount, import Cards, and start or stop work from the Browser row. The current processor verifies access to Baidu. Its result is a verification result, not a completed payment or other external action.
 
-当前浏览器任务只访问本地受控验证页面，不执行旧版付款流程，不接入 AdsPower。工程预览已覆盖 Windows、macOS Intel、macOS Apple Silicon 和 Linux。正式发布和已知问题见下方 Issue。
+Cards retain their full text, including leading zeros, internal spaces, security codes, and addresses. Import uses a multiline text box or UTF-8 TXT file with eleven pipe-separated columns. Browser and Card amounts have two decimal places and no currency meaning.
 
-## 本地启动
+## Start development
 
-使用 [.node-version](.node-version) 指定的 Node 版本和 [package.json](package.json) 指定的 pnpm 版本。浏览器任务需要本机安装 Google Chrome。
+Use the Node version in [.node-version](.node-version) and the pnpm version in [package.json](package.json).
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-开发数据位于 `artifacts/dev-data`。设置 `BROWSER2D_DATA_DIR` 可指定独立数据目录。打包应用未指定该变量时，业务数据库使用 `~/kys/data.db`。测试和试用包应指定临时目录，避免打开真实业务库。
+Configure the local AdsPower API and its key in Settings before starting work. The key uses the operating-system credential store. Development stores application data in `artifacts/dev-data`. An installed app stores its database at `<userData>/data/app.sqlite`. `BROWSER2D_DATA_DIR` overrides the entire userData root.
 
-## 文档
+## Documentation
 
-- [架构与技术选型](docs/architecture.md)说明三个应用、共享契约、工程配置及运行时边界。
-- [开发与测试](docs/development.md)说明入口、热更新、测试范围和故障定位。
-- [开发、测试与打包流程图](docs/workflows.md)说明开发重启、测试执行和打包发布的成功与失败路径。
-- [发布工程](docs/release.md)说明预览包、签名、公证、安装验收及正式发布门槛。
+- [Architecture](docs/architecture.md) describes process ownership, data, and trust boundaries.
+- [Development](docs/development.md) describes commands, restart behavior, and verification.
+- [Release](docs/release.md) describes preview formats, native acceptance, and production requirements.
+- [Glossary](GLOSSARY.md) defines the domain terms.
 
-精确依赖版本以 [workspace catalog](pnpm-workspace.yaml) 和 [锁文件](pnpm-lock.yaml) 为准。
-
-## 未完成事项
-
-进展和关闭条件只在 GitHub Issues 中维护。
-
-- [#6 正式发布验收](https://github.com/0gnilc/browser-2d/issues/6)。
-- [#8 Windows Chrome 获取超时](https://github.com/0gnilc/browser-2d/issues/8)。
+Dependency versions are maintained in the [workspace catalog](pnpm-workspace.yaml) and [lockfile](pnpm-lock.yaml). [Issue 13](https://github.com/0gnilc/browser-2d/issues/13) tracks the Browser/Card acceptance work. Formal signing, notarization, a trusted HTTPS update service, and official release certification remain external requirements tracked in [Issue 6](https://github.com/0gnilc/browser-2d/issues/6).

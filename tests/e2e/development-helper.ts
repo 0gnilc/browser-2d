@@ -15,14 +15,14 @@ export function absent(pid: number) {
 }
 export async function developer(
   testInfo: TestInfo,
-  sourcePath = 'apps/backend/src/work/controlled-driver.ts',
+  sourcePath = 'apps/backend/src/data-service/browser-cards.ts',
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-dev-restart-'));
   const source = resolve(sourcePath);
   const original = await readFile(source, 'utf8');
-  const child = spawn(process.execPath, ['scripts/dev.mjs', '--inspect-ui'], {
+  const child = spawn(process.execPath, ['scripts/dev/dev.mjs', '--inspect-ui'], {
     cwd: resolve('.'),
-    env: { ...process.env, BROWSER2D_DATA_DIR: directory, BROWSER2D_EXECUTION: 'controlled' },
+    env: { ...process.env, BROWSER2D_DATA_DIR: directory },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let output = '';
@@ -81,6 +81,9 @@ export async function developer(
     original,
     page,
     output: () => output,
+    failStop() {
+      child.stdin.write('fail-stop\n');
+    },
     async close() {
       child.stdin.write('stop\n');
       let timer: ReturnType<typeof setTimeout> | undefined;

@@ -4,10 +4,9 @@ import {
   browserUpdateSchema,
   cardSchema,
   cardUpdateSchema,
-  applicationSettingsSchema,
-  applicationSettingsDefaults,
   taskIdSchema,
 } from '../src/public';
+import { applicationSettingsSchema, applicationSettingsDefaults } from '../src/host';
 import { browserSnapshotSchema } from '../src/host/task-process';
 const timestamp = '2026-11-03T00:00:00.000Z';
 const browser = {
@@ -54,6 +53,7 @@ it('keeps card text raw and does not expose processing identity', () => {
     extra: '',
     notes: '',
     lastResult: null,
+    inputLocked: false,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -61,7 +61,7 @@ it('keeps card text raw and does not expose processing identity', () => {
   for (const key of ['processingId', 'claimToken', 'operationKey'])
     expect(cardSchema.safeParse({ ...card, [key]: 'private' }).success).toBe(false);
 });
-it.each(['amount', 'status', 'processingId', 'lastResult'])(
+it.each(['amount', 'status', 'processingId', 'lastResult', 'inputLocked'])(
   'ordinary card edits reject %s',
   (field) =>
     expect(cardUpdateSchema.safeParse({ id: 1, [field]: 'forbidden' }).success).toBe(false),
@@ -94,3 +94,7 @@ it.each(['', 'invalid', 'https://remote.test', 'http://user:secret@127.0.0.1:503
     ).toBe(false);
   },
 );
+
+it('ordinary Card edits reject even a boolean input lock projection', () => {
+  expect(cardUpdateSchema.safeParse({ id: 1, inputLocked: false }).success).toBe(false);
+});

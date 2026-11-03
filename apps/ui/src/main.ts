@@ -1,17 +1,14 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
-import { bridgeKey } from './bridge';
+import { desktopApiKey } from './platform/desktop-api';
+import { unavailableApi } from './platform/unavailable-api';
 import { router } from './router';
 import 'element-plus/dist/index.css';
-import './style.css';
+import './assets/styles/main.css';
 
-async function mount() {
-  const api =
-    import.meta.env.VITE_FIXTURE_MODE === '1'
-      ? (await import('./fixture')).createFixtureBridge()
-      : window.browser2d;
-  createApp(App).use(createPinia()).use(router).provide(bridgeKey, api).mount('#app');
-}
-
-void mount();
+createApp(App)
+  .use(createPinia())
+  .use(router)
+  .provide(desktopApiKey, window.browser2d ?? unavailableApi)
+  .mount('#app');

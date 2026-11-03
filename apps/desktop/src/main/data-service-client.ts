@@ -2,265 +2,199 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { app, utilityProcess } from 'electron';
-import { claimDataServiceOwnership } from './data-service-ownership';
 import {
-  shutdownResultSchema,
-  workerEventSchema,
-  type WorkerRequest,
-  type BusinessRequest,
-  type CredentialChallenge,
-  type CredentialReceipt,
-  type BrowserFixture,
+  dataOperations,
+  dataServiceEventSchema,
+  type DataMethod,
+  type DataInput,
+  type DataResult,
 } from '@browser-2d/contracts/host';
-import type { WorkSnapshot } from '@browser-2d/contracts/public';
+import { claimDataServiceOwnership } from './data-service-ownership';
+import { isolatedProcessEnvironment } from './isolated-process-environment';
 
+export interface DataClient {
+  request<M extends DataMethod>(method: M, input: DataInput<M>): Promise<DataResult<M>>;
+  readonly available: boolean;
+}
 export function launchDataService(options: {
-  dataDir: string;
-  childEnvironment?: NodeJS.ProcessEnv;
-  businessPath: string;
-  execution: 'controlled' | 'chrome';
-  onCredentialChallenge: (challenge: CredentialChallenge) => Promise<CredentialReceipt>;
+  dataPath: string;
   nativeBinding?: string;
-  browserFixture?: BrowserFixture;
-  onSnapshot: (snapshot: WorkSnapshot) => void;
-  onUnavailable: (message: string) => void;
+  onChanged: () => void;
+  onUnavailable: () => void;
+  entry?: string;
 }) {
   const require = createRequire(join(app.getAppPath(), 'package.json'));
-  const entry = require.resolve('@browser-2d/backend/data-service');
-  const ownership = claimDataServiceOwnership(options.businessPath);
+  const entry = options.entry ?? require.resolve('@browser-2d/backend/data-service');
+  const ownership = claimDataServiceOwnership(options.dataPath);
   let child: Electron.UtilityProcess;
   try {
     child = utilityProcess.fork(entry, [], {
       serviceName: 'browser-2d-data-service',
-      ...(options.childEnvironment ? { env: options.childEnvironment } : {}),
+      env: isolatedProcessEnvironment('data-service'),
     });
   } catch (error) {
-    ownership.release();
-    throw error;
+    // A failed fork can have an unknown child. Keep its pending ownership record.
+    throw new Error('DataService fork was not confirmed', { cause: error });
   }
+  let state: 'starting' | 'ready' | 'closing' | 'failed' = 'starting';
+  let exited = false;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
   const pending = new Map<
     string,
     {
+      method: string;
       resolve: (value: unknown) => void;
       reject: (error: Error) => void;
       timer: ReturnType<typeof setTimeout>;
     }
   >();
-  let unavailable: Error | undefined;
-  let state: 'starting' | 'challenge' | 'ready' | 'closing' | 'failed' = 'starting';
-  let closing = false;
-  let exited = false;
-  let resolveReady: (snapshot: WorkSnapshot) => void;
-  let rejectReady: (error: Error) => void;
-  const ready = new Promise<WorkSnapshot>((resolve, reject) => {
+  let resolveReady!: () => void;
+  let rejectReady!: (error: Error) => void;
+  const ready = new Promise<void>((resolve, reject) => {
     resolveReady = resolve;
     rejectReady = reject;
   });
-  let resolveExit: (code: number) => void;
+  void ready.catch(() => undefined);
+  let resolveExit!: (code: number) => void;
   const exit = new Promise<number>((resolve) => {
     resolveExit = resolve;
   });
-  let heartbeat: ReturnType<typeof setInterval> | undefined;
-  let startupTimer: ReturnType<typeof setTimeout> | undefined;
-  function armStartupTimeout() {
-    clearTimeout(startupTimer);
-    startupTimer = setTimeout(() => {
-      fail(new Error('Worker readiness timed out'));
-      child.kill();
-    }, 60_000);
-  }
-  armStartupTimeout();
-
-  function fail(error: Error) {
-    if (unavailable) return;
-    unavailable = error;
+  let shutdownAck: (() => void) | undefined;
+  const startup = setTimeout(() => {
+    fail();
+    child.kill();
+  }, 30_000);
+  function fail() {
+    const wasClosing = state === 'closing';
+    if (state === 'failed') return;
     state = 'failed';
-    clearTimeout(startupTimer);
+    clearTimeout(startup);
     clearInterval(heartbeat);
+    const error = new Error('DataService is unavailable; request progress may be unknown');
     rejectReady(error);
     for (const request of pending.values()) {
       clearTimeout(request.timer);
       request.reject(error);
     }
     pending.clear();
-    if (!closing) options.onUnavailable(error.message);
+    if (!wasClosing) options.onUnavailable();
   }
   child.on('spawn', () => {
     try {
-      if (!child.pid) throw new Error('Worker PID is unavailable');
+      if (!child.pid) throw new Error('DataService PID unavailable');
       ownership.authorize(child.pid);
-      if (closing || unavailable) {
+      if (state !== 'starting') {
         child.kill();
         return;
       }
       child.postMessage({
         type: 'initialize',
         ownerNonce: ownership.ownerNonce,
-        dataDir: options.dataDir,
-        businessPath: options.businessPath,
-        execution: options.execution,
-        nativeBinding: options.nativeBinding,
-        browserFixture: options.browserFixture,
+        dataPath: options.dataPath,
+        ...(options.nativeBinding ? { nativeBinding: options.nativeBinding } : {}),
       });
       heartbeat = setInterval(() => {
         if (!exited) child.postMessage({ type: 'heartbeat', ownerNonce: ownership.ownerNonce });
       }, 1000);
     } catch {
-      fail(new Error('Worker authorization failed'));
+      fail();
       child.kill();
     }
   });
   child.on('message', (raw: unknown) => {
-    const parsed = workerEventSchema.safeParse(raw);
+    const parsed = dataServiceEventSchema.safeParse(raw);
     if (!parsed.success) {
-      fail(new Error('Invalid worker response'));
+      fail();
       child.kill();
       return;
     }
     const event = parsed.data;
-    if (unavailable) return;
-    if (event.type === 'credential-challenge') {
-      if (state !== 'starting') {
-        fail(new Error('Unexpected initialization request'));
-        child.kill();
+    if (event.type === 'ready') {
+      if (state !== 'starting' || event.ownerNonce !== ownership.ownerNonce) {
+        fail();
         return;
       }
-      state = 'challenge';
-      if (event.kind === 'confirm') clearTimeout(startupTimer);
-      void options
-        .onCredentialChallenge(event)
-        .then((receipt) => {
-          if (state !== 'challenge' || closing) return;
-          state = 'starting';
-          armStartupTimeout();
-          child.postMessage(receipt);
-        })
-        .catch(() => {
-          if (state !== 'challenge' || closing) return;
-          state = 'starting';
-          armStartupTimeout();
-          child.postMessage({
-            type: 'credential-receipt',
-            kind: 'refused',
-            bootNonce: event.bootNonce,
-          });
-        });
-    } else if (event.type === 'ready') {
-      if (state !== 'starting' || closing) return;
       state = 'ready';
-      clearTimeout(startupTimer);
-      resolveReady(event.snapshot);
-      options.onSnapshot(event.snapshot);
-    } else if (event.type === 'snapshot') {
-      if (state === 'ready' || closing) options.onSnapshot(event.snapshot);
-    } else if (event.type === 'fatal' || event.type === 'blocked') {
-      fail(new Error(event.type === 'blocked' ? event.code : 'Worker failed'));
-      child.kill();
-    } else {
+      clearTimeout(startup);
+      resolveReady();
+    } else if (event.type === 'changed') {
+      if (state === 'ready') options.onChanged();
+    } else if (event.type === 'blocked') fail();
+    else if (event.type === 'shutdown-complete') shutdownAck?.();
+    else {
       const request = pending.get(event.requestId);
-      if (request) {
-        clearTimeout(request.timer);
-        pending.delete(event.requestId);
-        request.resolve(event.result);
-      }
+      if (!request || request.method !== event.method) return;
+      pending.delete(event.requestId);
+      clearTimeout(request.timer);
+      request.resolve(event.result);
     }
   });
+  child.on('error', fail);
   child.on('exit', (code) => {
     exited = true;
-    clearInterval(heartbeat);
     try {
       ownership.release();
     } catch {
-      options.onUnavailable('Worker ownership record could not be released');
+      options.onUnavailable();
     }
     resolveExit(code);
-    fail(new Error(`Worker exited (${code})`));
+    fail();
   });
-
-  function request(message: WorkerRequest | BusinessRequest): Promise<unknown> {
-    if (unavailable) return Promise.reject(unavailable);
-    if (message.method !== 'shutdown' && state !== 'ready')
-      return Promise.reject(new Error('Worker is not ready'));
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(message.requestId);
-        reject(new Error('Worker request timed out'));
-      }, 10_000);
-      pending.set(message.requestId, { resolve, reject, timer });
-      child.postMessage(message);
+  async function request<M extends DataMethod>(
+    method: M,
+    input: DataInput<M>,
+  ): Promise<DataResult<M>> {
+    if (state !== 'ready') throw new Error('DataService unavailable');
+    const parsedInput = dataOperations[method].input.parse(input);
+    const requestId = randomUUID();
+    const result = await new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(
+        () => {
+          pending.delete(requestId);
+          reject(new Error('DataService reply lost; progress unknown'));
+        },
+        method === 'cards.importText' ? 60_000 : 10_000,
+      );
+      pending.set(requestId, { method, resolve, reject, timer });
+      child.postMessage({ type: 'data-request', requestId, method, input: parsedInput });
     });
+    return dataOperations[method].result.parse(result) as DataResult<M>;
   }
-  let closingPromise: Promise<void> | undefined;
+  let closing: Promise<void> | undefined;
   function close() {
-    closingPromise ??= closeWorker();
-    return closingPromise;
-  }
-  async function closeWorker() {
-    closing = true;
-    state = 'closing';
-    clearTimeout(startupTimer);
-    rejectReady(new Error('Worker is closing'));
-    if (exited) throw unavailable ?? new Error('Worker exited before shutdown');
-    const deadline = Date.now() + 10_000;
-    let forced = false;
-    let shutdownFailure: unknown;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const cooperative = (async () => {
-        const result = shutdownResultSchema.parse(
-          await request({ type: 'request', requestId: randomUUID(), method: 'shutdown' }),
-        );
-        if (!result.ok) throw new Error(result.error.message);
-        const code = await exit;
-        if (code !== 0) throw new Error(`Worker shutdown exited (${code})`);
-      })();
+    closing ??= (async () => {
+      if (exited) return;
+      state = 'closing';
+      clearTimeout(startup);
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
+        const acknowledged = new Promise<void>((resolve) => {
+          shutdownAck = resolve;
+        });
+        child.postMessage({ type: 'shutdown', requestId: randomUUID() });
         await Promise.race([
-          cooperative,
+          Promise.all([acknowledged, exit]).then(([, code]) => {
+            if (code !== 0) throw new Error('DataService shutdown failed');
+          }),
           new Promise<never>((_, reject) => {
-            timer = setTimeout(
-              () => reject(new Error('Worker cooperative shutdown timed out')),
-              Math.max(0, deadline - Date.now()),
-            );
+            timer = setTimeout(() => reject(new Error('DataService exit not confirmed')), 10_000);
           }),
         ]);
-        return;
-      } catch (error) {
-        forced = true;
-        shutdownFailure = error;
       } finally {
         clearTimeout(timer);
+        clearInterval(heartbeat);
       }
-      if (!exited) {
-        child.kill();
-        if (!exited && child.pid) {
-          try {
-            process.kill(child.pid, 'SIGKILL');
-          } catch (error) {
-            if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error;
-          }
-        }
-        await Promise.race([
-          exit,
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('Worker exit not confirmed')), 5000);
-          }),
-        ]);
-      }
-      if (forced) throw new Error('Worker did not shut down cleanly', { cause: shutdownFailure });
-    } finally {
-      clearTimeout(timer);
-      clearInterval(heartbeat);
-    }
+    })();
+    return closing;
   }
-
   return {
     ready,
     request,
     close,
+    exit,
     entry,
     get available() {
-      return state === 'ready' && !closing && !unavailable;
+      return state === 'ready';
     },
     get pid() {
       return child.pid;

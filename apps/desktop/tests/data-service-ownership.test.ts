@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { workerOwnerSchema } from '@browser-2d/contracts/host';
+import { dataServiceOwnerSchema } from '../src/main/data-service-ownership';
 import { claimDataServiceOwnership } from '../src/main/data-service-ownership';
 
 let directory: string;
@@ -41,7 +41,7 @@ afterAll(() => rmSync(compiled, { recursive: true, force: true }));
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'browser-2d-ownership-'));
   path = join(directory, 'data.db');
-  owners = join(directory, 'worker-owners');
+  owners = join(directory, 'data-service-owners');
   mkdirSync(owners);
 });
 afterEach(() => {
@@ -52,7 +52,7 @@ function recordPath(ownerNonce: string) {
   return join(owners, `${ownerNonce}.json`);
 }
 function read(ownerNonce: string) {
-  return workerOwnerSchema.parse(JSON.parse(readFileSync(recordPath(ownerNonce), 'utf8')));
+  return dataServiceOwnerSchema.parse(JSON.parse(readFileSync(recordPath(ownerNonce), 'utf8')));
 }
 function fixture(hostPid: number, pid: number | null) {
   const ownerNonce = randomUUID();
