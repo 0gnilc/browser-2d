@@ -61,6 +61,7 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
   let outcome: unknown;
   let workerEntry = '';
   return {
+    dataEntry: join(dirname(entry), 'application-data-service.cjs'),
     connection: async () => ({
       apiBaseUrl: 'http://127.0.0.1:1',
       apiKey: 'private-workbench-fixture',
@@ -114,13 +115,12 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
       }
     },
     async report(exitCode: number) {
-      assert(outcome, 'Workbench verification did not complete');
-      assert.equal(sessions.size, 0, 'Workbench environments remain open');
+      const verified = exitCode === 0 && !!outcome && sessions.size === 0;
       await writeFile(
         reportPath,
         JSON.stringify(
           {
-            result: 'VERIFIED',
+            result: verified ? 'VERIFIED' : 'FAILED',
             appName: app.getName(),
             appVersion: app.getVersion(),
             packaged: app.isPackaged,
@@ -133,14 +133,17 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
             dataPath: join(dataDir, 'data', 'app.sqlite'),
             rendererUrl: 'app://ui/index.html',
             workerEntry,
-            workerExited: true,
-            exitCode,
+            ...(verified
+              ? { workerExited: true }
+              : { failure: 'Workbench verification or cleanup did not complete' }),
+            exitCode: verified ? 0 : 1,
             checks: outcome,
           },
           null,
           2,
         ),
       );
+      assert(exitCode !== 0 || verified, 'Workbench verification or cleanup did not complete');
     },
   };
 }
@@ -179,6 +182,15 @@ async function rendererVerification() {
   const initial = await api.browsers.list();
   const cards = await api.cards.list({ page: 1, pageSize: 20 });
   check(initial.ok && cards.ok, 'Initial reads');
+  check(
+    initial.value.every(
+      (browser) =>
+        browser.provider === 'adspower' &&
+        /^verify-\d+(?:-queued)?$/.test(browser.profileId) &&
+        ['Installed Browser', 'Queued Browser'].includes(browser.name),
+    ),
+    'Workbench requires synthetic Browsers',
+  );
   for (const existing of cards.value.items)
     check((await api.cards.remove({ id: existing.id })).ok, 'Prior verification Card cleanup');
   await until(
@@ -238,16 +250,22 @@ async function rendererVerification() {
   );
   const settings = await api.settings.get();
   check(settings.ok, 'Settings read');
-  const saved = await api.settings.save({
-    values: {
-      apiBaseUrl: settings.value.values.apiBaseUrl,
-      sidebarCollapsed: settings.value.values.sidebarCollapsed,
-      maxConcurrentTasks: 1,
-    },
-    apiKey: { kind: 'keep' },
-    expectedRevision: settings.value.revision,
+  click('[data-testid="nav-settings"]');
+  await until(() => !!document.querySelector('#settings-concurrency'));
+  input('#settings-concurrency', '1');
+  document
+    .querySelector('#settings-concurrency')
+    ?.dispatchEvent(new Event('change', { bubbles: true }));
+  await new Promise((done) => setTimeout(done, 0));
+  click('[data-testid="settings-save"]');
+  await until(async () => {
+    const result = await api.settings.get();
+    return (
+      result.ok &&
+      result.value.revision > settings.value.revision &&
+      result.value.values.maxConcurrentTasks === 1
+    );
   });
-  check(saved.ok, 'Settings save');
   const second = await api.browsers.create({
     provider: 'adspower',
     profileId: `${profileId}-queued`,
@@ -263,7 +281,13 @@ async function rendererVerification() {
   check(start.ok, 'Task start');
   await until(async () => {
     const result = await api.cards.list({ page: 1, pageSize: 100, search: number });
-    return result.ok && result.value.items[0]?.status === 'processing';
+    const current = result.ok && result.value.items[0];
+    return (
+      !!current &&
+      current.status === 'processing' &&
+      current.inputLocked &&
+      current.amount === '1.00'
+    );
   });
   const queued = await api.workTasks.start({ browserId: second.value.id });
   check(queued.ok && queued.value.state === 'queued', 'Task queue');

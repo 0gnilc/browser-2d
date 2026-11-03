@@ -1,4 +1,6 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -146,15 +148,17 @@ test('Browser and Card UI preserves raw text, protects drafts and persists setti
 
 test('fixed workbench verification exercises queued tasks, receipt locks and clean shutdown', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
-  const application = await electron.launch({
-    executablePath: require('electron'),
-    args: [desktop, `--verify-workbench=${join(directory, 'report.json')}`],
-    env: { ...process.env, BROWSER2D_DATA_DIR: directory },
-  });
+  const child = spawn(
+    require('electron'),
+    [desktop, `--verify-workbench=${join(directory, 'report.json')}`],
+    {
+      env: { ...process.env, BROWSER2D_DATA_DIR: directory },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    },
+  );
   try {
-    application.process().stderr?.on('data', (data: Buffer) => process.stderr.write(data));
-    await expect.poll(() => application.process().exitCode, { timeout: 60_000 }).toBe(0);
-    const { readFile } = await import('node:fs/promises');
+    child.stderr.on('data', (data: Buffer) => process.stderr.write(data));
+    await expect.poll(() => child.exitCode, { timeout: 30_000 }).toBe(0);
     const report: unknown = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
     expect(report).toMatchObject({
       result: 'VERIFIED',
@@ -162,7 +166,11 @@ test('fixed workbench verification exercises queued tasks, receipt locks and cle
       checks: { taskPath: true, queued: true, inputLocked: true },
     });
   } finally {
-    if (application.process().exitCode === null) await application.close();
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = once(child, 'exit');
+      child.kill('SIGTERM');
+      await exited;
+    }
     await rm(directory, { recursive: true, force: true });
   }
 });

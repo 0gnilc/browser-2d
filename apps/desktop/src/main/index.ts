@@ -31,6 +31,9 @@ declare const __PRODUCT_IDENTITY__: { productName: string; appId: string; execut
 app.setName(__PRODUCT_IDENTITY__.productName);
 app.setAppUserModelId(__PRODUCT_IDENTITY__.appId);
 const rendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
+const workbenchReport = process.argv
+  .find((value) => value.startsWith('--verify-workbench='))
+  ?.slice('--verify-workbench='.length);
 const verificationAppData = process.argv
   .find((value) => value.startsWith('--verify-app-data='))
   ?.slice('--verify-app-data='.length);
@@ -197,10 +200,8 @@ async function startApplication() {
     }
     return;
   }
-  const workbenchReport = process.argv
-    .find((value) => value.startsWith('--verify-workbench='))
-    ?.slice('--verify-workbench='.length);
-  if (workbenchReport) verification = await workbenchVerification(workbenchReport, dataDir);
+  if (workbenchReport !== undefined)
+    verification = await workbenchVerification(workbenchReport, dataDir);
   await mkdir(dataDir, { recursive: true });
   if (!app.requestSingleInstanceLock()) {
     app.exit(0);
@@ -258,6 +259,7 @@ async function startApplication() {
   });
   worker = launchDataService({
     dataPath: join(dataDir, 'data', 'app.sqlite'),
+    ...(verification ? { entry: verification.dataEntry } : {}),
     nativeBinding: app.isPackaged ? undefined : process.env.BROWSER2D_NATIVE_BINDING,
     onChanged: changed,
     onUnavailable() {
@@ -287,7 +289,7 @@ async function startApplication() {
     height: 900,
     minWidth: 760,
     minHeight: 600,
-    show: true,
+    show: !verification,
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       sandbox: true,
@@ -313,13 +315,20 @@ async function startApplication() {
 void app
   .whenReady()
   .then(startApplication)
-  .catch(async (error: unknown) => {
-    if (verification) log.error(error);
-    log.error('Application startup failed');
-    if (lifecycle.acceptingWork && !process.argv.includes('--backend-only'))
+  .catch(async () => {
+    log.error(
+      workbenchReport !== undefined
+        ? 'Workbench verification failed'
+        : 'Application startup failed',
+    );
+    if (
+      workbenchReport === undefined &&
+      lifecycle.acceptingWork &&
+      !process.argv.includes('--backend-only')
+    )
       dialog.showErrorBox(
-        'Application data is unavailable',
-        'Check database ownership and the operating-system credential store. Existing data and recovery reservations are retained.',
+        '应用启动失败',
+        `无法完成应用初始化。请查看日志后重试：\n${log.transports.file.getFile().path}\n现有数据和待恢复任务均已保留。`,
       );
     lifecycle.request({ kind: 'quit', exitCode: 1 });
     await lifecycle.completion;
