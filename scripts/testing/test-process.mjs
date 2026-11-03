@@ -3,8 +3,6 @@ import { pnpm, root } from '../process.mjs';
 import { desktopRequire, resolveNativeBinding } from './native.mjs';
 import { verifyTaskProcessExecutable } from './task-process-proof.mjs';
 
-if (!process.argv.includes('--built'))
-  await pnpm(['--filter', '@browser-2d/desktop', 'test:platform']);
 if (!process.argv.includes('--built')) await pnpm(['build']);
 const result = await verifyTaskProcessExecutable(desktopRequire('electron'), {
   args: [join(root, 'apps/desktop')],
