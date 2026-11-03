@@ -6,52 +6,42 @@
 
 web
 
-Vue renderer embedded in an Electron desktop application for Windows, macOS, and Linux.
+Vue renderer embedded in the Browser 2D Electron desktop application for Windows, macOS, and Linux.
 
 ## Product purpose
 
-Browser 2D manages devices, materials, legacy business history, browser settings, and local browser verification tasks. The desktop application owns task lifetime. Closing it stops tasks and cleans up owned resources.
+Browser 2D manages local Browser records that reference existing AdsPower environments, independently imported Cards, and settings. Each active Browser has one WorkTask. WorkTasks temporarily claim Cards in import order. The desktop application owns execution and cleanup.
 
 ## Capabilities and constraints
 
-### Tasks and runtime state
+### Browsers
 
-The executor verifies local pages through Chrome or local files. It does not consume business materials. The task table shows the current snapshot's recent runs. Its views and search filter that snapshot, which retains limited terminal records. The History page contains legacy business and material history, not a task-run archive.
+The Browser page adds existing environment IDs and edits name, account, task amount, and notes. It shows backend status, completed Card count, and the latest error. Task input includes the full saved Browser snapshot. Queued, starting, working, stopping, and recovery states block edits, removal, and duplicate starts.
 
-New task opens a device-selection drawer. Search covers loaded device names and accounts. The header checkbox selects available devices in the current view. Selection survives search, reports total and visible counts, and can be cleared. Device refresh removes selections for records that no longer exist. The drawer also exposes local test-device creation. Task details show the run ID, state, configuration revision, page count, viewport, timestamps, and result.
+Start and stop are row actions. A pending request appears immediately. Idle is shown only after a backend read confirms it. Recovery offers another stop attempt. Removing a Browser deletes its local record and retains the platform environment.
 
-Queued, starting, running, and stopping runs occupy their devices. Unresolved resources also block start, edit, and delete, including resources retained by terminal runs. Device data-status integers remain separate from runtime availability. Cancellation includes stopping and cleanup. Capacity remains occupied until cleanup completes. Owned and borrowed browser resources remain distinguishable. The UI does not provide manual force cleanup.
+### Cards
 
-Runtime details, errors, command receipts, and batch outcomes remain accessible above each route. Accepted commands are not completed tasks. An unknown command can be queried or retried with the same command ID.
+The Card page displays all user fields in plaintext, including raw Card number, expiry text, security code, address, extra text, notes, amount, state, latest verification result, and timestamps. Interior whitespace, hyphens, and leading zeros are preserved. Text is never interpreted as HTML. Filtering and pagination query the backend with createdAt and ID ascending order.
 
-### Devices
+Cards are added only through a multiline textarea or UTF-8 TXT file. Both call cards.importText. The fixed eleven-column template is visible inside the import drawer. The first four fields are required. The importer reports committed counts and original line outcomes. A known partial report retains committed counts and unprocessed line information. A lost response is described as unknown progress. Input remains available for verification and retry.
 
-The device page loads the complete device list. Search covers names, accounts, notes, and IDs. All, available, and occupied views use task and resource availability. Selection survives filtering and reconciles after refresh. Batch start and stop expose per-item receipts. A field selector controls optional columns, and density uses Element Plus table size variants.
+Ordinary editing changes only changed input fields and local notes. Amount, status, result, and processing identities are not editable. Active claims block editing and deletion. The backend inputLocked projection protects fields with processing receipts while allowing notes only when unclaimed. Race responses retain the same protections. Deletion requires confirmation.
 
-Create and edit use a drawer with the existing device fields. Null text values remain null until changed, and amount conversion preserves zero and null. Device data-status numbers have no invented online or offline meanings.
+### Settings and drafts
 
-### Materials
+Settings include the local API endpoint, explicit credential keep, replace, and clear actions, and maximum concurrent Browsers. The UI shows whether a credential is configured without exposing a credential reference. Replacement plaintext is cleared after an acknowledged save. The hidden aggregate revision participates in compare-and-swap saves. Conflicts preserve the draft.
 
-Card and status filters query the full dataset on the server. Draft filters become applied filters after a successful request. Views apply all, claimable status 0, or processing status 1. Reset, filter application, and page-size changes return to page 1. Page navigation retains the applied query. Page sizes are 20, 50, and 100. There is no global name search.
+Connection changes affecting saved environment bindings require a backend confirmation token and an explicit user confirmation. The UI resubmits the exact save with that token. Sidebar collapse is a typed setting. A successful local sidebar-only save advances the settings draft's baseline revision without discarding its unsaved form values. External changes are never silently merged over a draft.
 
-Tables show masked card numbers and never reveal the CVV. Enabling the CVV column still shows a mask. Full values remain available in the complete editor, including address fields, extra information, amount, status, device, and note. Updates send changed fields, preserve untouched null values, and preserve numeric zero. Processing rows cannot be edited, reset, or deleted. Editing cannot initiate processing status 1. Other stored status values keep their numeric labels.
+Editing and import use a shared guarded lifecycle. Cancel, close, Escape, backdrop, replacement, and route changes arbitrate dirty drafts. Saving prevents departure and duplicate submissions. Failed saves retain inputs. Before-unload protection applies to dirty or saving drafts. The desktop host remains authoritative for window exit and task cleanup.
 
-Import has a separate guarded drawer. Submission commits valid records and then returns committed counts and original-line outcomes: inserted, invalid, duplicate, or blank. The report is a result of import, not a dry run. Reset and clear remain available with confirmation.
-
-### Drafts and settings
-
-Task selection, device editing, material editing, and import text use the shared guarded editor lifecycle. Dirty drafts require a discard decision before drawer closure, replacement, or route navigation. Close, Escape, backdrop, and cancel use that decision. Saving blocks departure. Failed saves retain the draft and visible errors.
-
-The renderer registers a browser unload warning for dirty or saving drafts. This does not guarantee a prompt when the desktop window closes. Main-process cleanup and application exit remain authoritative.
-
-History filtering, export, and clear remain accessible. Settings retain Chrome configuration, task-window configuration, revision checks, and application update controls.
+Application updates are manual. Unconfigured or unavailable services explain their state without claiming success. Standalone browser preview has no database, Node access, or successful simulated desktop operations.
 
 ## Brand commitments
 
-The approved direction is an Airtable-inspired operational workspace with visible text and icon navigation, views, bordered tables, and focused drawers. The reference governs layout and flow, not pixel parity or custom control styling.
-
-Use the existing Element Plus and Tailwind stack. Preserve Element Plus default control geometry, spacing, radii, and interactions. Theme controls through color variables only. The accent is purple, defined in DESIGN.md and src/style.css. Every data table uses ElTable with border. Business labels remain in Chinese. The sidebar keeps tasks, devices, materials, history, settings, and connection status accessible. An explicit toggle switches between labeled navigation and a 68px icon rail. The preference survives reloads when local storage is available. Collapsed icons and connection status expose labels on hover and keyboard focus.
+The established Airtable-inspired workspace uses Element Plus controls and Tailwind layout. Purple color theming preserves default control geometry and interactions. Every data table has visible borders. The three routes are 浏览器, 卡, and 设置. A persistent sidebar toggle switches between text navigation and a 68px icon rail. Navigation and connection labels remain available to keyboard and pointer users in both states. Table overflow stays within the content area.
 
 ## Evidence
 
-Current routes and behavior live in src/ and tests/. The Electron bridge is defined by ../../packages/contracts. This record does not imply full business automation or production release readiness.
+Source and component tests live in src/ and tests/. The public desktop API is defined by ../../packages/contracts/src/public. Component tests use test-only typed adapters. They do not establish native execution, real platform cleanup, or release readiness.

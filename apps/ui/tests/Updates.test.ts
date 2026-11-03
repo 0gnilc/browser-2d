@@ -1,16 +1,16 @@
 import type { UpdateState, UpdatesApi } from '@browser-2d/contracts/public';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, expect, it, vi } from 'vitest';
-import Updates from '../src/business/Updates.vue';
-import { bridgeKey } from '../src/bridge';
-import { createFixtureBridge } from '../src/fixture';
+import Updates from '../src/views/settings/ApplicationUpdates.vue';
+import { desktopApiKey } from '../src/platform/desktop-api';
+import { createTestApi } from './helpers';
 
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
 function fixture(initial: UpdateState) {
-  const api = createFixtureBridge();
+  const api = createTestApi().api;
   const listeners = new Set<(state: UpdateState) => void>();
   const unsubscribe = vi.fn();
   const updates: UpdatesApi = {
@@ -35,7 +35,7 @@ function fixture(initial: UpdateState) {
       for (const listener of listeners) listener(state);
     },
     mount: () =>
-      mount(Updates, { attachTo: document.body, global: { provide: { [bridgeKey]: api } } }),
+      mount(Updates, { attachTo: document.body, global: { provide: { [desktopApiKey]: api } } }),
   };
 }
 
