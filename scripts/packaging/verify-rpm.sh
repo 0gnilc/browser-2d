@@ -32,5 +32,5 @@ assert report['checks']['initialCards'] == (0 if sys.argv[2] == '1' else 1)
 assert report['checks']['taskPath'] and report['checks']['queued'] and report['checks']['inputLocked']
 print('Installed Fedora RPM verified, pass', sys.argv[2])
 PY
-  cp "$data_dir/report.json" "/evidence/rpm-pass-$pass.json"
+  install -m 0644 "$data_dir/report.json" "/evidence/rpm-pass-$pass.json"
 done
