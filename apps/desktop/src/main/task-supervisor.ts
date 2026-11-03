@@ -149,8 +149,9 @@ export function superviseTask(child: Electron.UtilityProcess, entry: string, opt
     environmentClose ??= (async () => {
       await opening?.catch(() => undefined);
       await options.environment.close();
-    })().finally(() => {
+    })().catch((error: unknown) => {
       environmentClose = undefined;
+      throw error;
     });
     return environmentClose;
   }

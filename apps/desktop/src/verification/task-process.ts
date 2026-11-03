@@ -356,6 +356,59 @@ export async function verifyTaskProcesses(reportPath: string) {
     assert.equal(pendingClose.releases, 1);
     reports.push({ behavior: 'pending-close-retry-retains-reservation', result: 'passed' });
 
+    const releaseStarted = deferred<void>();
+    const releaseFinished = deferred<void>();
+    const repeatedCloseFinished = deferred<void>();
+    let releaseCloseCalls = 0;
+    let releaseCalls = 0;
+    let released = false;
+    const pendingRelease = launch('healthy', {
+      deadlineMs: 100,
+      environment: {
+        async open() {
+          return {
+            processor: 'baidu-check',
+            endpoint: 'ws://127.0.0.1:1',
+            url: 'https://www.baidu.com',
+          };
+        },
+        async close() {
+          releaseCloseCalls++;
+          if (releaseCloseCalls > 1) await repeatedCloseFinished.promise;
+        },
+        async closed() {
+          return true;
+        },
+      },
+      async release() {
+        releaseCalls++;
+        releaseStarted.resolve();
+        await releaseFinished.promise;
+        released = true;
+      },
+    });
+    await until(() => pendingRelease.worker.state.kind === 'running', 'pending release ready');
+    const firstRelease = pendingRelease.worker.stop();
+    await releaseStarted.promise;
+    await pendingRelease.worker.exited;
+    assert.equal((await firstRelease).kind, 'blocked');
+    assert.equal(released, false);
+    const retryRelease = pendingRelease.worker.stop();
+    await delay(30);
+    releaseFinished.resolve();
+    await until(() => released, 'original release completed');
+    try {
+      assert.equal(releaseCloseCalls, 1, 'release cannot race a repeated environment close');
+      assert.equal((await retryRelease).kind, 'exited');
+      assert.equal(releaseCalls, 1);
+      assert.equal((await pendingRelease.worker.stop()).kind, 'exited');
+      assert.equal(releaseCloseCalls, 1);
+      assert.equal(releaseCalls, 1);
+    } finally {
+      repeatedCloseFinished.resolve();
+    }
+    reports.push({ behavior: 'pending-release-retry-reuses-closed-environment', result: 'passed' });
+
     const fatal = launch('healthy');
     await until(() => fatal.worker.state.kind === 'running', 'fatal event fixture ready');
     assert.doesNotThrow(() => fatal.fatal());
