@@ -175,6 +175,7 @@ export function createTaskCoordinator(options: {
     options.checkpoint?.('post-release-pre-unlink', current.task);
     ownership.remove(current.execution);
     live.delete(current.task.id);
+    stoppedBrowsers.delete(current.task.browserId);
     options.changed();
     void pump();
   }
@@ -308,6 +309,7 @@ export function createTaskCoordinator(options: {
                 outcome: { kind: 'stopped' },
               }),
             );
+            stoppedBrowsers.delete(prepared.browserId);
             continue;
           }
           try {
@@ -481,7 +483,10 @@ export function createTaskCoordinator(options: {
         const tasks = await options.data.request('tasks.list', undefined);
         if (!tasks.ok) return tasks;
         const task = tasks.value.find((entry) => entry.browserId === input.browserId);
-        if (!task) return { ok: true, value: { kind: 'stopped', browserId: input.browserId } };
+        if (!task) {
+          stoppedBrowsers.delete(input.browserId);
+          return { ok: true, value: { kind: 'stopped', browserId: input.browserId } };
+        }
         // The scheduling pump may have promoted this row while the list reply was in flight.
         const promoted = live.get(task.id);
         if (promoted) return stopLive(promoted);
@@ -491,6 +496,7 @@ export function createTaskCoordinator(options: {
             value: { kind: 'recovery_required', task: project(task), message: recoveryMessage },
           };
         const result = await options.data.request('tasks.cancelQueued', { taskId: task.id });
+        if (result.ok) stoppedBrowsers.delete(input.browserId);
         options.changed();
         return result.ok
           ? { ok: true, value: { kind: 'stopped', browserId: input.browserId } }
