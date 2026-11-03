@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, watch } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, net, protocol, safeStorage, dialog } from 'electron';
@@ -22,6 +23,7 @@ import { createTaskCoordinator } from './task-coordinator';
 import { runCrashOwner } from '../verification/crash-owner';
 import { verifyTaskProcesses } from '../verification/task-process';
 import { verifyAdsPower } from '../verification/adspower';
+import { workbenchVerification } from '../verification/workbench';
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
@@ -29,9 +31,26 @@ declare const __PRODUCT_IDENTITY__: { productName: string; appId: string; execut
 app.setName(__PRODUCT_IDENTITY__.productName);
 app.setAppUserModelId(__PRODUCT_IDENTITY__.appId);
 const rendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
+const verificationAppData = process.argv
+  .find((value) => value.startsWith('--verify-app-data='))
+  ?.slice('--verify-app-data='.length);
+if (verificationAppData) {
+  const suffix = relative(tmpdir(), resolve(verificationAppData));
+  if (
+    process.env.BROWSER2D_DATA_DIR ||
+    !process.argv.some((value) => value.startsWith('--verify-workbench=')) ||
+    isAbsolute(suffix) ||
+    suffix.split(/[\\/]/).length !== 1 ||
+    !suffix.startsWith('browser-2d-default-')
+  )
+    throw new Error('Default-path verification requires a dedicated temporary appData base');
+  mkdirSync(verificationAppData, { recursive: true });
+  app.setPath('appData', resolve(verificationAppData));
+}
 const dataDir = resolve(process.env.BROWSER2D_DATA_DIR || app.getPath('userData'));
 mkdirSync(dataDir, { recursive: true });
 app.setPath('userData', dataDir);
+let verification: Awaited<ReturnType<typeof workbenchVerification>> | undefined;
 let worker: ReturnType<typeof launchDataService> | undefined;
 let tasks: ReturnType<typeof createTaskCoordinator> | undefined;
 let bridge: ReturnType<typeof createApplicationBridge> | undefined;
@@ -71,7 +90,9 @@ const lifecycle = createApplicationLifecycle({
       await worker?.close();
     }
   },
-  report: async () => undefined,
+  report: async (exitCode) => {
+    await verification?.report(exitCode);
+  },
   exit: (code) => app.exit(code),
   logFailure() {
     log.error('Application cleanup is incomplete. Recovery reservations are retained');
@@ -176,6 +197,10 @@ async function startApplication() {
     }
     return;
   }
+  const workbenchReport = process.argv
+    .find((value) => value.startsWith('--verify-workbench='))
+    ?.slice('--verify-workbench='.length);
+  if (workbenchReport) verification = await workbenchVerification(workbenchReport, dataDir);
   await mkdir(dataDir, { recursive: true });
   if (!app.requestSingleInstanceLock()) {
     app.exit(0);
@@ -246,7 +271,8 @@ async function startApplication() {
   tasks = createTaskCoordinator({
     data: worker,
     ownershipDirectory: join(dataDir, 'data', 'execution-owners'),
-    connection: settings.connection,
+    connection: verification?.connection ?? settings.connection,
+    ...(verification ? { platform: verification.platform, spawn: verification.spawn } : {}),
     changed,
   });
   await tasks.recover();
@@ -279,11 +305,16 @@ async function startApplication() {
   });
   if (rendererUrl) await window.loadURL(rendererUrl);
   else await window.loadURL('app://ui/index.html');
+  if (verification) {
+    await verification.run(window, worker.entry);
+    await closeApplication();
+  }
 }
 void app
   .whenReady()
   .then(startApplication)
-  .catch(async () => {
+  .catch(async (error: unknown) => {
+    if (verification) log.error(error);
     log.error('Application startup failed');
     if (lifecycle.acceptingWork && !process.argv.includes('--backend-only'))
       dialog.showErrorBox(

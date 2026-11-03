@@ -380,7 +380,8 @@ test('staging rejects fabricated preview receipt and never builds or publishes',
 });
 test('remote release command always refuses publication without destination and authorization', () => {
   assert.throws(
-    () => execFileSync(process.execPath, ['scripts/release/release-publish.mjs'], { stdio: 'pipe' }),
+    () =>
+      execFileSync(process.execPath, ['scripts/release/release-publish.mjs'], { stdio: 'pipe' }),
     (error) => {
       assert.match(error.stderr.toString(), /Remote publication is disabled/);
       return true;

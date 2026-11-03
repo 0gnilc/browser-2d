@@ -8,7 +8,7 @@ import test from 'node:test';
 import { parse } from 'yaml';
 import { targets } from '../../internal/build-config/release.mjs';
 
-const read = (path) => parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'));
+const read = (path) => parse(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const ci = read('.github/workflows/ci.yml');
 const release = read('.github/workflows/release.yml');
 const setup = read('.github/actions/setup-dependencies/action.yml');
@@ -307,7 +307,7 @@ test('the pinned pnpm selects the same store in checkout and isolated source cop
   const directory = mkdtempSync(join(tmpdir(), 'browser-2d-store-'));
   try {
     for (const file of ['package.json', 'pnpm-workspace.yaml', '.npmrc', 'pnpm-lock.yaml'])
-      copyFileSync(new URL(`../${file}`, import.meta.url), join(directory, file));
+      copyFileSync(new URL(`../../${file}`, import.meta.url), join(directory, file));
     const executable = process.env.npm_execpath || 'pnpm';
     const command = /\.[cm]?js$/.test(executable) ? process.execPath : executable;
     const prefix = command === process.execPath ? [executable] : [];

@@ -19,8 +19,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { pathToFileURL } from 'node:url';
 import { root } from '../process.mjs';
 import { desktopRequire } from '../testing/native.mjs';
-import { observeChrome } from '../chrome-observer.mjs';
-import { runtimeArtifacts } from '../checks/runtime-artifacts.mjs';
+import { runtimeArtifacts, assertBundledWorkspace } from '../checks/runtime-artifacts.mjs';
 import { verifyTaskProcessExecutable } from '../testing/task-process-proof.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
@@ -92,11 +91,16 @@ const runtimeManifest = JSON.parse(
     .extractFile(archive, join(backendPrefix.slice(1), 'dist/.vite/manifest.json'))
     .toString('utf8'),
 );
-for (const file of runtimeArtifacts(runtimeManifest))
+for (const file of runtimeArtifacts(runtimeManifest)) {
+  assertBundledWorkspace(
+    asar.extractFile(archive, `${backendPrefix.slice(1)}/dist/${file}`).toString('utf8'),
+    file,
+  );
   assert(
     archiveFiles.includes(`${backendPrefix}/dist/${file}`),
     `Missing packaged runtime dependency ${file}`,
   );
+}
 assert(
   archiveFiles.includes(`${backendPrefix}/dist/data-service.cjs`),
   'Compiled worker entry missing from archive',
@@ -105,13 +109,19 @@ assert(
   archiveFiles.some((entry) => entry.endsWith('/puppeteer-core/package.json')),
   'Puppeteer production dependency missing from archive',
 );
-assert(
-  archiveFiles.some(
-    (entry) =>
-      entry.startsWith(`${backendPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
-  ),
-  'Business migration SQL missing from archive',
+const migration = `${backendPrefix.slice(1)}/dist/migrations/application/001-application.sql`;
+assert.deepEqual(
+  asar.extractFile(archive, migration),
+  await readFile(join(root, 'apps/backend/migrations/application/001-application.sql')),
+  'Packaged application migration differs from source',
 );
+assert(
+  !archiveFiles.some((entry) => entry.includes('/migrations/business/')),
+  'Retired migrations returned',
+);
+assert.equal(packagedManifest.name, '@browser-2d/desktop');
+for (const path of ['dist/main/index.cjs', 'dist/preload/index.cjs'])
+  assertBundledWorkspace(asar.extractFile(archive, path).toString('utf8'), path);
 for (const entry of archiveFiles) {
   if (!entry.startsWith('/node_modules/@browser-2d/')) continue;
   assert(
@@ -186,55 +196,44 @@ if (processOnly) {
   process.exit(0);
 }
 const reports = [];
-for (let pass = 1; pass <= 2; pass++) {
-  const readyPath = join(dataDir, 'chrome-pages-ready');
-  await rm(readyPath, { force: true });
-  await rm(`${readyPath}.shutdown`, { force: true });
-  const observationAbort = new AbortController();
-  const observation = observeChrome(
-    join(dataDir, 'chrome-sessions'),
-    observationAbort.signal,
-    readyPath,
-  );
+async function verifyWorkbench(directory, pass, defaultBase) {
+  const reportPath = join(directory, 'report.json');
+  await mkdir(directory, { recursive: true });
   await rm(reportPath, { force: true });
-  const child = spawn(launchExecutable, [`--verify-p1=${reportPath}`], {
-    cwd: tmpdir(),
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      BROWSER2D_DATA_DIR: dataDir,
-      BROWSER2D_VERIFY_CHROME: '1',
-      BROWSER2D_EXECUTION: 'chrome',
-      BROWSER2D_NATIVE_BINDING: join(dataDir, 'must-not-load.node'),
-      ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/must-not-load',
-    },
-  });
+  const environment = {
+    ...process.env,
+    BROWSER2D_NATIVE_BINDING: join(directory, 'must-not-load.node'),
+    ELECTRON_RENDERER_URL: 'http://127.0.0.1:9/must-not-load',
+  };
+  if (defaultBase) delete environment.BROWSER2D_DATA_DIR;
+  else environment.BROWSER2D_DATA_DIR = directory;
+  const child = spawn(
+    launchExecutable,
+    [
+      `--verify-workbench=${reportPath}`,
+      ...(defaultBase ? [`--verify-app-data=${defaultBase}`] : []),
+    ],
+    { cwd: tmpdir(), stdio: 'inherit', env: environment },
+  );
   const code = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error('Packaged verification timed out'));
-    }, 45_000);
-    child.on('error', (error) => {
+      reject(new Error('Packaged workbench verification timed out'));
+    }, 60_000);
+    child.once('error', (error) => {
       clearTimeout(timer);
       reject(error);
     });
-    child.on('exit', (code) => {
+    child.once('exit', (code) => {
       clearTimeout(timer);
       resolve(code);
     });
-  }).finally(() => observationAbort.abort());
-  const chrome = await observation;
-  await writeFile(join(evidenceDir, `chrome-pass-${pass}.json`), JSON.stringify(chrome, null, 2));
-  await copyFile(reportPath, join(evidenceDir, `package-pass-${pass}.json`)).catch((error) => {
-    if (error.code !== 'ENOENT') throw error;
   });
-  assert.equal(code, 0, 'Packaged process failed');
+  assert.equal(code, 0, 'Packaged workbench process failed');
   const report = JSON.parse(await readFile(reportPath, 'utf8'));
-  assert.equal(
-    report.appVersion,
-    packagedManifest.version,
-    'Installed application version mismatch',
-  );
+  assert.equal(report.result, 'VERIFIED');
+  assert.equal(report.appVersion, packagedManifest.version);
+  assert.equal(report.appName, identity.productName);
   assert.equal(report.arch, target.endsWith('-arm64') ? 'arm64' : 'x64');
   assert.equal(
     report.platform,
@@ -242,45 +241,35 @@ for (let pass = 1; pass <= 2; pass++) {
   );
   assert.equal(report.versions.electron, desktopRequire('electron/package.json').version);
   assert.equal(report.packaged, true);
-  assert.equal(new URL(report.rendererUrl).protocol, 'app:');
-  assert.equal(new URL(report.rendererUrl).hostname, 'ui');
-  assert.equal(report.exitCode, 0);
   assert.equal(report.workerExited, true);
-  assert.equal(report.result.nodeIsolation, true);
-  assert(
-    report.workerEntry.includes('app.asar'),
-    'Worker did not load from packaged dependency graph',
-  );
-  assert(!report.workerEntry.includes(root), 'Worker still depends on source checkout');
+  assert.equal(report.exitCode, 0);
+  assert.equal(report.dataPath, join(directory, 'data', 'app.sqlite'));
+  assert.equal(report.dataOverride, !defaultBase);
+  assert.equal(report.userData, directory);
+  assert(report.workerEntry.includes('app.asar') && !report.workerEntry.includes(root));
   if (appImage)
     assert(report.workerEntry.includes('/.mount_'), 'AppImage worker must execute from FUSE');
-  assert.equal(report.result.initialCount, (initialPass + pass - 1) * 4);
-  assert.deepEqual(report.result.business, {
-    initialDeviceCount: (initialPass + pass - 1) * 3,
-    initialMaterialCount: initialPass + pass - 1,
-    settingsRevision: initialPass + pass,
-  });
-  const shutdown = report.finalSnapshot.runs.find((run) => run.id === report.result.shutdownId);
-  assert.equal(shutdown?.state, 'cancelled', 'Close did not persist cancellation');
-  assert(
-    report.finalSnapshot.runs.every((run) =>
-      ['completed', 'cancelled', 'failed', 'interrupted'].includes(run.state),
-    ),
+  if (defaultBase) {
+    assert.equal(report.appData, defaultBase);
+    assert.equal(report.checks.initialBrowsers, 0);
+    assert.equal(report.checks.initialCards, 0);
+  } else {
+    assert.equal(report.checks.initialBrowsers, (initialPass + pass - 1) * 2);
+    assert.equal(report.checks.initialCards, initialPass + pass === 1 ? 0 : 1);
+  }
+  await copyFile(
+    reportPath,
+    join(evidenceDir, defaultBase ? 'default-path.json' : `package-pass-${pass}.json`),
   );
-  assert.deepEqual(report.result.capacity, { devices: 2, pages: 4, queuedObserved: true });
-  assert.deepEqual(report.finalSnapshot.resources, []);
-  assert.equal(report.finalSnapshot.execution, 'chrome');
-  assert.equal(chrome.maximumBrowsers, 2, 'Did not observe two actual Chrome instances');
-  assert.equal(chrome.maximumPages, 4, 'Did not observe four actual isolated Chrome pages');
-  assert.equal(chrome.instances, 3, 'Shutdown did not exercise a third actual Chrome instance');
-  assert(chrome.pids.length >= 2, 'Chrome process identities were not observed');
-  for (const pid of chrome.pids) assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
-  assert.deepEqual(await readdir(join(dataDir, 'chrome-sessions')), []);
-  assert.deepEqual(await readdir(join(dataDir, 'controlled-resources')), []);
-  assert(Number.isSafeInteger(report.result.workerPid) && report.result.workerPid > 0);
-  assert.throws(() => process.kill(report.result.workerPid, 0), { code: 'ESRCH' });
-  reports.push(report);
+  return report;
 }
+for (let pass = 1; pass <= 2; pass++) reports.push(await verifyWorkbench(dataDir, pass));
+const defaultBase = await mkdtemp(join(tmpdir(), 'browser-2d-default-'));
+const defaultReport = await verifyWorkbench(
+  join(defaultBase, identity.productName),
+  1,
+  defaultBase,
+);
 await writeFile(
   join(evidenceDir, 'package-summary.json'),
   JSON.stringify(
@@ -292,6 +281,8 @@ await writeFile(
       fuses,
       initialPass,
       passes: reports.length,
+      defaultPath: defaultReport.dataPath,
+      taskProcessReport,
       result: 'VERIFIED',
     },
     null,
@@ -300,7 +291,15 @@ await writeFile(
 );
 console.log(
   JSON.stringify(
-    { target, executable, database: dataDir, fuses, passes: reports.length, result: 'VERIFIED' },
+    {
+      target,
+      executable,
+      database: dataDir,
+      fuses,
+      passes: reports.length,
+      defaultPath: defaultReport.dataPath,
+      result: 'VERIFIED',
+    },
     null,
     2,
   ),

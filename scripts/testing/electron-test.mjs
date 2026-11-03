@@ -13,7 +13,6 @@ await pnpm(['exec', 'playwright', 'test'], {
   env: {
     ...process.env,
     BROWSER2D_NATIVE_BINDING: nativeBinding,
-    BROWSER2D_EXECUTION: 'controlled',
     BROWSER2D_CHROME_EXECUTABLE: chromeExecutable,
   },
 });

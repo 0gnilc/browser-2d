@@ -1,99 +1,52 @@
-# 架构与技术选型
+# Browser 2D architecture
 
-三个应用共享一个桌面生命周期。`apps/ui` 负责展示和交互，`apps/desktop` 管理窗口与进程，`apps/backend` 执行业务、调度任务并管理浏览器资源。工作进程随桌面关闭，不作为独立后台服务。
-
-## 技术选型图
-
-实线表示运行时调用或资源访问，虚线表示契约及工程配置依赖。此图是静态依赖图，不是状态机。
+Browser 2D separates the interface, task supervision, execution, and persistent data. This keeps task interruption independent of a busy SQLite writer and keeps credentials out of execution processes.
 
 ```mermaid
-flowchart TB
-    UI["apps/ui<br/>Vue 3 · Vue Router · Pinia · Element Plus · Tailwind CSS"]
-    Bridge["apps/desktop preload<br/>具名公共 API · contextBridge"]
-    Main["apps/desktop main<br/>Electron · 生命周期 · IPC 校验"]
-    Worker["apps/backend<br/>utilityProcess · 业务仓储 · 调度与恢复"]
-    DB["SQLite · better-sqlite3<br/>事务 · 备份 · SQL 迁移"]
-    Chrome["本机 Google Chrome<br/>puppeteer-core · CDP · 隔离上下文"]
-    Platform["平台能力<br/>safeStorage · electron-log · electron-updater"]
-    Public["packages/contracts/public<br/>TypeScript · Zod · 公共 DTO"]
-    Host["packages/contracts/host<br/>私有进程协议"]
-    Internal["internal<br/>构建 · TypeScript · lint · 测试预设"]
-    Engineering["工程工具<br/>pnpm · Vite · electron-vite<br/>Vitest · Playwright · electron-builder"]
-    UI --> Bridge --> Main --> Worker
-    Worker --> DB
-    Worker --> Chrome
-    Main --> Platform
-    UI -.-> Public
-    Bridge -.-> Public
-    Main -.-> Host
-    Worker -.-> Host
-    Engineering -.-> Internal
-    Engineering -.-> UI
-    Engineering -.-> Main
-    Engineering -.-> Worker
+flowchart LR
+  UI[Vue renderer] --> Preload[Named preload API]
+  Preload --> Main[Electron Main]
+  Main --> Data[DataService]
+  Main --> Task[BrowserWorker per active Browser]
+  Data --> SQLite[(SQLite)]
+  Main --> Ads[AdsPower Local API]
+  Task --> CDP[Owned browser session]
 ```
 
-运行时不导入 `internal`。图中工程工具到应用的连线表示开发、测试及构建输入。
+## Package responsibilities
 
-## 目录职责与依赖
+`apps/ui` contains the Browser, Card, and Settings routes. It imports only public contracts and browser-safe utilities. The interface uses Element Plus controls and bordered tables with the established purple theme.
 
-| 目录                 | 职责                                             | 允许的依赖                                                             |
-| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
-| `apps/ui`            | 五个业务路由、表单、状态及订阅                   | Vue 生态及 `contracts/public`。不访问 Node、SQL、Chrome 或 host 协议   |
-| `apps/desktop`       | 主进程、preload、来源校验、凭据、更新与退出协调  | contracts 及 worker 的已编译入口。不导入 worker 业务源码，不打开业务库 |
-| `apps/backend`       | 数据迁移、CRUD、调度、取消、恢复和浏览器清理     | contracts、better-sqlite3 和 puppeteer-core。不导入 UI 或 desktop 源码 |
-| `packages/contracts` | 公共 DTO、具名 API、结果类型、Zod 校验及私有消息 | 不依赖应用或工程配置。public 与 host 分开导出                          |
-| `internal`           | build-config、tsconfig、lint-config、test-utils  | 只供配置和测试使用，不承载业务逻辑                                     |
-| `scripts`            | 根命令协调、隔离打包、产物与发布验收             | 调用应用入口和工程配置                                                 |
+`apps/desktop` contains Electron Main, preload, credentials, updates, platform adapters, and task supervision. It resolves the compiled backend entry points. It does not import backend source or open SQLite.
 
-边界由 [check-boundaries.mjs](../scripts/checks/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/backend/data-service`，指向构建后的 `dist/data-service.cjs`。
+`apps/backend` builds two runtime roles. DataService opens the database and owns all SQL writes. BrowserWorker hosts an execution thread and imports automation only inside that thread. BrowserWorker cannot reach SQLite or DataService implementation modules. DataService cannot reach Puppeteer or platform adapters.
 
-## 工具与构建
+`packages/contracts` separates browser-safe public DTOs from private host protocols. `packages/amount` provides exact integer-unit conversions. `internal/build-config` and `internal/tsconfig` are build-time configuration only. Root ESLint configuration belongs to its single root consumer.
 
-TypeScript 统一应用和契约类型。Node 的范围由根清单约束，CI 使用 `.node-version`。pnpm workspace 管理三个目录层级，catalog 固定共享版本，锁文件固定完整依赖树。精确版本只维护在 [package.json](../package.json)、[pnpm-workspace.yaml](../pnpm-workspace.yaml) 和 [pnpm-lock.yaml](../pnpm-lock.yaml)。
+## Data and credentials
 
-worker 使用 Vite 的 Node 构建。desktop 使用 electron-vite 一次构建 main、preload 和来自 `apps/ui` 的 renderer。contracts 随调用方打包，SQL 迁移复制到 worker 的构建目录。UI 提供独立 dev/build/preview/test/typecheck，用于前端验收；根发行构建只构建一次 renderer。
+An installed app uses `<userData>/data/app.sqlite`. The product identity in `internal/build-config/release.mjs` sets the application name, installer identity, and executable name. The display name is `Browser 2D`, the executable is `browser-2d`, and the app ID is `io.github.0gnilc.browser2d`.
 
-better-sqlite3 使用锁定版本提供的 Node-API 二进制。打包前检查其预构建策略，不在开发依赖上反复执行 Node 与 Electron ABI rebuild。electron-builder 在隔离目录内生成应用和安装包。正式包使用 ASAR 与 Electron fuses，成品测试在源码仓库之外运行。
+`BROWSER2D_DATA_DIR` is an explicit userData root override. Its database is always `data/app.sqlite`; its encrypted credential file is `credentials.enc`. Development defaults to `artifacts/dev-data`. Normal startup applies checksummed SQL migrations and never resets existing data. Fresh databases contain no Browser or Card rows.
 
-## 数据与安全边界
+The domain tables are `browser`, `card`, and `settings`. Internal tables `work_task`, `card_claim`, and `card_operation` coordinate active work and replay protection. `schema_migrations` records the version, file name, checksum, and application time. The migration SQL is copied unchanged into the backend runtime and verified in ASAR.
 
-renderer 关闭 Node integration，启用 sandbox 和 context isolation。preload 只暴露具名方法。main 检查调用窗口及 frame，再转发到 worker。自动化网页不加载应用 preload。
+Card fields remain plaintext. Card numbers are trimmed only at their edges; they are never converted to numbers or normalized. Cards are listed and claimed by creation time and ID in ascending order. Card amount changes use atomic SQL accumulation. A stable ProcessingId and semantic operation key prevent duplicate accumulation and completion counts across retries.
 
-worker 是业务 SQLite 的唯一写入者。开发默认使用 `artifacts/dev-data/data.db`。打包应用未设置 `BROWSER2D_DATA_DIR` 时保留 `~/kys/data.db`。Electron userData 是另一条路径，保存 `credentials.enc` 等宿主数据。显式数据目录覆盖同时用于隔离业务数据和 userData。
+API keys use Electron safeStorage and an encrypted host file. SQLite contains a credential reference. Main resolves the key only for its platform adapter. The key is absent from BrowserWorker arguments, environment, snapshots, and database records.
 
-旧库迁移要求确认旧应用已关闭、取得独占访问并建立验证过的备份。未知结构、更高 schema 版本或迁移校验和不匹配会被拒绝。迁移失败不覆盖新数据，备份可能含旧明文凭据。历史 `day` 与 `year` 字段独立保留，导出兼容格式仍为 `card|month|day|cvv`。
+## Task lifecycle
 
-desktop 通过操作系统 safeStorage 保存加密凭据。当前 Chrome 设置不提供 API Key 输入，旧密文引用仅用于兼容。旧明文迁移仍要求持久化加密成功。没有可用的安全存储时，不能用会话内存代替迁移所需的持久化证明。
+Each active Browser has one WorkTask and one BrowserWorker. Queued tasks have no execution process. Starting, running, stopping, and unresolved recovery continue to reserve capacity. Main closes its live request gate before asynchronous stop work, so delayed Card messages cannot cross the stop boundary.
 
-## 调度与资源归属
+Main records ownership before forking and persists a start intent before a platform request. A known session is closed through its exact CDP endpoint. Unknown start results and missing or contradictory ownership remain reserved for recovery. A stored PID is diagnostic information and never grants authority to kill a process.
 
-`work.start` 返回持久化接纳结果，`work.cancel` 返回持久化取消意图。相同 commandId 和输入返回原结果，改变输入会冲突。响应不确定时查询原命令，避免重复派发。
+A stopped unfinished Card returns to pending only after confirmed cleanup. Committed values and operation receipts survive. Receipt-backed input fields remain locked. Task completion increments Browser count once, even if the acknowledgment is lost. Main recovery fences old work and does not automatically resume it.
 
-当前限制为同时执行两台设备、预留四个页面单位。同设备的非终态任务互斥。任务接纳时固定页面需求和非敏感设置，排队不占执行容量，派发一次性预留全部需求。
+## Trust boundaries
 
-自有 Chrome 使用应用专属用户目录。借用模式只连接显式配置的本机调试地址，每个任务拥有独立上下文。清理自有会话需确认退出后才能删除用户目录；清理借用会话只删除任务上下文，保留原浏览器及标签页。
+The renderer receives only named, schema-validated operations. Main accepts calls from its own top-level trusted frame. Other windows and subframes are rejected. The packaged renderer uses the `app://ui` protocol, sandboxing, context isolation, and a content security policy.
 
-未确认的获取或清理继续占用容量和设备。POSIX 自有会话等待进程组消失，Windows 使用单独标记的子进程退出证明，不宣称通用进程族容纳保证。磁盘中的 PID 或进程组标识不授予终止权限。
+Runtime processes receive a minimal environment. Windows retains its absolute `SystemRoot`. Backend workspace contracts and amount utilities are bundled. Native SQLite binaries are unpacked from ASAR. Electron fuses disable RunAsNode, Node options, and command-line inspection, and require loading the application from ASAR.
 
-重启把旧非终态任务标记为 interrupted，核对并清理资源，不自动重放任务。退出先停止接纳，再取消、清理、关库并等待 worker 退出。协作关闭预算为十秒，强制终止和退出确认另有五秒。强制或不确定退出不会报告为干净关闭，也不会允许开发协调器启动替代写入者。
-
-## 独立任务进程停止验证
-
-S1 增加 `TaskSupervisor` 和 `browser-worker.cjs`。每个 BrowserWorker 是独立的 Electron utility process，内部固定的控制线程只处理启动、心跳和停止。自动化与 Puppeteer 在 Node Worker 线程执行。控制线程调用 `Worker.terminate()` 后退出，Main 必须观察 utility process 的 `exit` 事件才接受退出证据。生产停止不调用 `utilityProcess.kill()`，不把磁盘 PID 当作终止权限。
-
-故障模型覆盖自动化 JavaScript 死循环、忽略取消和 POSIX SIGTERM。它不保证终止冻结的控制线程、不可中断的原生扩展或恶意进程代码。未确认退出会进入 `blocked`，保留清理义务。Main 同步关闭绑定真实进程来源的请求入口，随后并行发起停止、平台关闭和数据库 fence。最终释放还要求全部已发启动结束、退出后的平台关闭确认，以及 fence 完成。重复停止共享清理请求。超时未完成的环境关闭继续共享原请求，只有已完成的失败才允许重新关闭。utility process 的 error 事件进入同一清理流程。
-
-`pnpm test:process` 运行真实 Electron、两个独立任务进程及专用 SQLite DataService 测试进程，输出 `artifacts/process/<platform>-<arch>.json`。测试 SQL 长查询期间仍须观察选中任务退出，另一个任务继续通信，数据库继续提交。另一用例从正式 BrowserWorker 入口连接隔离 Chrome，打开本机测试页面并验证页面心跳和浏览器退出。构建与成品检查遍历 Vite 生成的依赖清单，覆盖自动化私有 chunk。延迟启动、关闭失败、未确认退出、线程崩溃、父进程租约失效与伪造任务身份均有实际进程检查。POSIX SIGTERM 测试由测试进程向自身发信号，Windows 报告该信号用例不适用。成品验收在源码仓库外重跑同一验证，同时保留四原生目标 CI。测试 fixture 只存在于独立验证入口，renderer 无法选择执行文件或测试行为。
-
-当前界面和旧数据服务仍使用原有设备、物料和调度 API。S1 不切换旧任务，不创建新业务表，不重建数据库，也不实施真实卡处理。新数据模型与正式任务接入属于后续阶段。
-
-## 安装身份
-
-安装标识由 [release.mjs](../internal/build-config/release.mjs) 的 `identity` 定义，运行时名称由 [main 入口](../apps/desktop/src/main/index.ts)设置。更改身份会影响安装与数据路径，需要单独验收。旧 Squirrel 分发及升级兼容性进展见 [Issue #6](https://github.com/0gnilc/browser-2d/issues/6)。
-
-## S2 foundation
-
-Backend exports `@browser-2d/backend/data-service` and `@browser-2d/backend/browser-worker` resolve compiled CJS entries. Contracts and the pure `@browser-2d/amount` package are bundled into desktop/preload/backend artifacts. Public Browser/Card/WorkTask/application-settings DTOs are strict and separate from the retained legacy API; host snapshots derive the entire Browser shape and override only amount with exact integer units.
-
-BrowserWorker cannot reach SQLite or legacy storage. DataService remains the single writer and retains legacy execution dependencies until S4 so current routes remain functional. New database tables, card import/scheduling and replacement pages are not implemented in S2. See [the execution decision](adr/0001-isolated-browser-execution.md).
+Boundary checks traverse source imports, manifests, conditional exports, and helpers. Negative fixtures prove the restrictions. Private verification entry points accept fixed operations and dedicated temporary directories; they do not load arbitrary modules or change the public API.

@@ -473,7 +473,6 @@ export async function verifyApplicationProcesses(directory: string, runtime: str
     reports.push({ behavior: 'unknown-start-retained-without-replay', result: 'passed' });
     return reports;
   } finally {
-    // The deliberately unresolved start has no live execution or browser and must retain its DB reservation.
     for (const control of controls) control.unavailable();
     await data.close();
   }

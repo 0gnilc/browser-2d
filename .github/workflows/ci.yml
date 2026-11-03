@@ -58,8 +58,6 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - run: pnpm test:storage
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
-      - run: pnpm test:observer
-        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - run: pnpm test:credentials
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - name: Updater transport and lifecycle
@@ -107,7 +105,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts/fedora44
-          sha256sum release/linux-x64/linux-unpacked/browser-2d | cut -d ' ' -f 1 > release/linux-x64/executable.sha256
+          node --input-type=module -e 'import { identity, hashFile } from "./internal/build-config/release.mjs"; import { writeFile } from "node:fs/promises"; await writeFile("release/linux-x64/product-identity.json", JSON.stringify(identity)); await writeFile("release/linux-x64/executable.sha256", await hashFile(`release/linux-x64/linux-unpacked/${identity.executableName}`));'
           docker run --rm --init --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
             -v "$PWD/release/linux-x64:/artifacts:ro" \
             -v "$PWD/scripts/packaging/verify-rpm.sh:/verify-rpm.sh:ro" \
