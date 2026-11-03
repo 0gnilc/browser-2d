@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import { once } from 'node:events';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -103,4 +105,111 @@ require(${JSON.stringify(join(desktop, 'dist/main/index.cjs'))});
       }
     },
   );
+}
+
+for (const target of [
+  'report.json',
+  'data',
+  'data/app.sqlite',
+  'data/app.sqlite-wal',
+  'data/app.sqlite-shm',
+  'data/app.sqlite-journal',
+  'data/worker-owners',
+  'data/execution-owners',
+  'credentials.enc',
+] as const) {
+  test(`private verification rejects linked ${target} before DataService ownership or writes`, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
+    const victim = await mkdtemp(join(tmpdir(), 'browser-2d-victim-'));
+    const diagnostics = join(directory, 'diagnostics.json');
+    const bootstrap = join(directory, 'main.cjs');
+    const victimDatabase = join(victim, 'app.sqlite');
+    try {
+      const database = new DatabaseSync(victimDatabase);
+      database.exec(
+        "CREATE TABLE sentinel (value TEXT); INSERT INTO sentinel VALUES ('owned scratch only')",
+      );
+      database.close();
+      const sentinel = join(victim, 'sentinel');
+      await writeFile(sentinel, 'owned scratch sentinel');
+      const before = await readFile(victimDatabase);
+      await mkdir(join(directory, 'data'));
+      const isDirectory = ['data', 'data/worker-owners', 'data/execution-owners'].includes(target);
+      const source = isDirectory
+        ? victim
+        : target === 'data/app.sqlite'
+          ? victimDatabase
+          : sentinel;
+      const destination = join(directory, target);
+      if (target === 'data') await rm(destination, { recursive: true });
+      if (isDirectory)
+        await symlink(source, destination, process.platform === 'win32' ? 'junction' : 'dir');
+      else if (process.platform === 'win32') await link(source, destination);
+      else await symlink(source, destination, 'file');
+      await writeFile(
+        bootstrap,
+        `const electron = require('electron');
+const { writeFileSync } = require('node:fs');
+const diagnostics = { dialogs: [], windows: 0, forks: 0 };
+const record = () => writeFileSync(${JSON.stringify(diagnostics)}, JSON.stringify(diagnostics));
+record();
+electron.app.getAppPath = () => ${JSON.stringify(desktop)};
+electron.app.setPath('logs', ${JSON.stringify(directory)});
+electron.dialog.showErrorBox = (...args) => { diagnostics.dialogs.push(args); record(); };
+const fork = electron.utilityProcess.fork;
+electron.utilityProcess.fork = (...args) => { diagnostics.forks++; record(); return fork(...args); };
+class HiddenBrowserWindow extends electron.BrowserWindow {
+  constructor(options) {
+    diagnostics.windows++;
+    record();
+    super({ ...options, show: false });
+    this.webContents.executeJavaScript = async () => { throw new Error('Deliberate private assertion'); };
+  }
+}
+const Module = require('node:module');
+const load = Module._load;
+Module._load = function(request, ...args) {
+  const value = load.call(this, request, ...args);
+  return request === 'electron' ? { ...value, BrowserWindow: HiddenBrowserWindow } : value;
+};
+require(${JSON.stringify(join(desktop, 'dist/main/index.cjs'))});
+`,
+      );
+      const child = spawn(
+        require('electron'),
+        [bootstrap, `--verify-workbench=${join(directory, 'report.json')}`],
+        {
+          env: { ...process.env, BROWSER2D_DATA_DIR: directory },
+          stdio: 'ignore',
+        },
+      );
+      try {
+        await expect.poll(() => child.exitCode, { timeout: 30_000 }).toBe(1);
+        expect.soft(await readFile(sentinel, 'utf8')).toBe('owned scratch sentinel');
+        const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+        expect.soft(hash(await readFile(victimDatabase))).toBe(hash(before));
+        expect.soft((await readdir(victim)).sort()).toEqual(['app.sqlite', 'sentinel']);
+        expect
+          .soft(JSON.parse(await readFile(diagnostics, 'utf8')))
+          .toEqual({ dialogs: [], windows: 0, forks: 0 });
+        if (target !== 'report.json')
+          await expect(readFile(join(directory, 'report.json'))).rejects.toMatchObject({
+            code: 'ENOENT',
+          });
+        if (!isDirectory)
+          await expect(readFile(join(directory, 'data', 'worker-owners'))).rejects.toMatchObject({
+            code: 'ENOENT',
+          });
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) {
+          const exited = once(child, 'exit');
+          child.kill('SIGTERM');
+          await exited;
+        }
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+      await rm(victim, { recursive: true, force: true });
+    }
+  });
 }
