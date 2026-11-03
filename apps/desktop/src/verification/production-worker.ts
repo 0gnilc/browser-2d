@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { utilityProcess } from 'electron';
@@ -42,7 +43,7 @@ export async function verifyProductionWorker(options: {
         platform = utilityProcess.fork(
           join(options.runtime, 'verification/browser-platform.cjs'),
           [],
-          { env: { BROWSER2D_ROLE: 'test-browser-platform' } },
+          { env: { BROWSER2D_ROLE: 'test-browser-platform', TEMP: tmpdir() } },
         );
         const child = platform;
         platformExit = new Promise<void>((resolve) =>
