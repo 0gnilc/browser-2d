@@ -322,6 +322,9 @@ importers:
 
   apps/backend:
     dependencies:
+      '@browser-2d/amount':
+        specifier: workspace:*
+        version: link:../../packages/amount
       better-sqlite3:
         specifier: 'catalog:'
         version: 13.0.3

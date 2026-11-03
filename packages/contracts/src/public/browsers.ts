@@ -1,15 +1,20 @@
 import { z } from 'zod';
 import { to } from '@browser-2d/amount';
+import { limits } from './limits';
+export const fieldTextSchema = z.string().max(limits.fieldLength);
 export const browserIdSchema = z.number().int().positive().safe().brand<'BrowserId'>();
 export type BrowserId = z.infer<typeof browserIdSchema>;
-export const amountTextSchema = z.string().refine((value) => {
-  try {
-    to(value);
-    return true;
-  } catch {
-    return false;
-  }
-}, 'Expected a nonnegative exact amount with at most two decimal places');
+export const amountTextSchema = z
+  .string()
+  .max(limits.fieldLength)
+  .refine((value) => {
+    try {
+      to(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'Expected a nonnegative exact amount with at most two decimal places');
 export const browserStatusSchema = z.enum([
   'idle',
   'queued',
@@ -22,14 +27,14 @@ export const browserStatusSchema = z.enum([
 export const browserSchema = z.strictObject({
   id: browserIdSchema,
   provider: z.literal('adspower'),
-  profileId: z.string().min(1),
-  name: z.string(),
-  account: z.string(),
+  profileId: fieldTextSchema.min(1),
+  name: fieldTextSchema,
+  account: fieldTextSchema,
   amount: amountTextSchema,
   count: z.number().int().nonnegative().safe(),
   status: browserStatusSchema,
-  notes: z.string(),
-  lastError: z.string(),
+  notes: fieldTextSchema,
+  lastError: fieldTextSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

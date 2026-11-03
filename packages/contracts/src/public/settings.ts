@@ -1,40 +1,35 @@
 import { z } from 'zod';
-export const applicationSettingsRegistry = {
-  'browser.apiBaseUrl': {
-    schema: z.url().refine((value) => {
-      if (!URL.canParse(value)) return false;
-      const url = new URL(value);
-      return (
-        url.protocol === 'http:' &&
-        ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) &&
-        !url.username &&
-        !url.password
-      );
-    }),
-    default: 'http://127.0.0.1:50325',
-  },
-  'browser.apiKeyRef': { schema: z.string(), default: '' },
-  'work.maxConcurrentTasks': { schema: z.number().int().positive().safe(), default: 2 },
-  'ui.sidebarCollapsed': { schema: z.boolean(), default: false },
-};
-export const applicationSettingsSchema = z.strictObject({
-  'browser.apiBaseUrl': applicationSettingsRegistry['browser.apiBaseUrl'].schema,
-  'browser.apiKeyRef': applicationSettingsRegistry['browser.apiKeyRef'].schema,
-  'work.maxConcurrentTasks': applicationSettingsRegistry['work.maxConcurrentTasks'].schema,
-  'ui.sidebarCollapsed': applicationSettingsRegistry['ui.sidebarCollapsed'].schema,
+import { applicationSettingsRegistry } from '../settings-registry';
+export const settingsValuesSchema = z.strictObject({
+  apiBaseUrl: applicationSettingsRegistry['browser.apiBaseUrl'].schema,
+  apiKeyConfigured: z.boolean(),
+  maxConcurrentTasks: applicationSettingsRegistry['work.maxConcurrentTasks'].schema,
+  sidebarCollapsed: applicationSettingsRegistry['ui.sidebarCollapsed'].schema,
 });
-export type ApplicationSettings = z.infer<typeof applicationSettingsSchema>;
-export type SettingsKey = keyof ApplicationSettings;
-export const applicationSettingsDefaults: ApplicationSettings = applicationSettingsSchema.parse(
-  Object.fromEntries(
-    Object.entries(applicationSettingsRegistry).map(([key, entry]) => [key, entry.default]),
-  ),
-);
-export const applicationSettingsSaveSchema = z.strictObject({
-  values: applicationSettingsSchema,
-  expectedRevision: z.number().int().nonnegative().safe(),
-});
-export const applicationSettingsViewSchema = z.strictObject({
-  values: applicationSettingsSchema,
+export const settingsViewSchema = z.strictObject({
+  values: settingsValuesSchema,
   revision: z.number().int().nonnegative().safe(),
 });
+export const apiKeyActionSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('keep') }),
+  z.strictObject({ kind: z.literal('clear') }),
+  z.strictObject({ kind: z.literal('replace'), value: z.string().min(1).max(16_384) }),
+]);
+export const settingsSaveSchema = z.strictObject({
+  values: settingsValuesSchema.omit({ apiKeyConfigured: true }),
+  apiKey: apiKeyActionSchema,
+  expectedRevision: z.number().int().nonnegative().safe(),
+  bindingConfirmationToken: z.uuid().optional(),
+});
+export const settingsSaveOutcomeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('saved'), settings: settingsViewSchema }),
+  z.strictObject({
+    kind: z.literal('binding_confirmation_required'),
+    token: z.uuid(),
+    browserCount: z.number().int().nonnegative().safe(),
+  }),
+]);
+export type SettingsValues = z.infer<typeof settingsValuesSchema>;
+export type SettingsView = z.infer<typeof settingsViewSchema>;
+export type SettingsSave = z.infer<typeof settingsSaveSchema>;
+export type SettingsSaveOutcome = z.infer<typeof settingsSaveOutcomeSchema>;

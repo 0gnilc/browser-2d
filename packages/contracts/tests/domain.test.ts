@@ -4,10 +4,9 @@ import {
   browserUpdateSchema,
   cardSchema,
   cardUpdateSchema,
-  applicationSettingsSchema,
-  applicationSettingsDefaults,
   taskIdSchema,
 } from '../src/public';
+import { applicationSettingsSchema, applicationSettingsDefaults } from '../src/host';
 import { browserSnapshotSchema } from '../src/host/task-process';
 const timestamp = '2026-11-03T00:00:00.000Z';
 const browser = {
