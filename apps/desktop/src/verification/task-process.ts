@@ -304,15 +304,25 @@ export async function verifyTaskProcesses(reportPath: string) {
     assert.equal(failed.releases, 1);
     reports.push({ behavior: 'failed-close-retry', result: 'passed' });
 
-    const frozen = launch('freeze-host', { deadlineMs: 100 });
+    let frozenFence: Promise<void> | undefined;
+    const frozen = launch('freeze-host', {
+      deadlineMs: 100,
+      fence() {
+        frozenFence ??= dbRequest('write').then(() => undefined);
+        return frozenFence;
+      },
+    });
     await until(() => frozen.worker.state.kind === 'running', 'frozen host fixture ready');
     frozen.worker.cancel();
     await until(() => frozen.seen.has(999_997), 'host frozen');
     assert.equal((await frozen.worker.stop()).kind, 'blocked');
     assert.equal(frozen.releases, 0);
     await frozen.worker.exited;
+    assert(frozenFence);
+    await frozenFence;
     assert.equal(frozen.releases, 0);
-    assert.equal((await frozen.worker.stop()).kind, 'exited');
+    const recovered = await frozen.worker.stop();
+    assert.equal(recovered.kind, 'exited', JSON.stringify(recovered));
     reports.push({ behavior: 'unconfirmed-exit-retains-reservation', result: 'passed' });
 
     const closeStarted = deferred<void>();
