@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 import test from 'node:test';
-import { root } from '../process.mjs';
 import { migrateReferences, migrateScripts } from './script-paths.mjs';
 
 test('moved modules rebase syntax nodes and preserve import-like fixture strings', () => {
@@ -52,12 +52,16 @@ test('exact map applies to the unmigrated repository and is idempotent', async (
     return hash.digest('hex');
   }
   try {
-    execFileSync('tar', ['-xf', '-', '-C', directory], {
-      input: execFileSync('git', ['archive', '438254c0f0ec77e7c1da77e23531fabd6f0bd96c'], {
-        cwd: root,
-        maxBuffer: 20 * 1024 * 1024,
-      }),
-    });
+    const fixture = JSON.parse(
+      gunzipSync(
+        await readFile(new URL('./fixtures/script-paths-before.json.gz', import.meta.url)),
+      ).toString('utf8'),
+    );
+    assert.equal(fixture.sourceCommit, '438254c0f0ec77e7c1da77e23531fabd6f0bd96c');
+    for (const [path, source] of Object.entries(fixture.files)) {
+      await mkdir(dirname(join(directory, path)), { recursive: true });
+      await writeFile(join(directory, path), source);
+    }
     execFileSync('git', ['init', '-q', directory]);
     execFileSync('git', ['add', '.'], { cwd: directory });
     await assert.rejects(migrateScripts(directory, false));

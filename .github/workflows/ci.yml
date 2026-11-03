@@ -65,6 +65,7 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
+      - run: pnpm test:platform
       - name: Selected task process isolation
         shell: bash
         run: |
