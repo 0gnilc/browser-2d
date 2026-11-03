@@ -67,6 +67,7 @@ export default {
     target: ['AppImage', 'deb', 'rpm'],
     category: 'Development',
     maintainer: 'browser-2d contributors',
+    packageName: executableName,
     executableName,
   },
   publish: production ? { provider: 'generic', url: feedUrl(configuration) } : null,
