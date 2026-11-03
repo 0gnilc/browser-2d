@@ -85,7 +85,9 @@ const workerPrefix = '/node_modules/@browser-2d/worker-runtime';
 const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 const packagedManifest = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
 const runtimeManifest = JSON.parse(
-  asar.extractFile(archive, `${workerPrefix.slice(1)}/dist/.vite/manifest.json`).toString('utf8'),
+  asar
+    .extractFile(archive, join(workerPrefix.slice(1), 'dist/.vite/manifest.json'))
+    .toString('utf8'),
 );
 for (const file of runtimeArtifacts(runtimeManifest))
   assert(
