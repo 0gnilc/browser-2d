@@ -130,7 +130,9 @@ for (const path of [
   'apps/ui/tsconfig.json',
 ]) {
   watchers.push(
-    watch(join(root, path), { recursive: true }, () => {
+    watch(join(root, path), { recursive: true }, (event, filename) => {
+      if (inspectUi)
+        process.stderr.write(`[dev:watch] ${JSON.stringify({ path, event, filename })}\n`);
       clearTimeout(debounce);
       debounce = setTimeout(() => void restart(), 250);
     }),
