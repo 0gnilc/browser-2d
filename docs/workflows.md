@@ -4,7 +4,7 @@
 
 ## 开发流程
 
-对应 [scripts/dev.mjs](../scripts/dev.mjs) 的 `pnpm dev` 和 `pnpm dev:backend`。先构建 worker，再构建 desktop。构建及配置加载成功后才停止旧应用。停止失败时不启动替代进程。
+对应 [scripts/dev/dev.mjs](../scripts/dev/dev.mjs) 的 `pnpm dev` 和 `pnpm dev:backend`。先构建 worker，再构建 desktop。构建及配置加载成功后才停止旧应用。停止失败时不启动替代进程。
 
 ```mermaid
 ---
@@ -132,7 +132,7 @@ stateDiagram-v2
 
 ## 打包与发布校验流程
 
-对应 [package.mjs](../scripts/package.mjs)、[release-verify.mjs](../scripts/release-verify.mjs) 和 [release-prepare.mjs](../scripts/release-prepare.mjs)。图覆盖 `dist` 到发布准备的路径。`package` 仅生成可运行目录，不满足正式候选要求。
+对应 [package.mjs](../scripts/packaging/package.mjs)、[release-verify.mjs](../scripts/release/release-verify.mjs) 和 [release-prepare.mjs](../scripts/release/release-prepare.mjs)。图覆盖 `dist` 到发布准备的路径。`package` 仅生成可运行目录，不满足正式候选要求。
 
 ```mermaid
 ---

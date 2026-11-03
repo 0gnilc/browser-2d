@@ -42,7 +42,7 @@ macOS 在最终 DMG 公证和 stapling 完成后计算清单，保留 `notarizat
 
 先在目标原生系统执行安装、真实升级、受控 feed 故障、数据保留、卸载、退出清理及仓库外运行。将实际命令、日志和观察值保存为 `release-acceptance.json` 及其引用文件。
 
-报告结构、必需场景、摘要绑定及旧 Squirrel 证据要求以 [release-verify.mjs](../scripts/release-verify.mjs) 为准，[发布工具测试](../scripts/release.test.mjs)包含构造示例。测试 fixture 仅用于说明结构，不能作为实际验收证据。预览报告也不能改名充当生产证据。
+报告结构、必需场景、摘要绑定及旧 Squirrel 证据要求以 [release-verify.mjs](../scripts/release/release-verify.mjs) 为准，[发布工具测试](../scripts/release/release.test.mjs)包含构造示例。测试 fixture 仅用于说明结构，不能作为实际验收证据。预览报告也不能改名充当生产证据。
 
 ```sh
 pnpm release:verify -- --directory=/absolute/path/release/production/test/mac-x64 --evidence=/absolute/path/native-mac-x64-evidence

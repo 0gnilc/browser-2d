@@ -271,12 +271,6 @@ importers:
 
   .:
     devDependencies:
-      '@browser-2d/lint-config':
-        specifier: workspace:*
-        version: link:internal/lint-config
-      '@browser-2d/test-utils':
-        specifier: workspace:*
-        version: link:internal/test-utils
       '@electron/asar':
         specifier: 'catalog:'
         version: 3.4.1
@@ -479,20 +473,6 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1)
-
-  internal/lint-config:
-    dependencies:
-      '@eslint/js':
-        specifier: 'catalog:'
-        version: 9.39.1
-      eslint-plugin-vue:
-        specifier: 'catalog:'
-        version: 10.5.1(@typescript-eslint/parser@8.72.1(eslint@9.39.1(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.1(jiti@2.7.0)(supports-color@7.2.0))(vue-eslint-parser@10.4.1(eslint@9.39.1(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0))
-      typescript-eslint:
-        specifier: 'catalog:'
-        version: 8.72.1(eslint@9.39.1(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
-
-  internal/test-utils: {}
 
   internal/tsconfig: {}
 

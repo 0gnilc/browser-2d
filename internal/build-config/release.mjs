@@ -35,9 +35,9 @@ export const targets = {
   },
 };
 export const identity = Object.freeze({
-  appId: 'io.github.0gnilc.browser2d.foundation',
-  productName: 'Browser2DFoundation',
-  executableName: 'browser-2d-foundation',
+  appId: 'io.github.0gnilc.browser2d',
+  productName: 'Browser 2D',
+  executableName: 'browser-2d',
 });
 export const digest = (value, algorithm = 'sha256', encoding = 'hex') =>
   createHash(algorithm).update(value).digest(encoding);

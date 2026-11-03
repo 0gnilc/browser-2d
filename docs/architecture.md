@@ -46,7 +46,7 @@ flowchart TB
 | `internal`           | build-config、tsconfig、lint-config、test-utils  | 只供配置和测试使用，不承载业务逻辑                                     |
 | `scripts`            | 根命令协调、隔离打包、产物与发布验收             | 调用应用入口和工程配置                                                 |
 
-边界由 [check-boundaries.mjs](../scripts/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/backend/data-service`，指向构建后的 `dist/data-service.cjs`。
+边界由 [check-boundaries.mjs](../scripts/checks/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/backend/data-service`，指向构建后的 `dist/data-service.cjs`。
 
 ## 工具与构建
 

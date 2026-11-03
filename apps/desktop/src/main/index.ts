@@ -25,7 +25,9 @@ import { verifyAdsPower } from '../verification/adspower';
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
-app.setName('Browser 2D');
+declare const __PRODUCT_IDENTITY__: { productName: string; appId: string; executableName: string };
+app.setName(__PRODUCT_IDENTITY__.productName);
+app.setAppUserModelId(__PRODUCT_IDENTITY__.appId);
 const rendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
 const dataDir = resolve(process.env.BROWSER2D_DATA_DIR || app.getPath('userData'));
 mkdirSync(dataDir, { recursive: true });

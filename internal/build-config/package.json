@@ -5,7 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./index.mjs",
-    "./release": "./release.mjs"
+    "./release": {
+      "types": "./release.d.mts",
+      "default": "./release.mjs"
+    }
   },
   "dependencies": {
     "@vitejs/plugin-vue": "catalog:",

@@ -49,7 +49,7 @@ jobs:
       - name: Export test Chrome path
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
-        run: node scripts/prepare-test-chrome.mjs
+        run: node scripts/testing/prepare-test-chrome.mjs
       - run: pnpm check
       - run: pnpm test:workflows
       - run: pnpm test
@@ -75,7 +75,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
+          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/testing/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
       - name: Native distributables
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         run: pnpm dist -- --target=${{ matrix.target }}
@@ -86,7 +86,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=${{ matrix.target }}; else pnpm verify:package -- --target=${{ matrix.target }}; fi
+          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/testing/linux-secret-session.sh pnpm verify:package -- --target=${{ matrix.target }}; else pnpm verify:package -- --target=${{ matrix.target }}; fi
       - name: Fused task process verification outside checkout
         if: github.event_name == 'workflow_dispatch' && inputs.acceptance_scope == 'process'
         shell: bash
@@ -96,21 +96,21 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:installation; else pnpm verify:installation; fi
+          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/testing/linux-secret-session.sh pnpm verify:installation; else pnpm verify:installation; fi
       - name: Exact ZIP or direct FUSE AppImage runtime
         if: runner.os != 'Windows' && (github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process')
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:formats -- --target=${{ matrix.target }}; else pnpm verify:formats -- --target=${{ matrix.target }}; fi
+          if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/testing/linux-secret-session.sh pnpm verify:formats -- --target=${{ matrix.target }}; else pnpm verify:formats -- --target=${{ matrix.target }}; fi
       - name: Install and run RPM in Fedora 44 userspace
         if: runner.os == 'Linux' && (github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process')
         shell: bash
         run: |
           mkdir -p artifacts/fedora44
-          sha256sum release/linux-x64/linux-unpacked/browser-2d-foundation | cut -d ' ' -f 1 > release/linux-x64/executable.sha256
+          sha256sum release/linux-x64/linux-unpacked/browser-2d | cut -d ' ' -f 1 > release/linux-x64/executable.sha256
           docker run --rm --init --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
             -v "$PWD/release/linux-x64:/artifacts:ro" \
-            -v "$PWD/scripts/verify-rpm.sh:/verify-rpm.sh:ro" \
+            -v "$PWD/scripts/packaging/verify-rpm.sh:/verify-rpm.sh:ro" \
             -v "$PWD/artifacts/fedora44:/evidence" fedora:44 bash /verify-rpm.sh
       - uses: actions/upload-artifact@v4
         if: always()

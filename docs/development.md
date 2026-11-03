@@ -40,7 +40,7 @@ Electron 开发测试会临时修改源码并在 `finally` 中还原。运行该
 Linux 的 Electron 集成需要图形会话及可用的 secret service。CI 使用一次性 D-Bus、GNOME keyring 和 Xvfb。
 
 ```sh
-dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron
+dbus-run-session -- xvfb-run -a bash scripts/testing/linux-secret-session.sh pnpm test:electron
 ```
 
 该脚本用于隔离测试会话，不替换桌面 keyring。测试流程与 CI 的区别见[测试流程图](workflows.md#测试流程)。
