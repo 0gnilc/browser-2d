@@ -49,6 +49,7 @@ export function createAdsPowerClient(options: { apiBaseUrl: string; apiKey: stri
     let issued = false;
     let resolved = false;
     let opening: Promise<Automation> | undefined;
+    let closing: Promise<void> | undefined;
     return {
       open() {
         opening ??= (async () => {
@@ -76,13 +77,19 @@ export function createAdsPowerClient(options: { apiBaseUrl: string; apiKey: stri
         })();
         return opening;
       },
-      async close() {
-        if (!issued) return;
-        await request('/api/v2/browser-profile/stop', { profile_id: profileId });
-        for (let attempt = 0; attempt < 10; attempt++) {
-          if ((await status(profileId)) === 'Inactive') return;
-        }
-        throw new Error('AdsPower environment closure not confirmed');
+      close() {
+        if (!issued) return Promise.resolve();
+        closing ??= (async () => {
+          await request('/api/v2/browser-profile/stop', { profile_id: profileId });
+          for (let attempt = 0; attempt < 10; attempt++) {
+            if ((await status(profileId)) === 'Inactive') return;
+          }
+          throw new Error('AdsPower environment closure not confirmed');
+        })().catch((error: unknown) => {
+          closing = undefined;
+          throw error;
+        });
+        return closing;
       },
       async closed() {
         if (!issued) return true;
