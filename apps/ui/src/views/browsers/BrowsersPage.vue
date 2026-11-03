@@ -114,8 +114,8 @@ async function remove(row: Browser) {
               <ElButton
                 v-else
                 size="small"
-                :loading="work.pending.has(row.id)"
-                :disabled="work.pending.has(row.id) || work.connection !== 'connected'"
+                :loading="work.requesting(row.id)"
+                :disabled="work.requesting(row.id)"
                 @click="work.control(row.id, 'stop')"
                 >{{ row.status === 'recovery_required' ? '重试停止' : '停止工作' }}</ElButton
               >

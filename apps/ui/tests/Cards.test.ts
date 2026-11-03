@@ -150,6 +150,50 @@ describe('one import protocol', () => {
     wrapper.unmount();
   });
 
+  it.each(['edit', 'submit'])('invalidates a delayed TXT read on a newer %s', async (action) => {
+    const test = createTestApi();
+    let finishImport: () => void = () => {};
+    test.api.cards.importText = vi.fn<Browser2dApi['cards']['importText']>(
+      () =>
+        new Promise((resolve) => {
+          finishImport = () => resolve({ ok: true, value: report });
+        }),
+    );
+    const wrapper = mount(CardImport, {
+      attachTo: document.body,
+      global: { provide: { [desktopApiKey]: test.api } },
+    });
+    await wrapper.vm.open();
+    await flushPromises();
+    await input('card-import-text', sourceText);
+    let finishFile: (bytes: ArrayBuffer) => void = () => {};
+    const file = new File([], 'delayed.txt');
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: () =>
+        new Promise<ArrayBuffer>((resolve) => {
+          finishFile = resolve;
+        }),
+    });
+    const fileInput = field('card-import-file');
+    Object.defineProperty(fileInput, 'files', { value: [file] });
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await flushPromises();
+    const expectedText = action === 'edit' ? sourceText + 'new draft' : sourceText;
+    if (action === 'edit') await input('card-import-text', expectedText);
+    else await click('card-import-submit');
+    finishFile(new TextEncoder().encode('old file contents').buffer);
+    await flushPromises();
+    expect(field('card-import-text').value).toBe(expectedText);
+    if (action === 'submit') {
+      expect(test.api.cards.importText).toHaveBeenCalledWith({ text: expectedText });
+      finishImport();
+      await flushPromises();
+      expect(field('card-import-text').value).toBe(expectedText);
+      expect(document.body.textContent).toContain('已插入 1');
+    }
+    wrapper.unmount();
+  });
+
   it('reports a known partial commit by original line and preserves the retry text', async () => {
     const test = createTestApi();
     const partial = cardImportReportSchema.parse({
@@ -324,5 +368,41 @@ it('fences an older TXT read when a newer selection has already populated the dr
   finishOld(new TextEncoder().encode('old selection').buffer);
   await flushPromises();
   expect(field('card-import-text').value).toBe('new selection');
+  wrapper.unmount();
+});
+
+it('fences a delayed UTF-8 failure after the drawer closes and reopens', async () => {
+  const test = createTestApi();
+  const wrapper = mount(CardImport, {
+    attachTo: document.body,
+    global: { provide: { [desktopApiKey]: test.api } },
+  });
+  await wrapper.vm.open();
+  await flushPromises();
+  let finishFile: (bytes: ArrayBuffer) => void = () => {};
+  const file = new File([], 'delayed.txt');
+  Object.defineProperty(file, 'arrayBuffer', {
+    value: () =>
+      new Promise<ArrayBuffer>((resolve) => {
+        finishFile = resolve;
+      }),
+  });
+  const fileInput = field('card-import-file');
+  Object.defineProperty(fileInput, 'files', { value: [file] });
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  await flushPromises();
+  const close = [...document.querySelectorAll('button')].find(
+    (button) => button.textContent === '关闭',
+  );
+  if (!close) throw new Error('Close button missing');
+  close.click();
+  await flushPromises();
+  await wrapper.vm.open();
+  await flushPromises();
+  await input('card-import-text', sourceText);
+  finishFile(new Uint8Array([0xff]).buffer);
+  await flushPromises();
+  expect(field('card-import-text').value).toBe(sourceText);
+  expect(document.body.textContent).not.toContain('不是有效的 UTF-8');
   wrapper.unmount();
 });
