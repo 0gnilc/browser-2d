@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { realpath, writeFile } from 'node:fs/promises';
+import { lstat, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { app, BrowserWindow, utilityProcess } from 'electron';
@@ -32,6 +32,24 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
   );
   assert.equal(basename(reportPath), 'report.json');
   assert.equal(await realpath(dataDir), directory);
+  for (const [path, kind] of [
+    ['data', 'directory'],
+    ['data/worker-owners', 'directory'],
+    ['data/execution-owners', 'directory'],
+    ['report.json', 'file'],
+    ['credentials.enc', 'file'],
+    ['data/app.sqlite', 'file'],
+    ['data/app.sqlite-wal', 'file'],
+    ['data/app.sqlite-shm', 'file'],
+    ['data/app.sqlite-journal', 'file'],
+  ] as const) {
+    const entry = await lstat(join(directory, path)).catch((error: unknown) => {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return;
+      throw error;
+    });
+    if (entry)
+      assert(kind === 'directory' ? entry.isDirectory() : entry.isFile() && entry.nlink === 1);
+  }
   const require = createRequire(join(app.getAppPath(), 'package.json'));
   const entry = join(
     dirname(require.resolve('@browser-2d/backend/browser-worker')),
@@ -116,33 +134,40 @@ export async function workbenchVerification(reportPath: string, dataDir: string)
     },
     async report(exitCode: number) {
       const verified = exitCode === 0 && !!outcome && sessions.size === 0;
-      await writeFile(
-        reportPath,
-        JSON.stringify(
-          {
-            result: verified ? 'VERIFIED' : 'FAILED',
-            appName: app.getName(),
-            appVersion: app.getVersion(),
-            packaged: app.isPackaged,
-            platform: process.platform,
-            arch: process.arch,
-            versions: process.versions,
-            userData: app.getPath('userData'),
-            appData: app.getPath('appData'),
-            dataOverride: Boolean(process.env.BROWSER2D_DATA_DIR),
-            dataPath: join(dataDir, 'data', 'app.sqlite'),
-            rendererUrl: 'app://ui/index.html',
-            workerEntry,
-            ...(verified
-              ? { workerExited: true }
-              : { failure: 'Workbench verification or cleanup did not complete' }),
-            exitCode: verified ? 0 : 1,
-            checks: outcome,
-          },
-          null,
-          2,
-        ),
-      );
+      const temporary = join(directory, `report-${randomUUID()}.tmp`);
+      try {
+        await writeFile(
+          temporary,
+          JSON.stringify(
+            {
+              result: verified ? 'VERIFIED' : 'FAILED',
+              appName: app.getName(),
+              appVersion: app.getVersion(),
+              packaged: app.isPackaged,
+              platform: process.platform,
+              arch: process.arch,
+              versions: process.versions,
+              userData: app.getPath('userData'),
+              appData: app.getPath('appData'),
+              dataOverride: Boolean(process.env.BROWSER2D_DATA_DIR),
+              dataPath: join(dataDir, 'data', 'app.sqlite'),
+              rendererUrl: 'app://ui/index.html',
+              workerEntry,
+              ...(verified
+                ? { workerExited: true }
+                : { failure: 'Workbench verification or cleanup did not complete' }),
+              exitCode: verified ? 0 : 1,
+              checks: outcome,
+            },
+            null,
+            2,
+          ),
+          { flag: 'wx', mode: 0o600 },
+        );
+        await rename(temporary, join(directory, 'report.json'));
+      } finally {
+        await rm(temporary, { force: true });
+      }
       assert(exitCode !== 0 || verified, 'Workbench verification or cleanup did not complete');
     },
   };

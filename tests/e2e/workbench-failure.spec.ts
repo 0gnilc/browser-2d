@@ -107,18 +107,20 @@ require(${JSON.stringify(join(desktop, 'dist/main/index.cjs'))});
   );
 }
 
-for (const target of [
-  'report.json',
-  'data',
-  'data/app.sqlite',
-  'data/app.sqlite-wal',
-  'data/app.sqlite-shm',
-  'data/app.sqlite-journal',
-  'data/worker-owners',
-  'data/execution-owners',
-  'credentials.enc',
+for (const [target, hardlink] of [
+  ['report.json', false],
+  ['data', false],
+  ['data/app.sqlite', false],
+  ['data/app.sqlite-wal', false],
+  ['data/app.sqlite-shm', false],
+  ['data/app.sqlite-journal', false],
+  ['data/worker-owners', false],
+  ['data/execution-owners', false],
+  ['credentials.enc', false],
+  ['report.json', true],
+  ['data/app.sqlite', true],
 ] as const) {
-  test(`private verification rejects linked ${target} before DataService ownership or writes`, async () => {
+  test(`private verification rejects linked ${target}${hardlink ? ' (hardlink)' : ''} before DataService ownership or writes`, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
     const victim = await mkdtemp(join(tmpdir(), 'browser-2d-victim-'));
     const diagnostics = join(directory, 'diagnostics.json');
@@ -144,7 +146,7 @@ for (const target of [
       if (target === 'data') await rm(destination, { recursive: true });
       if (isDirectory)
         await symlink(source, destination, process.platform === 'win32' ? 'junction' : 'dir');
-      else if (process.platform === 'win32') await link(source, destination);
+      else if (hardlink || process.platform === 'win32') await link(source, destination);
       else await symlink(source, destination, 'file');
       await writeFile(
         bootstrap,

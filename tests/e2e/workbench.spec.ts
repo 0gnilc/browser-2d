@@ -146,31 +146,49 @@ test('Browser and Card UI preserves raw text, protects drafts and persists setti
   }
 });
 
-test('fixed workbench verification exercises queued tasks, receipt locks and clean shutdown', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'browser-2d-release-'));
-  const child = spawn(
-    require('electron'),
-    [desktop, `--verify-workbench=${join(directory, 'report.json')}`],
-    {
-      env: { ...process.env, BROWSER2D_DATA_DIR: directory },
-      stdio: ['ignore', 'ignore', 'pipe'],
-    },
-  );
-  try {
-    child.stderr.on('data', (data: Buffer) => process.stderr.write(data));
-    await expect.poll(() => child.exitCode, { timeout: 30_000 }).toBe(0);
-    const report: unknown = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
-    expect(report).toMatchObject({
-      result: 'VERIFIED',
-      workerExited: true,
-      checks: { taskPath: true, queued: true, inputLocked: true },
-    });
-  } finally {
-    if (child.exitCode === null && child.signalCode === null) {
-      const exited = once(child, 'exit');
-      child.kill('SIGTERM');
-      await exited;
+for (const mode of ['override', 'default'] as const) {
+  test(`fixed workbench verification exercises tasks and reuses regular reports with ${mode} app data`, async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), mode === 'default' ? 'browser-2d-default-' : 'browser-2d-release-'),
+    );
+    const dataDir = mode === 'default' ? join(directory, 'Browser 2D') : directory;
+    const reportPath = join(dataDir, 'report.json');
+    const env = { ...process.env };
+    if (mode === 'default') delete env.BROWSER2D_DATA_DIR;
+    else env.BROWSER2D_DATA_DIR = directory;
+    try {
+      for (let pass = 0; pass < 2; pass++) {
+        const child = spawn(
+          require('electron'),
+          [
+            desktop,
+            `--verify-workbench=${reportPath}`,
+            ...(mode === 'default' ? [`--verify-app-data=${directory}`] : []),
+          ],
+          { env, stdio: ['ignore', 'ignore', 'pipe'] },
+        );
+        try {
+          child.stderr.on('data', (data: Buffer) => process.stderr.write(data));
+          await expect.poll(() => child.exitCode, { timeout: 30_000 }).toBe(0);
+          const report: unknown = JSON.parse(await readFile(reportPath, 'utf8'));
+          expect(report).toMatchObject({
+            result: 'VERIFIED',
+            workerExited: true,
+            dataOverride: mode === 'override',
+            userData: dataDir,
+            dataPath: join(dataDir, 'data', 'app.sqlite'),
+            checks: { taskPath: true, queued: true, inputLocked: true, initialBrowsers: pass * 2 },
+          });
+        } finally {
+          if (child.exitCode === null && child.signalCode === null) {
+            const exited = once(child, 'exit');
+            child.kill('SIGTERM');
+            await exited;
+          }
+        }
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
-    await rm(directory, { recursive: true, force: true });
-  }
-});
+  });
+}
