@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { app, utilityProcess } from 'electron';
 import { z } from 'zod';
@@ -23,11 +25,7 @@ const points = [
   'running-current-card',
   'post-release-pre-unlink',
 ] as const;
-const inputSchema = z.strictObject({
-  directory: z.string(),
-  runtime: z.string(),
-  point: z.enum(points),
-});
+const inputSchema = z.strictObject({ directory: z.string(), point: z.enum(points) });
 const reportSchema = z.strictObject({
   point: z.enum(points),
   mainPid: z.number().int(),
@@ -73,9 +71,21 @@ function controlledPlatform(directory: string): BrowserPlatform {
 }
 export async function runCrashOwner(raw: unknown) {
   const input = inputSchema.parse(raw);
+  const directory = resolve(input.directory);
+  const parent = dirname(directory);
+  const suffix = relative(tmpdir(), parent);
+  assert(
+    !isAbsolute(suffix) &&
+      !suffix.startsWith('..') &&
+      suffix.startsWith('browser-2d-process-') &&
+      dirname(parent) === resolve(tmpdir()),
+  );
+  assert.equal(directory, join(parent, `crash-${input.point}`));
+  const require = createRequire(join(app.getAppPath(), 'package.json'));
+  const runtime = dirname(require.resolve('@browser-2d/backend/browser-worker'));
   const data = launchDataService({
     dataPath: join(input.directory, 'app.sqlite'),
-    entry: join(input.runtime, 'verification/application-data-service.cjs'),
+    entry: join(runtime, 'verification/application-data-service.cjs'),
     nativeBinding: app.isPackaged ? undefined : process.env.BROWSER2D_NATIVE_BINDING,
     onChanged() {},
     onUnavailable() {
@@ -101,7 +111,7 @@ export async function runCrashOwner(raw: unknown) {
     platform: () => controlledPlatform(input.directory),
     checkpoint: crash,
     spawn(task) {
-      const entry = join(input.runtime, 'verification/card-worker.cjs');
+      const entry = join(runtime, 'verification/card-worker.cjs');
       const child = utilityProcess.fork(
         entry,
         [input.point === 'post-release-pre-unlink' ? 'cards' : 'cards-hold'],
@@ -138,7 +148,7 @@ export async function verifyCrashRecovery(directory: string, runtime: string) {
     await mkdir(root, { recursive: true });
     const args = [
       ...(app.isPackaged ? [] : [app.getAppPath()]),
-      `--verify-task-owner=${JSON.stringify({ directory: root, runtime, point })}`,
+      `--verify-task-owner=${JSON.stringify({ directory: root, point })}`,
     ];
     const child = spawn(process.execPath, args, {
       env: { ...process.env, BROWSER2D_DATA_DIR: root },
