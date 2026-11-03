@@ -211,8 +211,8 @@ export async function checkBoundaries(workspaceRoot = root) {
   )
     fail('Root must not own production dependencies');
   const desktop = byName.get('@browser-2d/desktop');
-  if (desktop?.manifest.dependencies?.['@browser-2d/worker-runtime'] !== 'workspace:*')
-    fail('Desktop must declare the worker runtime production dependency');
+  if (desktop?.manifest.dependencies?.['@browser-2d/backend'] !== 'workspace:*')
+    fail('Desktop must declare the backend production dependency');
 
   for (const unit of units) {
     const name = unit.manifest.name;
@@ -226,7 +226,7 @@ export async function checkBoundaries(workspaceRoot = root) {
         if (target?.group === 'apps') {
           const allowed =
             name === '@browser-2d/desktop' &&
-            ((field === 'dependencies' && dependency === '@browser-2d/worker-runtime') ||
+            ((field === 'dependencies' && dependency === '@browser-2d/backend') ||
               (field === 'devDependencies' && dependency === '@browser-2d/ui'));
           if (!allowed) fail(`${name}: forbidden app dependency ${dependency}`);
         }
@@ -242,8 +242,8 @@ export async function checkBoundaries(workspaceRoot = root) {
         )
           fail(`${name}: privileged UI dependency ${dependency}`);
         if (name === '@browser-2d/desktop' && /sqlite/i.test(dependency))
-          fail(`${name}: SQLite belongs to worker (${dependency})`);
-        if (name === '@browser-2d/worker-runtime' && uiModules.has(dependency))
+          fail(`${name}: SQLite belongs to backend (${dependency})`);
+        if (name === '@browser-2d/backend' && uiModules.has(dependency))
           fail(`${name}: worker cannot depend on UI module ${dependency}`);
       }
     }
@@ -311,11 +311,10 @@ export async function checkBoundaries(workspaceRoot = root) {
             if (targetUnit.group === 'apps') {
               const allowed =
                 unit === desktop &&
-                dependency === '@browser-2d/worker-runtime' &&
-                [
-                  '@browser-2d/worker-runtime/entry',
-                  '@browser-2d/worker-runtime/browser-worker',
-                ].includes(name) &&
+                dependency === '@browser-2d/backend' &&
+                ['@browser-2d/backend/data-service', '@browser-2d/backend/browser-worker'].includes(
+                  name,
+                ) &&
                 edge.kind === 'resolve' &&
                 exported.length > 0 &&
                 exported.every((entry) =>
@@ -353,7 +352,11 @@ export async function checkBoundaries(workspaceRoot = root) {
     const publicContract = within(join(workspaceRoot, 'packages/contracts/src/public'), path);
     if (!publicContract && !source.runtime) continue;
     const owner = source.unit.manifest.name;
-    const browserOnly = publicContract || owner === '@browser-2d/ui';
+    const browserOnly =
+      publicContract || owner === '@browser-2d/ui' || owner === '@browser-2d/amount';
+    const browserWorker =
+      owner === '@browser-2d/backend' &&
+      within(join(workspaceRoot, 'apps/backend/src/browser-worker'), path);
     const seen = new Set();
     function verify(path) {
       if (seen.has(path)) return;
@@ -378,10 +381,16 @@ export async function checkBoundaries(workspaceRoot = root) {
             (publicContract && uiModules.has(edge.dependency)))
         )
           fail(`${publicContract ? 'Public contract' : 'UI'} privileged import ${edge.label}`);
+        if (
+          browserWorker &&
+          (/sqlite/i.test(edge.dependency) ||
+            (edge.target && within(join(workspaceRoot, 'apps/backend/src/storage'), edge.target)))
+        )
+          fail(`BrowserWorker storage import ${edge.label}`);
         if (internal) fail(`Production imports internal tooling ${edge.label}`);
         if (owner === '@browser-2d/desktop' && /sqlite/i.test(edge.dependency))
           fail(`Desktop SQLite import ${edge.label}`);
-        if (owner === '@browser-2d/worker-runtime' && uiModules.has(edge.dependency))
+        if (owner === '@browser-2d/backend' && uiModules.has(edge.dependency))
           fail(`Worker UI import ${edge.label}`);
         if (edge.target) verify(edge.target);
       }

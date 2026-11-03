@@ -6,7 +6,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 
 const desktop = resolve('apps/desktop');
 const desktopRequire = createRequire(join(desktop, 'package.json'));
-const workerRequire = createRequire(resolve('apps/worker/package.json'));
+const backendRequire = createRequire(resolve('apps/backend/package.json'));
 
 test('business screens save through the real bridge and display refreshed records', async ({
   browserName: _browserName,
@@ -66,7 +66,7 @@ test('business screens save through the real bridge and display refreshed record
 
 test('legacy CRUD crosses the public bridge, commits, refreshes and survives restart', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-business-'));
-  const Database = workerRequire('better-sqlite3');
+  const Database = backendRequire('better-sqlite3');
   const legacy = new Database(join(dataDir, 'data.db'));
   legacy.exec(await readFile('tests/fixtures/legacy-schema.sql', 'utf8'));
   legacy.exec(`
@@ -261,7 +261,7 @@ test('legacy CRUD crosses the public bridge, commits, refreshes and survives res
 test('legacy plaintext migrates only after OS-encrypted persistence and remains in the recovery backup', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-legacy-secret-'));
   const sentinel = 'p2-artificial-legacy-key-749287';
-  const Database = workerRequire('better-sqlite3');
+  const Database = backendRequire('better-sqlite3');
   const legacy = new Database(join(dataDir, 'data.db'));
   legacy.exec(await readFile('tests/fixtures/legacy-schema.sql', 'utf8'));
   legacy.prepare('INSERT INTO config(key,value) VALUES(?,?)').run('adsPowerApiKey', sentinel);

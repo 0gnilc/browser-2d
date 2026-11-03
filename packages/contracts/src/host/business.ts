@@ -1,3 +1,4 @@
+import { resultSchema } from '../public/result';
 import { z } from 'zod';
 import {
   deletedSchema,
@@ -16,7 +17,6 @@ import {
   materialQuerySchema,
   materialSchema,
   materialUpdateSchema,
-  resultSchema,
   settingsSaveSchema,
   settingsValuesSchema,
   settingsViewSchema,

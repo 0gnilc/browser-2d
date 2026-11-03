@@ -10,3 +10,8 @@ export interface Browser2dApi extends BusinessApi {
   work: WorkApi;
   updates: UpdatesApi;
 }
+
+export * from './browsers';
+export * from './cards';
+export * from './work-tasks';
+export * from './settings';

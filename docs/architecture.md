@@ -1,6 +1,6 @@
 # 架构与技术选型
 
-三个应用共享一个桌面生命周期。`apps/ui` 负责展示和交互，`apps/desktop` 管理窗口与进程，`apps/worker` 执行业务、调度任务并管理浏览器资源。工作进程随桌面关闭，不作为独立后台服务。
+三个应用共享一个桌面生命周期。`apps/ui` 负责展示和交互，`apps/desktop` 管理窗口与进程，`apps/backend` 执行业务、调度任务并管理浏览器资源。工作进程随桌面关闭，不作为独立后台服务。
 
 ## 技术选型图
 
@@ -11,7 +11,7 @@ flowchart TB
     UI["apps/ui<br/>Vue 3 · Vue Router · Pinia · Element Plus · Tailwind CSS"]
     Bridge["apps/desktop preload<br/>具名公共 API · contextBridge"]
     Main["apps/desktop main<br/>Electron · 生命周期 · IPC 校验"]
-    Worker["apps/worker<br/>utilityProcess · 业务仓储 · 调度与恢复"]
+    Worker["apps/backend<br/>utilityProcess · 业务仓储 · 调度与恢复"]
     DB["SQLite · better-sqlite3<br/>事务 · 备份 · SQL 迁移"]
     Chrome["本机 Google Chrome<br/>puppeteer-core · CDP · 隔离上下文"]
     Platform["平台能力<br/>safeStorage · electron-log · electron-updater"]
@@ -41,18 +41,18 @@ flowchart TB
 | -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
 | `apps/ui`            | 五个业务路由、表单、状态及订阅                   | Vue 生态及 `contracts/public`。不访问 Node、SQL、Chrome 或 host 协议   |
 | `apps/desktop`       | 主进程、preload、来源校验、凭据、更新与退出协调  | contracts 及 worker 的已编译入口。不导入 worker 业务源码，不打开业务库 |
-| `apps/worker`        | 数据迁移、CRUD、调度、取消、恢复和浏览器清理     | contracts、better-sqlite3 和 puppeteer-core。不导入 UI 或 desktop 源码 |
+| `apps/backend`       | 数据迁移、CRUD、调度、取消、恢复和浏览器清理     | contracts、better-sqlite3 和 puppeteer-core。不导入 UI 或 desktop 源码 |
 | `packages/contracts` | 公共 DTO、具名 API、结果类型、Zod 校验及私有消息 | 不依赖应用或工程配置。public 与 host 分开导出                          |
 | `internal`           | build-config、tsconfig、lint-config、test-utils  | 只供配置和测试使用，不承载业务逻辑                                     |
 | `scripts`            | 根命令协调、隔离打包、产物与发布验收             | 调用应用入口和工程配置                                                 |
 
-边界由 [check-boundaries.mjs](../scripts/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/worker-runtime/entry`，指向构建后的 `dist/entry.cjs`。
+边界由 [check-boundaries.mjs](../scripts/check-boundaries.mjs) 检查。根包没有生产依赖。worker 的导出入口为 `@browser-2d/backend/data-service`，指向构建后的 `dist/data-service.cjs`。
 
 ## 工具与构建
 
 TypeScript 统一应用和契约类型。Node 的范围由根清单约束，CI 使用 `.node-version`。pnpm workspace 管理三个目录层级，catalog 固定共享版本，锁文件固定完整依赖树。精确版本只维护在 [package.json](../package.json)、[pnpm-workspace.yaml](../pnpm-workspace.yaml) 和 [pnpm-lock.yaml](../pnpm-lock.yaml)。
 
-worker 使用 Vite 的 Node 构建。desktop 使用 electron-vite 一次构建 main、preload 和来自 `apps/ui` 的 renderer。contracts 随调用方打包，SQL 迁移复制到 worker 的构建目录。UI 没有第二条独立生产构建链。
+worker 使用 Vite 的 Node 构建。desktop 使用 electron-vite 一次构建 main、preload 和来自 `apps/ui` 的 renderer。contracts 随调用方打包，SQL 迁移复制到 worker 的构建目录。UI 提供独立 dev/build/preview/test/typecheck，用于前端验收；根发行构建只构建一次 renderer。
 
 better-sqlite3 使用锁定版本提供的 Node-API 二进制。打包前检查其预构建策略，不在开发依赖上反复执行 Node 与 Electron ABI rebuild。electron-builder 在隔离目录内生成应用和安装包。正式包使用 ASAR 与 Electron fuses，成品测试在源码仓库之外运行。
 
@@ -91,3 +91,9 @@ S1 增加 `TaskSupervisor` 和 `browser-worker.cjs`。每个 BrowserWorker 是�
 ## 安装身份
 
 安装标识由 [release.mjs](../internal/build-config/release.mjs) 的 `identity` 定义，运行时名称由 [main 入口](../apps/desktop/src/main/index.ts)设置。更改身份会影响安装与数据路径，需要单独验收。旧 Squirrel 分发及升级兼容性进展见 [Issue #6](https://github.com/0gnilc/browser-2d/issues/6)。
+
+## S2 foundation
+
+Backend exports `@browser-2d/backend/data-service` and `@browser-2d/backend/browser-worker` resolve compiled CJS entries. Contracts and the pure `@browser-2d/amount` package are bundled into desktop/preload/backend artifacts. Public Browser/Card/WorkTask/application-settings DTOs are strict and separate from the retained legacy API; host snapshots derive the entire Browser shape and override only amount with exact integer units.
+
+BrowserWorker cannot reach SQLite or legacy storage. DataService remains the single writer and retains legacy execution dependencies until S4 so current routes remain functional. New database tables, card import/scheduling and replacement pages are not implemented in S2. See [the execution decision](adr/0001-isolated-browser-execution.md).

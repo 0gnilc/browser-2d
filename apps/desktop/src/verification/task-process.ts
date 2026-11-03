@@ -50,7 +50,7 @@ export async function verifyTaskProcesses(reportPath: string) {
   assert.equal(join(directory, 'report.json'), resolve(reportPath));
   process.env.BROWSER2D_TEST_SECRET = 'environment-isolation-probe';
   const require = createRequire(join(app.getAppPath(), 'package.json'));
-  const runtime = dirname(require.resolve('@browser-2d/worker-runtime/browser-worker'));
+  const runtime = dirname(require.resolve('@browser-2d/backend/browser-worker'));
   const database = utilityProcess.fork(join(runtime, 'verification/data-service.cjs'), [], {
     env: isolatedProcessEnvironment('verification'),
   });

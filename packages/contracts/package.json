@@ -8,11 +8,13 @@
     "./host": "./src/host/index.ts"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@browser-2d/amount": "workspace:*"
   },
   "devDependencies": {
     "@browser-2d/tsconfig": "workspace:*",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

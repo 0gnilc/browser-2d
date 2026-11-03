@@ -81,21 +81,21 @@ const archive =
   process.platform === 'darwin'
     ? join(installedApp, 'Contents/Resources/app.asar')
     : join(installedApp, 'resources/app.asar');
-const workerPrefix = '/node_modules/@browser-2d/worker-runtime';
+const backendPrefix = '/node_modules/@browser-2d/backend';
 const archiveFiles = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 const packagedManifest = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
 const runtimeManifest = JSON.parse(
   asar
-    .extractFile(archive, join(workerPrefix.slice(1), 'dist/.vite/manifest.json'))
+    .extractFile(archive, join(backendPrefix.slice(1), 'dist/.vite/manifest.json'))
     .toString('utf8'),
 );
 for (const file of runtimeArtifacts(runtimeManifest))
   assert(
-    archiveFiles.includes(`${workerPrefix}/dist/${file}`),
+    archiveFiles.includes(`${backendPrefix}/dist/${file}`),
     `Missing packaged runtime dependency ${file}`,
   );
 assert(
-  archiveFiles.includes(`${workerPrefix}/dist/entry.cjs`),
+  archiveFiles.includes(`${backendPrefix}/dist/data-service.cjs`),
   'Compiled worker entry missing from archive',
 );
 assert(
@@ -105,17 +105,17 @@ assert(
 assert(
   archiveFiles.some(
     (entry) =>
-      entry.startsWith(`${workerPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
+      entry.startsWith(`${backendPrefix}/dist/migrations/business/`) && entry.endsWith('.sql'),
   ),
   'Business migration SQL missing from archive',
 );
 for (const entry of archiveFiles) {
   if (!entry.startsWith('/node_modules/@browser-2d/')) continue;
   assert(
-    entry === workerPrefix ||
-      entry === `${workerPrefix}/package.json` ||
-      entry === `${workerPrefix}/dist` ||
-      entry.startsWith(`${workerPrefix}/dist/`),
+    entry === backendPrefix ||
+      entry === `${backendPrefix}/package.json` ||
+      entry === `${backendPrefix}/dist` ||
+      entry.startsWith(`${backendPrefix}/dist/`),
     `Unexpected workspace file in package: ${entry}`,
   );
 }

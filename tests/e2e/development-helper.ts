@@ -15,7 +15,7 @@ export function absent(pid: number) {
 }
 export async function developer(
   testInfo: TestInfo,
-  sourcePath = 'apps/worker/src/work/controlled-driver.ts',
+  sourcePath = 'apps/backend/src/work/controlled-driver.ts',
 ) {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-dev-restart-'));
   const source = resolve(sourcePath);

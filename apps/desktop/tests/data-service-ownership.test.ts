@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { workerOwnerSchema } from '@browser-2d/contracts/host';
-import { claimWorkerOwnership } from '../src/main/worker-ownership';
+import { claimDataServiceOwnership } from '../src/main/data-service-ownership';
 
 let directory: string;
 let path: string;
@@ -28,7 +28,7 @@ beforeAll(async () => {
     configFile: false,
     logLevel: 'silent',
     build: {
-      ssr: fileURLToPath(new URL('../src/main/worker-ownership.ts', import.meta.url)),
+      ssr: fileURLToPath(new URL('../src/main/data-service-ownership.ts', import.meta.url)),
       outDir: compiled,
       rollupOptions: {
         output: { format: 'cjs', entryFileNames: 'ownership.cjs', inlineDynamicImports: true },
@@ -68,18 +68,18 @@ async function deadPid() {
 }
 describe('worker ownership authorization', () => {
   it('publishes its unique pending claim before spawn and authorizes the exact child PID', () => {
-    const ownership = claimWorkerOwnership(path);
+    const ownership = claimDataServiceOwnership(path);
     expect(read(ownership.ownerNonce)).toEqual({
       format: 1,
       hostPid: process.pid,
       pid: null,
       ownerNonce: ownership.ownerNonce,
     });
-    expect(() => claimWorkerOwnership(path)).toThrow('exit is not confirmed');
+    expect(() => claimDataServiceOwnership(path)).toThrow('exit is not confirmed');
     ownership.authorize(process.pid);
     expect(read(ownership.ownerNonce).pid).toBe(process.pid);
     expect(() => ownership.authorize(process.pid)).toThrow('already authorized');
-    expect(() => claimWorkerOwnership(path)).toThrow('exit is not confirmed');
+    expect(() => claimDataServiceOwnership(path)).toThrow('exit is not confirmed');
     ownership.release();
     expect(existsSync(recordPath(ownership.ownerNonce))).toBe(false);
   });
@@ -87,7 +87,7 @@ describe('worker ownership authorization', () => {
     const pid = await deadPid();
     const old = fixture(pid, null);
     const original = readFileSync(recordPath(old));
-    const replacement = claimWorkerOwnership(path);
+    const replacement = claimDataServiceOwnership(path);
     expect(read(replacement.ownerNonce).pid).toBeNull();
     expect(readFileSync(recordPath(old))).toEqual(original);
     replacement.release();
@@ -95,13 +95,13 @@ describe('worker ownership authorization', () => {
   it('permits takeover of an absent child but never signals a surviving unrelated PID', async () => {
     const pid = await deadPid();
     fixture(process.pid, pid);
-    const replacement = claimWorkerOwnership(path);
+    const replacement = claimDataServiceOwnership(path);
     replacement.release();
     const sentinel = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
     if (!sentinel.pid) throw new Error('Missing sentinel pid');
     try {
       fixture(pid, sentinel.pid);
-      expect(() => claimWorkerOwnership(path)).toThrow('exit is not confirmed');
+      expect(() => claimDataServiceOwnership(path)).toThrow('exit is not confirmed');
       expect(sentinel.exitCode).toBeNull();
       expect(() => process.kill(sentinel.pid ?? 0, 0)).not.toThrow();
     } finally {
@@ -110,7 +110,7 @@ describe('worker ownership authorization', () => {
     }
   });
   it('never overwrites or removes a record whose nonce changed', () => {
-    const first = claimWorkerOwnership(path);
+    const first = claimDataServiceOwnership(path);
     const newer = { ...read(first.ownerNonce), ownerNonce: randomUUID() };
     writeFileSync(recordPath(first.ownerNonce), JSON.stringify(newer));
     expect(() => first.authorize(process.pid)).toThrow('ownership changed');
@@ -130,7 +130,7 @@ describe('worker ownership authorization', () => {
       }
       return kill(pid, signal);
     });
-    expect(() => claimWorkerOwnership(path)).toThrow('exit is not confirmed');
+    expect(() => claimDataServiceOwnership(path)).toThrow('exit is not confirmed');
     expect(read(old).pid).toBe(process.pid);
     expect(readdirSync(owners)).toEqual([`${old}.json`]);
   });
@@ -142,7 +142,7 @@ describe('worker ownership authorization', () => {
           process.execPath,
           [
             '-e',
-            `const { claimWorkerOwnership } = require(process.argv[1]); let owner; process.send('ready'); process.on('message', message => { if (message === 'claim') { try { owner = claimWorkerOwnership(process.argv[2]); process.send('accepted'); } catch { process.send('blocked'); } } else { owner?.release(); process.exit(0); } });`,
+            `const { claimDataServiceOwnership } = require(process.argv[1]); let owner; process.send('ready'); process.on('message', message => { if (message === 'claim') { try { owner = claimDataServiceOwnership(process.argv[2]); process.send('accepted'); } catch { process.send('blocked'); } } else { owner?.release(); process.exit(0); } });`,
             join(compiled, 'ownership.cjs'),
             path,
           ],

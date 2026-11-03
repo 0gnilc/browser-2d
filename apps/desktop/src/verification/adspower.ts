@@ -15,7 +15,7 @@ import {
   businessOperations,
 } from '@browser-2d/contracts/host';
 import { launchTask } from '../main/task-supervisor';
-import { launchWorker } from '../main/worker-client';
+import { launchDataService } from '../main/data-service-client';
 import { createAdsPowerClient } from '../main/browser-platforms/adspower';
 
 const optionsSchema = z.strictObject({
@@ -59,7 +59,7 @@ export async function verifyAdsPower(raw: unknown) {
   const client = createAdsPowerClient({ apiBaseUrl: options.apiBaseUrl, apiKey });
   const workers: ReturnType<typeof launchTask>[] = [];
   const environments = options.profiles.map((profile) => client.environment(profile));
-  const db = launchWorker({
+  const db = launchDataService({
     dataDir: directory,
     businessPath: join(directory, 'proof.sqlite'),
     execution: 'controlled',

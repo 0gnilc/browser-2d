@@ -48,7 +48,7 @@ for (const name of ['forge.config.js', 'vite.config.js', 'package-lock.json']) {
 for (const dependency of ['@electron-forge/cli', 'naive-ui', 'sqlite3']) {
   test(`retired dependency ${dependency} cannot reenter a workspace manifest`, async (t) => {
     const directory = await workspace(t);
-    await manifest(directory, 'apps/worker', (value) => {
+    await manifest(directory, 'apps/backend', (value) => {
       value.devDependencies[dependency] = '1.0.0';
     });
     await assert.rejects(checkBoundaries(directory), /retired dependency/);
@@ -101,7 +101,7 @@ const violations = [
   [
     'applications cannot import the worker implementation',
     'apps/desktop/src/main/index.ts',
-    "import '@browser-2d/worker-runtime/entry';",
+    "import '@browser-2d/backend/data-service';",
     /Cross-app implementation import/,
   ],
   [
@@ -124,19 +124,19 @@ const violations = [
   ],
   [
     'worker cannot load UI frameworks',
-    'apps/worker/src/entry.ts',
+    'apps/backend/src/data-service.ts',
     "import 'vue';",
     /Worker UI import/,
   ],
   [
     'source imports require declared dependencies',
-    'apps/worker/src/entry.ts',
+    'apps/backend/src/data-service.ts',
     "import 'some-undeclared-package/subpath';",
     /Undeclared dependency/,
   ],
   [
     'workspace imports must use exported subpaths',
-    'apps/worker/src/entry.ts',
+    'apps/backend/src/data-service.ts',
     "import '@browser-2d/contracts/src/public/index';",
     /Unexported workspace entry/,
   ],
@@ -185,12 +185,12 @@ test('desktop cannot declare SQLite in any dependency field', async (t) => {
   await manifest(directory, 'apps/desktop', (value) => {
     value.devDependencies['better-sqlite3'] = 'catalog:';
   });
-  await assert.rejects(checkBoundaries(directory), /SQLite belongs to worker/);
+  await assert.rejects(checkBoundaries(directory), /SQLite belongs to backend/);
 });
 
 test('app manifests cannot create a worker to UI dependency', async (t) => {
   const directory = await workspace(t);
-  await manifest(directory, 'apps/worker', (value) => {
+  await manifest(directory, 'apps/backend', (value) => {
     value.devDependencies['@browser-2d/ui'] = 'workspace:*';
   });
   await assert.rejects(checkBoundaries(directory), /forbidden app dependency/);
@@ -239,8 +239,8 @@ test('computed runtime imports cannot bypass the static graph', async (t) => {
 
 test('worker runtime resolution must use a compiled export', async (t) => {
   const directory = await workspace(t);
-  await manifest(directory, 'apps/worker', (value) => {
-    value.exports['./entry'] = './src/entry.ts';
+  await manifest(directory, 'apps/backend', (value) => {
+    value.exports['./data-service'] = './src/data-service.ts';
   });
   await assert.rejects(checkBoundaries(directory), /Cross-app implementation import/);
 });
@@ -279,4 +279,42 @@ test('computed imports in package-root helpers reachable from public contracts f
     "export * from '../../helper';",
   );
   await assert.rejects(checkBoundaries(directory), /Computed production import/);
+});
+
+test('BrowserWorker cannot reach storage through a helper', async (t) => {
+  const directory = await workspace(t);
+  await append(directory, 'apps/backend/src/browser-worker/entry.ts', "import './storage-helper';");
+  await writeFile(
+    join(directory, 'apps/backend/src/browser-worker/storage-helper.ts'),
+    "import 'better-sqlite3';",
+  );
+  await assert.rejects(checkBoundaries(directory), /BrowserWorker storage import/);
+});
+test('amount cannot import Node through a helper', async (t) => {
+  const directory = await workspace(t);
+  await append(directory, 'packages/amount/src/index.ts', "import './helper';");
+  await writeFile(join(directory, 'packages/amount/src/helper.ts'), "import 'node:fs';");
+  await assert.rejects(checkBoundaries(directory), /privileged import/);
+});
+
+test('compiled artifacts reject unresolved contracts and amount imports', async () => {
+  const { assertBundledWorkspace } = await import('./runtime-artifacts.mjs');
+  for (const source of [
+    "require('@browser-2d/contracts/host')",
+    "require('@browser-2d/amount')",
+    "import('@browser-2d/amount')",
+    "import { to } from '@browser-2d/amount'",
+  ])
+    assert.throws(() => assertBundledWorkspace(source, 'fixture'), /Unbundled workspace runtime/);
+  assertBundledWorkspace('const units = 29;', 'bundled fixture');
+});
+
+test('BrowserWorker cannot import the storage implementation', async (t) => {
+  const directory = await workspace(t);
+  await append(
+    directory,
+    'apps/backend/src/browser-worker/entry.ts',
+    "import '../storage/business-store';",
+  );
+  await assert.rejects(checkBoundaries(directory), /BrowserWorker storage import/);
 });

@@ -14,7 +14,7 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        entry: 'src/entry.ts',
+        'data-service': 'src/data-service.ts',
         'browser-worker': 'src/browser-worker/entry.ts',
         'verification/browser-worker': 'tests/process/browser-worker.ts',
         'verification/data-service': 'tests/process/data-service.ts',
@@ -24,7 +24,7 @@ export default defineConfig({
       output: { format: 'cjs', entryFileNames: '[name].cjs', chunkFileNames: '[name]-[hash].cjs' },
     },
   },
-  ssr: { noExternal: ['@browser-2d/contracts', 'zod'] },
+  ssr: { noExternal: ['@browser-2d/contracts', '@browser-2d/amount', 'zod'] },
   plugins: [
     {
       name: 'worker-migrations',

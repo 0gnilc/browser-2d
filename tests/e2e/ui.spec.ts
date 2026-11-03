@@ -6,7 +6,7 @@ import { _electron as electron, expect, test, type Page } from '@playwright/test
 
 const desktop = resolve('apps/desktop');
 const desktopRequire = createRequire(join(desktop, 'package.json'));
-const workerRequire = createRequire(resolve('apps/worker/package.json'));
+const backendRequire = createRequire(resolve('apps/backend/package.json'));
 
 async function choose(page: Page, testId: string, label: string) {
   await page.getByTestId(testId).click();
@@ -34,7 +34,7 @@ test('complete local workspace journey preserves data and work state across rout
   browserName: _browserName,
 }, testInfo) => {
   const dataDir = await mkdtemp(join(tmpdir(), 'browser-2d-ui-journey-'));
-  const Database = workerRequire('better-sqlite3');
+  const Database = backendRequire('better-sqlite3');
   const legacy = new Database(join(dataDir, 'data.db'));
   legacy.exec(await readFile('tests/fixtures/legacy-schema.sql', 'utf8'));
   legacy.exec(`

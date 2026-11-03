@@ -12,7 +12,7 @@ const control = await mkdtemp(join(tmpdir(), 'browser-2d-dev-'));
 const dataDir = process.env.BROWSER2D_DATA_DIR || join(root, 'artifacts/dev-data');
 await mkdir(dataDir, { recursive: true });
 const nativeBinding = await resolveNativeBinding();
-const workerOnly = process.argv.includes('--worker-only');
+const backendOnly = process.argv.includes('--backend-only');
 const inspectUi = process.argv.includes('--inspect-ui');
 let server;
 let child;
@@ -58,7 +58,7 @@ async function restart() {
     while (dirty && !closing) {
       dirty = false;
       await pnpm(['build'], { stdio: ['ignore', 'inherit', 'inherit'] });
-      const preset = workerOnly
+      const preset = backendOnly
         ? undefined
         : await runnerImport(join(root, 'internal/build-config/index.mjs'), { configFile: false });
       const renderer = preset?.module.rendererConfig(join(root, 'apps/ui'));
@@ -86,7 +86,7 @@ async function restart() {
             ? ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1']
             : []),
           join(root, 'apps/desktop'),
-          ...(workerOnly ? ['--worker-only'] : []),
+          ...(backendOnly ? ['--backend-only'] : []),
         ],
         {
           stdio: 'inherit',
@@ -113,15 +113,16 @@ async function restart() {
 await restart();
 for (const path of [
   'apps/desktop/src',
-  'apps/worker/src',
-  'apps/worker/migrations',
+  'apps/backend/src',
+  'apps/backend/migrations',
   'packages/contracts/src',
+  'packages/amount/src',
   'internal/build-config',
   'internal/tsconfig',
   'apps/desktop/electron.vite.config.ts',
-  'apps/worker/vite.config.ts',
+  'apps/backend/vite.config.ts',
   'apps/desktop/tsconfig.json',
-  'apps/worker/tsconfig.json',
+  'apps/backend/tsconfig.json',
   'apps/ui/tsconfig.json',
 ]) {
   watchers.push(

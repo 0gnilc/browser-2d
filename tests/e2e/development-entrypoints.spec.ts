@@ -83,14 +83,14 @@ test('dev:ui serves fixture-only routes in Chrome and shuts down its server', as
 }, testInfo) => {
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-ui-entry-'));
   const dev = development(['scripts/dev-ui.mjs'], directory);
-  const workerRequire = createRequire(resolve('apps/worker/package.json'));
+  const backendRequire = createRequire(resolve('apps/backend/package.json'));
   let browser: Browser | undefined;
   let stopped = false;
   try {
     browser = await chromium.launch({
       executablePath:
         process.env.BROWSER2D_CHROME_EXECUTABLE ||
-        (await workerRequire('puppeteer-core').executablePath('chrome')),
+        (await backendRequire('puppeteer-core').executablePath('chrome')),
     });
     let url = '';
     await expect
@@ -164,7 +164,7 @@ test('dev:ui serves fixture-only routes in Chrome and shuts down its server', as
   }
 });
 
-test('dev:worker starts without a window, drains on stdin stop and cold restarts the same database', async ({
+test('dev:backend starts without a window, drains on stdin stop and cold restarts the same database', async ({
   browserName: _browserName,
 }, testInfo) => {
   test.setTimeout(150_000);
@@ -175,10 +175,10 @@ test('dev:worker starts without a window, drains on stdin stop and cold restarts
   let retainedDevice: Device | undefined;
   try {
     const { module: storage } = await runnerImport<
-      typeof import('../../apps/worker/src/storage/open-business-store')
-    >(resolve('apps/worker/src/storage/open-business-store.ts'), { configFile: false });
+      typeof import('../../apps/backend/src/storage/open-business-store')
+    >(resolve('apps/backend/src/storage/open-business-store.ts'), { configFile: false });
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const dev = development(['scripts/dev.mjs', '--worker-only', '--inspect-ui'], directory);
+      const dev = development(['scripts/dev.mjs', '--backend-only', '--inspect-ui'], directory);
       let stopped = false;
       let owner: ReturnType<typeof workerOwnerSchema.parse> | undefined;
       try {
@@ -220,7 +220,7 @@ test('dev:worker starts without a window, drains on stdin stop and cold restarts
         stopped = true;
         expect(absent(pid)).toBe(true);
         expect(absent(owner.hostPid)).toBe(true);
-        if (!dev.child.pid) throw new Error('dev:worker never received a coordinator PID');
+        if (!dev.child.pid) throw new Error('dev:backend never received a coordinator PID');
         expect(absent(dev.child.pid)).toBe(true);
         expect(await readdir(owners)).toEqual([]);
         await expect.poll(() => reachable(`${endpoint}/json/version`)).toBe(false);
@@ -241,7 +241,7 @@ test('dev:worker starts without a window, drains on stdin stop and cold restarts
               amount: 123.45,
               count: 7,
               status: 2,
-              note: 'Must survive the real dev:worker cold restart',
+              note: 'Must survive the real dev:backend cold restart',
             });
             expect(created.ok).toBe(true);
             if (!created.ok) throw new Error(created.error.message);

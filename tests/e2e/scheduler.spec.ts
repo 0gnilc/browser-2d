@@ -341,7 +341,7 @@ test('an uninitialized child expires and a live stale owner blocks startup witho
       ownerNonce: nonce,
     });
     await writeFile(path, record);
-    const child = spawn(require('electron'), [desktop, '--worker-only'], {
+    const child = spawn(require('electron'), [desktop, '--backend-only'], {
       env: { ...process.env, BROWSER2D_DATA_DIR: blocked },
       stdio: 'ignore',
     });

@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "pinia": "catalog:",
@@ -22,6 +26,7 @@
     "vite": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "@browser-2d/build-config": "workspace:*"
   }
 }

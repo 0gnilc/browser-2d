@@ -1,32 +1,15 @@
 import { z } from 'zod';
 
-export const taskIdSchema = z.uuid().brand<'TaskId'>();
+import { browserSchema } from '../public/browsers';
+import { taskIdSchema } from '../public/work-tasks';
+import { isAmountUnits, type AmountUnits } from '@browser-2d/amount';
+export { taskIdSchema } from '../public/work-tasks';
+export type { TaskId } from '../public/work-tasks';
 export const executionNonceSchema = z.uuid().brand<'ExecutionNonce'>();
-export type TaskId = z.infer<typeof taskIdSchema>;
 export type ExecutionNonce = z.infer<typeof executionNonceSchema>;
-
-export const browserSnapshotSchema = z
-  .strictObject({
-    id: z.number().int().positive().safe(),
-    provider: z.literal('adspower'),
-    profileId: z.string().min(1),
-    name: z.string(),
-    account: z.string(),
-    amount: z.number().int().nonnegative().safe(),
-    count: z.number().int().nonnegative().safe(),
-    status: z.enum([
-      'idle',
-      'queued',
-      'starting',
-      'working',
-      'stopping',
-      'failed',
-      'recovery_required',
-    ]),
-    notes: z.string(),
-    lastError: z.string(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
+export const browserSnapshotSchema = browserSchema
+  .extend({
+    amount: z.custom<AmountUnits>((value) => typeof value === 'number' && isAmountUnits(value)),
   })
   .readonly();
 export type BrowserSnapshot = z.infer<typeof browserSnapshotSchema>;

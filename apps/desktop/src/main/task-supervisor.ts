@@ -37,7 +37,7 @@ export interface TaskOptions {
 
 export function launchTask(options: TaskOptions) {
   const require = createRequire(join(app.getAppPath(), 'package.json'));
-  const entry = require.resolve('@browser-2d/worker-runtime/browser-worker');
+  const entry = require.resolve('@browser-2d/backend/browser-worker');
   const child = utilityProcess.fork(entry, [], {
     serviceName: 'browser-2d-browser-worker',
     env: isolatedProcessEnvironment('browser-worker'),

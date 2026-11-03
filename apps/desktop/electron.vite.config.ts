@@ -6,7 +6,7 @@ export default defineConfig({
   main: {
     build: {
       outDir: 'dist/main',
-      externalizeDeps: { exclude: ['@browser-2d/contracts', 'zod'] },
+      externalizeDeps: { exclude: ['@browser-2d/contracts', '@browser-2d/amount', 'zod'] },
       rollupOptions: {
         input: resolve('src/main/index.ts'),
         output: { format: 'cjs', entryFileNames: 'index.cjs' },

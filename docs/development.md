@@ -8,7 +8,7 @@
 | -------------------------- | ------------------------------------------------- |
 | `pnpm dev`                 | UI、Electron main/preload 和 worker 一起启动      |
 | `pnpm dev:ui`              | 仅浏览器预览，显示预览提示，业务及任务不可用      |
-| `pnpm dev:worker`          | 同一 Electron 工作宿主，无窗口，不是独立后台服务  |
+| `pnpm dev:backend`         | 同一 Electron 工作宿主，无窗口，不是独立后台服务  |
 | `pnpm dev -- --inspect-ui` | 启用 loopback renderer 调试，输入 `stop` 协调退出 |
 
 VS Code 的桌面调试配置使用 `--inspect-ui`。关闭桌面窗口会取消工作、清理自有浏览器资源并退出 worker。
@@ -29,7 +29,7 @@ Vue 模板及样式使用 Vite HMR，保留原 worker。main、preload、worker�
 pnpm verify
 ```
 
-`verify` 的具体组成和顺序只在根 [package.json](../package.json) 中维护，任一命令失败即停止。可单独运行对应的 `test:*` 命令定位失败。组件、工作模块和桌面集成用例分别位于 [UI 测试](../apps/ui/tests)、[worker 测试](../apps/worker/tests)和 [Electron 测试](../tests/e2e)。
+`verify` 的具体组成和顺序只在根 [package.json](../package.json) 中维护，任一命令失败即停止。可单独运行对应的 `test:*` 命令定位失败。组件、工作模块和桌面集成用例分别位于 [UI 测试](../apps/ui/tests)、[worker 测试](../apps/backend/tests)和 [Electron 测试](../tests/e2e)。
 
 `pnpm test:e2e` 与 `pnpm test:electron` 使用同一入口。`pnpm build` 可单独验证 worker → desktop → 产物检查的构建链。完整 `verify` 已在 Electron 测试前构建，不包含安装器及正式发布验收。
 
@@ -67,8 +67,12 @@ pnpm test:adspower -- --profile-a=DEDICATED_A --profile-b=DEDICATED_B
 
 ## 管理本地产物
 
-`apps/desktop/dist` 和 `apps/worker/dist` 是当前构建输出。停止开发进程后可以删除，再由 `pnpm build` 重建。`artifacts/` 混合保存开发数据库、日志和测试结果，不能把整个目录视为缓存。
+`apps/desktop/dist` 和 `apps/backend/dist` 是当前构建输出。停止开发进程后可以删除，再由 `pnpm build` 重建。`artifacts/` 混合保存开发数据库、日志和测试结果，不能把整个目录视为缓存。
 
 `release/` 保存已有安装包及产物清单。需要复核或分发的包应保留对应哈希和来源记录。`.audit/` 已被 Git 忽略，临时调查记录不再作为当前项目文档维护。
 
 安装包构建及验收使用[发布工程](release.md)中的命令。不要用本地测试通过代替最终产物的原生验收。
+
+## Standalone UI workspace
+
+`pnpm --filter @browser-2d/ui dev`, `build`, `preview`, `test` and `typecheck` use the UI workspace configs and shared renderer preset. Standalone mode reports unavailable desktop capabilities. `pnpm build` builds backend and desktop, including the renderer once. `pnpm dev:backend` starts the legacy DataService without a window. Browser/Card DTOs are foundation contracts; current routes retain their legacy handlers until later stages.

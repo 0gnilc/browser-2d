@@ -25,7 +25,7 @@ export default [
             'electron',
             'better-sqlite3',
             '@browser-2d/contracts/host',
-            '@browser-2d/worker-runtime*',
+            '@browser-2d/backend*',
             '**/desktop/**',
             '**/worker/**',
           ],

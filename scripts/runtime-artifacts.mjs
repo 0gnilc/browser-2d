@@ -30,3 +30,12 @@ export function runtimeArtifacts(manifest) {
   for (const [key] of entries) visit(key);
   return [...files];
 }
+
+export function assertBundledWorkspace(source, label) {
+  assert(
+    !/(?:require\s*\(|import\s*\(|from\s*)\s*["']@browser-2d\/(?:contracts|amount)(?:["'/])/.test(
+      source,
+    ),
+    `Unbundled workspace runtime in ${label}`,
+  );
+}

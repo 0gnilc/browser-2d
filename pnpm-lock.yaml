@@ -320,11 +320,48 @@ importers:
         specifier: 'catalog:'
         version: 2.9.1
 
+  apps/backend:
+    dependencies:
+      better-sqlite3:
+        specifier: 'catalog:'
+        version: 13.0.3
+      puppeteer-core:
+        specifier: 'catalog:'
+        version: 25.16.0
+    devDependencies:
+      '@browser-2d/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@browser-2d/tsconfig':
+        specifier: workspace:*
+        version: link:../../internal/tsconfig
+      '@types/better-sqlite3':
+        specifier: 'catalog:'
+        version: 7.6.13
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.5.2
+      electron:
+        specifier: 'catalog:'
+        version: 45.2.0(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@types/node@24.5.2)(jsdom@26.1.0(supports-color@7.2.0))(vite@8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1))
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+
   apps/desktop:
     dependencies:
-      '@browser-2d/worker-runtime':
+      '@browser-2d/backend':
         specifier: workspace:*
-        version: link:../worker
+        version: link:../backend
       electron-log:
         specifier: 'catalog:'
         version: 5.4.4
@@ -390,6 +427,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.4(vue@3.5.44(typescript@5.9.3))
     devDependencies:
+      '@browser-2d/build-config':
+        specifier: workspace:*
+        version: link:../../internal/build-config
       '@browser-2d/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -417,43 +457,6 @@ importers:
       vue-tsc:
         specifier: 'catalog:'
         version: 3.3.14(typescript@5.9.3)
-
-  apps/worker:
-    dependencies:
-      better-sqlite3:
-        specifier: 'catalog:'
-        version: 13.0.3
-      puppeteer-core:
-        specifier: 'catalog:'
-        version: 25.16.0
-    devDependencies:
-      '@browser-2d/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@browser-2d/tsconfig':
-        specifier: workspace:*
-        version: link:../../internal/tsconfig
-      '@types/better-sqlite3':
-        specifier: 'catalog:'
-        version: 7.6.13
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.5.2
-      electron:
-        specifier: 'catalog:'
-        version: 45.2.0(supports-color@7.2.0)
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1)
-      vitest:
-        specifier: 'catalog:'
-        version: 5.0.5(@types/node@24.5.2)(jsdom@26.1.0(supports-color@7.2.0))(vite@8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1))
-      zod:
-        specifier: 'catalog:'
-        version: 4.6.7
 
   internal/build-config:
     dependencies:
@@ -484,8 +487,23 @@ importers:
 
   internal/tsconfig: {}
 
+  packages/amount:
+    devDependencies:
+      '@browser-2d/tsconfig':
+        specifier: workspace:*
+        version: link:../../internal/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@types/node@24.5.2)(jsdom@26.1.0(supports-color@7.2.0))(vite@8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/contracts:
     dependencies:
+      '@browser-2d/amount':
+        specifier: workspace:*
+        version: link:../amount
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -496,6 +514,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@types/node@24.5.2)(jsdom@26.1.0(supports-color@7.2.0))(vite@8.3.5(@types/node@24.5.2)(jiti@2.7.0)(yaml@2.9.1))
 
 packages:
 

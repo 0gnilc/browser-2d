@@ -26,7 +26,7 @@ import {
 import { createApplicationLifecycle } from './lifecycle';
 import { createUpdates, updatePolicy } from './updates';
 import { createUpdateDriver } from './update-driver';
-import { launchWorker } from './worker-client';
+import { launchDataService } from './data-service-client';
 import { createCredentialVault } from '../platform/credentials';
 import { createBusinessCoordinator } from '../bridge/business';
 import { verifyTaskProcesses } from '../verification/task-process';
@@ -42,7 +42,7 @@ mkdirSync(dataDir, { recursive: true });
 app.setPath('userData', dataDir);
 const reportArgument = process.argv.find((value) => value.startsWith('--verify-p1='));
 const reportPath = reportArgument?.slice('--verify-p1='.length);
-let worker: ReturnType<typeof launchWorker> | undefined;
+let worker: ReturnType<typeof launchDataService> | undefined;
 let window: BrowserWindow | undefined;
 let latestSnapshot: WorkSnapshot | undefined;
 let workState: WorkState = { status: 'unavailable', generation: 0, reason: 'Worker is starting' };
@@ -401,7 +401,7 @@ async function startApplication() {
     },
   });
   const generation = workState.generation + 1;
-  worker = launchWorker({
+  worker = launchDataService({
     dataDir,
     browserFixture:
       reportPath && process.env.BROWSER2D_VERIFY_CHROME === '1'
@@ -466,7 +466,7 @@ async function startApplication() {
   });
   await worker.ready;
   if (!lifecycle.acceptingWork) return;
-  if (process.argv.includes('--worker-only')) {
+  if (process.argv.includes('--backend-only')) {
     log.info('Worker ready', { pid: worker.pid });
     return;
   }
@@ -504,7 +504,7 @@ void app
     );
     const code = parsed.success ? parsed.data : 'INITIALIZATION_FAILED';
     log.error('startup failed', code);
-    if (lifecycle.acceptingWork && !reportPath && !process.argv.includes('--worker-only'))
+    if (lifecycle.acceptingWork && !reportPath && !process.argv.includes('--backend-only'))
       dialog.showErrorBox(
         'Business storage is unavailable',
         `${code}\nClose the old application and check access to the database and operating-system credential store. Existing data and recovery backups are retained.`,
