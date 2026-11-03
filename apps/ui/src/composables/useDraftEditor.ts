@@ -6,14 +6,14 @@ type OpenSession<Row, Draft> =
   { kind: 'create'; draft: Draft } | { kind: 'edit'; original: Row; draft: Draft };
 type Session<Row, Draft> = { kind: 'closed' } | OpenSession<Row, Draft>;
 
-export function useEditor<Row, Draft>() {
+export function useDraftEditor<Row, Draft>() {
   const session = shallowRef<Session<Row, Draft>>({ kind: 'closed' });
   const saving = ref(false);
   const deciding = ref(false);
-  let baseline = '';
+  const baseline = ref('');
   let disposed = false;
   const dirty = computed(
-    () => session.value.kind !== 'closed' && JSON.stringify(session.value.draft) !== baseline,
+    () => session.value.kind !== 'closed' && JSON.stringify(session.value.draft) !== baseline.value,
   );
   async function transition(next: Session<Row, Draft>) {
     if (saving.value || deciding.value || disposed) return false;
@@ -35,7 +35,7 @@ export function useEditor<Row, Draft>() {
     }
     if (disposed || saving.value || session.value !== current) return false;
     session.value = next;
-    baseline = next.kind === 'closed' ? '' : JSON.stringify(next.draft);
+    baseline.value = next.kind === 'closed' ? '' : JSON.stringify(next.draft);
     return true;
   }
   const leave = () => transition({ kind: 'closed' });
@@ -46,7 +46,7 @@ export function useEditor<Row, Draft>() {
     try {
       if ((await work(current)) && !disposed && session.value === current) {
         session.value = { kind: 'closed' };
-        baseline = '';
+        baseline.value = '';
       }
     } finally {
       saving.value = false;
@@ -56,6 +56,10 @@ export function useEditor<Row, Draft>() {
     void leave().then((allowed) => {
       if (allowed) done();
     });
+  }
+  function markSaved() {
+    if (!disposed && session.value.kind !== 'closed')
+      baseline.value = JSON.stringify(session.value.draft);
   }
   function beforeUnload(event: globalThis.BeforeUnloadEvent) {
     if (!dirty.value && !saving.value) return;
@@ -68,5 +72,15 @@ export function useEditor<Row, Draft>() {
     disposed = true;
     globalThis.removeEventListener('beforeunload', beforeUnload);
   });
-  return { session, saving, deciding, dirty, replace: transition, leave, save, beforeClose };
+  return {
+    session,
+    saving,
+    deciding,
+    dirty,
+    replace: transition,
+    leave,
+    save,
+    beforeClose,
+    markSaved,
+  };
 }

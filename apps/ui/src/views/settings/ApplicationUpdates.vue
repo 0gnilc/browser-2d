@@ -2,9 +2,9 @@
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
 import { ElButton, ElPopconfirm } from 'element-plus';
 import type { UpdateState } from '@browser-2d/contracts/public';
-import { bridgeKey } from '../bridge';
+import { desktopApiKey } from '../../platform/desktop-api';
 
-const api = inject(bridgeKey)?.updates;
+const api = inject(desktopApiKey)?.updates;
 const state = ref<UpdateState>();
 const error = ref('');
 const busy = ref(false);
@@ -15,7 +15,7 @@ function receive(next: UpdateState) {
 }
 const description = computed(() => {
   const current = state.value;
-  if (!current) return api ? '正在读取更新状态…' : '请在桌面应用中查看更新。';
+  if (!current) return error.value || (api ? '正在读取更新状态…' : '请在桌面应用中查看更新。');
   switch (current.status) {
     case 'unavailable':
       return {
@@ -84,15 +84,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section
-    class="task-panel settings-section"
-    aria-labelledby="updates-title"
-    data-testid="updates-panel"
-  >
-    <div class="business-toolbar">
+  <section class="settings-section" aria-labelledby="updates-title" data-testid="updates-panel">
+    <div class="section-toolbar">
       <h2 id="updates-title">应用更新</h2>
     </div>
-    <p v-if="state" class="business-note">
+    <p v-if="state" class="description">
       当前版本 {{ state.currentVersion }}
       <span v-if="state.status !== 'unavailable'">
         · {{ state.channel === 'stable' ? '稳定版' : '测试版' }}
@@ -105,8 +101,8 @@ onUnmounted(() => {
       max="100"
       aria-label="更新下载进度"
     />
-    <p v-if="error" role="alert">{{ error }}</p>
-    <div class="business-actions">
+    <p v-if="error && state" role="alert">{{ error }}</p>
+    <div class="form-actions">
       <ElButton
         v-if="canCheck"
         :disabled="busy"

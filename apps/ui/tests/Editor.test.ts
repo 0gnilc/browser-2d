@@ -2,14 +2,14 @@ import { mount } from '@vue/test-utils';
 import { ElMessageBox, type MessageBoxData, type MessageBoxInputData } from 'element-plus';
 import { defineComponent, reactive } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useEditor } from '../src/business/useEditor';
+import { useDraftEditor } from '../src/composables/useDraftEditor';
 
 function fixture() {
-  let editor: ReturnType<typeof useEditor<never, { text: string }>> | undefined;
+  let editor: ReturnType<typeof useDraftEditor<never, { text: string }>> | undefined;
   const wrapper = mount(
     defineComponent({
       setup() {
-        editor = useEditor<never, { text: string }>();
+        editor = useDraftEditor<never, { text: string }>();
         return () => null;
       },
     }),
@@ -98,4 +98,59 @@ describe('guarded editor lifecycle', () => {
     expect(await replacement).toBe(false);
     expect(editor.session.value).toMatchObject({ draft: { text: 'changed' } });
   });
+});
+
+it('protects unload while dirty or saving and releases the warning after an acknowledged inline save', async () => {
+  const { editor, wrapper } = fixture();
+  const draft = reactive({ text: 'initial' });
+  await editor.replace({ kind: 'create', draft });
+  const clean = new Event('beforeunload', { cancelable: true });
+  globalThis.dispatchEvent(clean);
+  expect(clean.defaultPrevented).toBe(false);
+  draft.text = 'changed';
+  const dirty = new Event('beforeunload', { cancelable: true });
+  globalThis.dispatchEvent(dirty);
+  expect(dirty.defaultPrevented).toBe(true);
+  editor.markSaved();
+  expect(editor.dirty.value).toBe(false);
+  const acknowledged = new Event('beforeunload', { cancelable: true });
+  globalThis.dispatchEvent(acknowledged);
+  expect(acknowledged.defaultPrevented).toBe(false);
+  let finish: (value: boolean) => void = () => {};
+  const save = editor.save(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const saving = new Event('beforeunload', { cancelable: true });
+  globalThis.dispatchEvent(saving);
+  expect(saving.defaultPrevented).toBe(true);
+  finish(false);
+  await save;
+  wrapper.unmount();
+  const unmounted = new Event('beforeunload', { cancelable: true });
+  globalThis.dispatchEvent(unmounted);
+  expect(unmounted.defaultPrevented).toBe(false);
+});
+
+it('arbitrates drawer closure through the discard decision and calls done only when accepted', async () => {
+  const { editor, wrapper } = fixture();
+  const draft = reactive({ text: 'initial' });
+  await editor.replace({ kind: 'create', draft });
+  draft.text = 'changed';
+  const confirm = vi.spyOn(ElMessageBox, 'confirm').mockRejectedValueOnce('cancel');
+  const done = vi.fn();
+  editor.beforeClose(done);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(done).not.toHaveBeenCalled();
+  expect(editor.dirty.value).toBe(true);
+  confirm.mockResolvedValue(
+    Object.assign('confirm', { value: '', action: 'confirm' } satisfies MessageBoxInputData),
+  );
+  editor.beforeClose(done);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(done).toHaveBeenCalledOnce();
+  expect(editor.session.value.kind).toBe('closed');
+  wrapper.unmount();
 });

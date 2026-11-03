@@ -1,6 +1,6 @@
 ---
 name: Browser 2D
-description: 带文字导航、边框表格与抽屉的本地验证工作区
+description: 带文字导航、明文边框表格与抽屉的浏览器及卡工作区
 colors:
   primary: '#7045a5'
   primary-dark-2: '#5a3784'
@@ -78,84 +78,34 @@ components:
     textColor: '{colors.text-regular}'
 ---
 
-# Design System: Browser 2D
+# Design system
 
-## Overview
+## Direction
 
-**Creative North Star: "Operational workspace"**
+The existing Airtable-inspired operational workspace uses Chinese labels, a persistent sidebar, bordered tables, and focused drawers. Element Plus owns controls and their geometry. Purple identifies primary actions, selected navigation, and focus. Semantic state labels always accompany color.
 
-The approved Airtable-inspired direction organizes Chinese business labels around visible navigation, table views, and focused drawers. The reference defines layout and flow. Element Plus supplies the controls and their geometry.
+## Tokens and typography
 
-Color identifies primary actions and selected navigation. Tables retain visible borders, while secondary information uses disclosures and drawers. Task scope, command uncertainty, and resource cleanup remain visible where they affect an operation.
-
-**Key Characteristics:**
-
-- Text and icon navigation with persistent connection status.
-- Bordered Element Plus tables with views and labeled operations.
-- Purple color theming with default control geometry.
-- Drawers for task selection, business editing, and import.
-
-## Colors
-
-### Primary
-
-Muted purple identifies primary buttons, selected navigation, focus, and selection. The primary light and dark steps map directly to the corresponding Element Plus theme variables. The lightest step supplies selected navigation backgrounds, and stronger light steps supply hover and disabled states.
-
-### Neutral
-
-White is the main content background. Light lavender-gray fills distinguish the sidebar and table hover states. Element Plus neutral text and border tokens retain their library roles. The frontmatter records the effective values from src/style.css and the installed Element Plus theme.
-
-Success, warning, danger, and information states retain Element Plus semantic colors. State labels carry their meaning alongside color.
-
-**The Color-Only Rule.** Theme Element Plus internals through color variables. Preserve default control dimensions, radii, padding, and interaction styling.
-
-## Typography
-
-The renderer inherits the Element Plus system font stack. Page headings use the headline role, section headings use the title role, and business content uses the body role. The sidebar wordmark uses 18px at weight 600, reducing to 14px in compact windows. Technical identifiers use 13px code text and wrap when necessary. Descriptions use a 1.6 line height and a maximum width of 70ch.
+The frontmatter retains the established purple theme, neutral palette, spacing, and Element Plus font stack. Runtime values live in src/assets/styles/main.css. Theme Element Plus through color variables. Preserve default component height, padding, radii, and interactions. Headings use 24px and 16px roles. Body text uses 14px. Descriptions are limited to 70ch.
 
 ## Layout
 
-The shell uses a sticky full-height sidebar and a flexible content column. The expanded sidebar is 190px wide, reducing to 150px at widths up to 760px. An explicit Element Plus button collapses it to 68px at every width and remembers the preference in local storage when available. CSS owns the shell grid tracks. The collapsed rail centers the 2D brand, route icons, toggle, and connection dot. Navigation links have a 44px minimum height, and settings sit at the bottom of the navigation group above the toggle and connection status.
+The shell uses a 190px sidebar and a flexible content column. The explicit toggle collapses it to 68px. The preference is persisted through the typed desktop settings API. Route icons and connection status have accessible labels and focus-triggered tooltips in the collapsed state. Settings sits at the bottom of navigation.
 
-Content padding is 26px 40px 48px. At widths up to 1000px, it becomes 24px. At widths up to 760px, it becomes 20px. Workspaces fill the content area up to 1600px. Settings use a narrower 900px workspace, with field groups up to 720px.
+Main content uses 26px 40px 48px padding, reduced to 24px at 1000px. Workspaces fill their container up to 1600px. Settings use a narrower 1000px workspace. Toolbars wrap naturally. Search fields have a 360px maximum width. Tables own their horizontal scrolling and keep action columns at the right. The page never needs a global horizontal scrollbar.
 
-Toolbars wrap as groups. Search fields have a 360px maximum width. Density selectors occupy 110px. Drawer forms use two equal columns with a 20px gap and become one column at widths up to 760px. Settings fields follow the same two-column to one-column pattern. Business forms reduce from three columns to two at 1000px, then one at 760px.
+Drawers use standard Element Plus behavior, capped at 560px for Browser editing, 640px for Card editing, and 760px for import. Each can fill the available window. Forms use two columns where space permits and one column below 760px. Drawers retain default elevation and controls.
 
-Tables scroll horizontally within their own region. Fixed action columns remain accessible at the right edge. Default, small, and large density choices use the library's table size API. They do not redefine control geometry.
+## Data and interactions
 
-## Elevation & Depth
+All tables use ElTable with border. Card values are plaintext in cells, overflow labels, and accessible content. Raw numbers retain interior whitespace. Card fields can be hidden with the standard checkbox popover and are all visible initially. Amount, status, and latest verification results are backend-owned.
 
-Content uses white space, muted fills, and thin dividers. Ordinary page sections do not add decorative card shadows. Drawers, popovers, confirmation dialogs, and fixed table columns retain Element Plus elevation. Navigation background transitions last 160ms with ease-out easing. Reduced-motion preference removes this custom navigation transition. Other control motion remains library-owned.
+Row actions show pending loading before the desktop request settles. Queued and recovery states remain occupied. Errors explain the problem and recovery without showing internal task identities, transport payloads, or credential references. Empty states name the primary action.
 
-## Shapes
+Import uses one textarea, a labeled TXT file input, the fixed eleven-column template, and a bordered report table. Partial commits and unknown response progress have distinct messages. Draft guards protect import text and editor input across drawer and route transitions.
 
-Controls and navigation use the Element Plus base radius. Table cells keep visible rectangular borders. The connection indicator is a small circular dot accompanied by a text label when expanded and a tooltip when collapsed. Drawers retain the library's panel shape, padding, overlay, and close control.
+Settings show credential configuration state, an explicit keep, replace, or clear selector, and a password input for replacement. Binding confirmation uses a standard warning dialog. Revision and token values remain hidden.
 
-## Components
+## Motion and browser affordances
 
-### Buttons and inputs
-
-Use ElButton, ElInput, ElSelect, ElInputNumber, and other existing Element Plus controls directly. Primary actions use the primary color. Secondary actions use the default button variant. Hover, disabled, validation, and focus behavior follow the component library. The global keyboard focus outline uses the primary color with a 2px outline and a 3px offset, subject to component-specific focus styles.
-
-### Navigation and views
-
-Every route has an icon and a Chinese accessible label. Expanded navigation shows labels. Collapsed navigation and connection status use Element Plus tooltips on hover and keyboard focus, with trigger keys disabled so Enter activates links. Active navigation uses the lightest purple background and primary text. Views use ElRadioGroup and ElRadioButton. Field visibility uses a click popover with checkboxes. Neither field visibility nor density changes the underlying query scope.
-
-### Tables and state
-
-All data tables use ElTable with border, including task, device, material, history, selection, resource, import-result, and batch-result tables. Task and material state uses labeled ElTag variants. Device data status remains numeric and separate from task availability. Material card cells show a mask with at most the last four digits. The optional CVV column always shows a mask. Full secrets do not belong in table tooltips or accessible labels.
-
-### Drawers and disclosures
-
-Task creation uses a device selector capped at 720px. Task details, material editing, and material import are capped at 640px. Device editing is capped at 560px. Each drawer can fill the available window width. Editing and import use labeled forms, visible errors, and guarded close decisions. Runtime details, command receipts, batch results, and resource cleanup use disclosures, with unresolved results exposed when needed.
-
-## Do's and Don'ts
-
-- Do retain Element Plus default geometry and use color variables for control theming.
-- Do use bordered ElTable for every data table.
-- Do retain Chinese accessible navigation labels, keyboard focus, and labeled state feedback in both sidebar states.
-- Do retain draft guards, full editing fields, and resource or command recovery controls.
-- Don't replace operational controls with prototype-specific custom controls.
-- Don't expose full card numbers or CVV in table content, tooltips, or accessible labels.
-- Don't describe recent snapshots as a complete task archive.
-- Don't add decorative card shadows or collapse navigation without the explicit sidebar toggle.
+Navigation background transitions last 160ms and are removed for reduced-motion preference. Other component motion remains library-owned. Focus outlines, selection, carets, and scrollbars use theme colors. Content uses white space and dividers without decorative shadows.
