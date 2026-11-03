@@ -99,7 +99,7 @@ export const environmentStateSchema = z.discriminatedUnion('kind', [
     kind: z.literal('recovery_required'),
     ...profile,
     obligation: unresolvedEnvironmentSchema,
-    message: z.string(),
+    message: fieldTextSchema,
   }),
 ]);
 export const recoveryTaskSchema = workTaskSchema.extend({
@@ -181,7 +181,7 @@ export const cleanupProofSchema = z.strictObject({
   environment: environmentClosureSchema,
   outcome: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.enum(['stopped', 'exhausted']) }),
-    z.strictObject({ kind: z.literal('failed'), message: z.string() }),
+    z.strictObject({ kind: z.literal('failed'), message: fieldTextSchema }),
   ]),
 });
 export const bindingSchema = browserSchema.pick({ id: true, provider: true, profileId: true });
@@ -257,11 +257,11 @@ export const dataOperations = {
   },
   'tasks.running': { input: boundExecutionSchema, result: nullResult },
   'tasks.fence': {
-    input: z.strictObject({ taskId: taskIdSchema, reason: z.string() }),
+    input: z.strictObject({ taskId: taskIdSchema, reason: fieldTextSchema }),
     result: nullResult,
   },
   'tasks.recovery': {
-    input: z.strictObject({ execution: boundExecutionSchema, message: z.string() }),
+    input: z.strictObject({ execution: boundExecutionSchema, message: fieldTextSchema }),
     result: nullResult,
   },
   'tasks.cancelQueued': { input: z.strictObject({ taskId: taskIdSchema }), result: nullResult },

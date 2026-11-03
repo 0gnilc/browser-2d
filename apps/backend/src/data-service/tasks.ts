@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { to } from '@browser-2d/amount';
-import { taskIdSchema } from '@browser-2d/contracts/public';
+import { fieldTextSchema, taskIdSchema } from '@browser-2d/contracts/public';
 import {
   browserSnapshotSchema,
   executionRefSchema,
@@ -190,6 +190,7 @@ export function createTasks(context: RepositoryContext, maxConcurrent: () => num
       return null;
     },
     fence(input: { taskId: string; reason: string }) {
+      const reason = fieldTextSchema.parse(input.reason);
       const task = get(input.taskId);
       const stamp = now();
       db.prepare(
@@ -197,10 +198,11 @@ export function createTasks(context: RepositoryContext, maxConcurrent: () => num
       ).run(stamp, stamp, task.id);
       db.prepare(
         "UPDATE browser SET status = CASE WHEN status = 'recovery_required' THEN status ELSE 'stopping' END, last_error = ?, updated_at = ? WHERE id = ?",
-      ).run(input.reason, stamp, task.browserId);
+      ).run(reason, stamp, task.browserId);
       return null;
     },
     recovery(input: { execution: BoundExecution; message: string }) {
+      const message = fieldTextSchema.parse(input.message);
       const task = bound(input.execution);
       const owed = obligation(task.environment);
       if (owed)
@@ -209,7 +211,7 @@ export function createTasks(context: RepositoryContext, maxConcurrent: () => num
           provider: task.browser.provider,
           profileId: task.browser.profileId,
           obligation: owed,
-          message: input.message,
+          message,
         });
       const stamp = now();
       db.prepare(
@@ -217,7 +219,7 @@ export function createTasks(context: RepositoryContext, maxConcurrent: () => num
       ).run(stamp, stamp, task.id);
       db.prepare(
         "UPDATE browser SET status = 'recovery_required', last_error = ?, updated_at = ? WHERE id = ?",
-      ).run(input.message, stamp, task.browserId);
+      ).run(message, stamp, task.browserId);
       return null;
     },
     cancelQueued(input: { taskId: string }) {
