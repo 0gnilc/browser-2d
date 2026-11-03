@@ -108,6 +108,10 @@ for (const source of ['internal/tsconfig/base.json', 'internal/build-config/inde
         );
       expect(await dev.close()).toBe(0);
       closed = true;
+      expect(
+        dev.output().match(/pnpm --filter @browser-2d\/backend build/g),
+        'One preset edit should trigger one replacement build',
+      ).toHaveLength(2);
     } finally {
       if (!closed) await dev.close();
     }
