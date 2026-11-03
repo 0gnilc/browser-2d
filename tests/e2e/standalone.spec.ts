@@ -60,7 +60,7 @@ test('standalone backend starts DataService and exits it before its coordinator'
   const directory = await mkdtemp(join(tmpdir(), 'browser-2d-backend-only-'));
   const child = spawn(process.execPath, ['scripts/dev/dev.mjs', '--backend-only'], {
     env: { ...process.env, BROWSER2D_DATA_DIR: directory },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
   let output = '';
   child.stdout.on('data', (data: Buffer) => {
@@ -70,7 +70,9 @@ test('standalone backend starts DataService and exits it before its coordinator'
     output += data.toString();
   });
   const exited = once(child, 'exit');
+  const closed = once(child, 'close');
   let pid: number | undefined;
+  const failures: unknown[] = [];
   try {
     await expect
       .poll(
@@ -99,16 +101,26 @@ test('standalone backend starts DataService and exits it before its coordinator'
       .toBe(true);
     const dataPid = pid;
     if (!dataPid) throw new Error('Standalone DataService PID missing');
-    child.kill('SIGTERM');
+    child.stdin.write('stop\n');
     const [code] = await exited;
     expect(code, output).toBe(0);
     expect(absent(dataPid)).toBe(true);
     expect(await readdir(join(directory, 'data', 'data-service-owners'))).toHaveLength(0);
-  } finally {
+  } catch (error) {
+    failures.push(error);
+  }
+  try {
     if (child.exitCode === null && child.signalCode === null) {
-      child.kill('SIGTERM');
+      child.stdin.write('stop\n');
       await exited;
     }
+    await closed;
+    if (pid) expect(absent(pid), 'Standalone DataService must exit before cleanup').toBe(true);
     await rm(directory, { recursive: true, force: true });
+  } catch (error) {
+    failures.push(error);
   }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, 'Standalone backend and cleanup failed');
 });

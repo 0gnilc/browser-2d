@@ -25,10 +25,10 @@ let rebuilding = false;
 let dirty = false;
 let debounce;
 const watchers = [];
-const commands = inspectUi ? createInterface({ input: process.stdin }) : undefined;
+const commands = inspectUi || backendOnly ? createInterface({ input: process.stdin }) : undefined;
 commands?.on('line', (line) => {
   if (line === 'stop') void close();
-  if (line === 'fail-stop') void writeFile(join(control, 'fail-stop'), 'fail');
+  if (inspectUi && line === 'fail-stop') void writeFile(join(control, 'fail-stop'), 'fail');
 });
 
 async function stop() {

@@ -32,7 +32,7 @@ class HiddenBrowserWindow extends electron.BrowserWindow {
     super({
       ...options,
       show: false,
-      webPreferences: { ...options.webPreferences, offscreen: process.platform === 'linux' },
+      webPreferences: { ...options.webPreferences, offscreen: process.platform !== 'darwin' },
     });
   }
 }
