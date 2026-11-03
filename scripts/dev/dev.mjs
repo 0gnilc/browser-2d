@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { watch } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -129,8 +129,9 @@ for (const path of [
   'apps/backend/tsconfig.json',
   'apps/ui/tsconfig.json',
 ]) {
+  const target = join(root, path);
   watchers.push(
-    watch(join(root, path), { recursive: true }, (event, filename) => {
+    watch(target, { recursive: (await stat(target)).isDirectory() }, (event, filename) => {
       if (inspectUi)
         process.stderr.write(`[dev:watch] ${JSON.stringify({ path, event, filename })}\n`);
       clearTimeout(debounce);
