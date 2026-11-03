@@ -57,7 +57,7 @@ assert.equal(candidates.length, 1, `Expected one packaged executable, found ${ca
 const sourceExecutable = candidates[0];
 const appDirectory =
   process.platform === 'darwin'
-    ? resolve(sourceExecutable, '../../../..')
+    ? resolve(dirname(sourceExecutable), '../..')
     : dirname(sourceExecutable);
 const installRoot = await mkdtemp(join(tmpdir(), 'browser-2d-install-'));
 const installedApp = process.argv.includes('--in-place')
