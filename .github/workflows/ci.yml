@@ -4,14 +4,20 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      acceptance_scope:
+        description: Native acceptance scope
+        type: choice
+        options: [full, process]
+        default: full
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.acceptance_scope || 'full' }}
   cancel-in-progress: true
 jobs:
   native:
-    name: Native (${{ matrix.target }})
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.acceptance_scope == 'process' && 'Task process' || 'Native' }} (${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -47,11 +53,17 @@ jobs:
       - run: pnpm check
       - run: pnpm test:workflows
       - run: pnpm test
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - run: pnpm test:release
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - run: pnpm test:storage
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - run: pnpm test:observer
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - run: pnpm test:credentials
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
       - name: Updater transport and lifecycle
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:updates; else pnpm test:updates; fi
@@ -60,26 +72,38 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm test:process; else pnpm test:process; fi
       - name: Electron integration and UI
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm test:electron; else pnpm test:electron; fi
       - name: Native distributables
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         run: pnpm dist -- --target=${{ matrix.target }}
+      - name: Fused task process package
+        if: github.event_name == 'workflow_dispatch' && inputs.acceptance_scope == 'process'
+        run: pnpm package -- --target=${{ matrix.target }}
       - name: Fused package verification outside checkout
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:package -- --target=${{ matrix.target }}; else pnpm verify:package -- --target=${{ matrix.target }}; fi
+      - name: Fused task process verification outside checkout
+        if: github.event_name == 'workflow_dispatch' && inputs.acceptance_scope == 'process'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a pnpm verify:package -- --target=${{ matrix.target }} --process-only; else pnpm verify:package -- --target=${{ matrix.target }} --process-only; fi
       - name: Preview native install, reinstall and uninstall
+        if: github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process'
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:installation; else pnpm verify:installation; fi
       - name: Exact ZIP or direct FUSE AppImage runtime
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && (github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process')
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dbus-run-session -- xvfb-run -a bash scripts/linux-secret-session.sh pnpm verify:formats -- --target=${{ matrix.target }}; else pnpm verify:formats -- --target=${{ matrix.target }}; fi
       - name: Install and run RPM in Fedora 44 userspace
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && (github.event_name != 'workflow_dispatch' || inputs.acceptance_scope != 'process')
         shell: bash
         run: |
           mkdir -p artifacts/fedora44
@@ -91,7 +115,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-${{ matrix.target }}
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.acceptance_scope == 'process' && 'task-process' || 'native' }}-${{ matrix.target }}
           path: |
             artifacts/
             release/*/*.dmg
@@ -107,7 +131,7 @@ jobs:
           compression-level: 0
           retention-days: 7
   acceptance:
-    name: Native acceptance
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.acceptance_scope == 'process' && 'Task process acceptance' || 'Native acceptance' }}
     if: always()
     needs: native
     runs-on: ubuntu-24.04

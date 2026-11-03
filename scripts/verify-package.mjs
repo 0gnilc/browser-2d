@@ -25,6 +25,7 @@ import { verifyTaskProcessExecutable } from './task-process-proof.mjs';
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
   pathToFileURL(desktopRequire.resolve('@electron/fuses')).href
 );
+const processOnly = process.argv.includes('--process-only');
 
 const target =
   process.argv.find((arg) => arg.startsWith('--target='))?.slice(9) ||
@@ -154,11 +155,31 @@ assert(
 const reportPath = join(dataDir, 'report.json');
 const evidenceDir = resolve(process.env.BROWSER2D_EVIDENCE_DIR || join(root, 'artifacts', target));
 await mkdir(evidenceDir, { recursive: true });
-await verifyTaskProcessExecutable(launchExecutable, {
+const taskProcessReport = join(evidenceDir, 'task-processes.json');
+const taskProcesses = await verifyTaskProcessExecutable(launchExecutable, {
   packaged: true,
   env: process.env,
-  evidence: join(evidenceDir, 'task-processes.json'),
+  evidence: taskProcessReport,
 });
+if (processOnly) {
+  const summary = {
+    scope: 'task-process',
+    target,
+    executable: launchExecutable,
+    staticExecutable: executable,
+    fuses,
+    taskProcessReport,
+    runtime: taskProcesses.runtime,
+    scenarios: taskProcesses.reports.length,
+    result: 'VERIFIED',
+  };
+  await writeFile(
+    join(evidenceDir, 'process-package-summary.json'),
+    JSON.stringify(summary, null, 2),
+  );
+  console.log(JSON.stringify(summary, null, 2));
+  process.exit(0);
+}
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
   const readyPath = join(dataDir, 'chrome-pages-ready');
