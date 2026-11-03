@@ -370,3 +370,39 @@ it('fences an older TXT read when a newer selection has already populated the dr
   expect(field('card-import-text').value).toBe('new selection');
   wrapper.unmount();
 });
+
+it('fences a delayed UTF-8 failure after the drawer closes and reopens', async () => {
+  const test = createTestApi();
+  const wrapper = mount(CardImport, {
+    attachTo: document.body,
+    global: { provide: { [desktopApiKey]: test.api } },
+  });
+  await wrapper.vm.open();
+  await flushPromises();
+  let finishFile: (bytes: ArrayBuffer) => void = () => {};
+  const file = new File([], 'delayed.txt');
+  Object.defineProperty(file, 'arrayBuffer', {
+    value: () =>
+      new Promise<ArrayBuffer>((resolve) => {
+        finishFile = resolve;
+      }),
+  });
+  const fileInput = field('card-import-file');
+  Object.defineProperty(fileInput, 'files', { value: [file] });
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  await flushPromises();
+  const close = [...document.querySelectorAll('button')].find(
+    (button) => button.textContent === '关闭',
+  );
+  if (!close) throw new Error('Close button missing');
+  close.click();
+  await flushPromises();
+  await wrapper.vm.open();
+  await flushPromises();
+  await input('card-import-text', sourceText);
+  finishFile(new Uint8Array([0xff]).buffer);
+  await flushPromises();
+  expect(field('card-import-text').value).toBe(sourceText);
+  expect(document.body.textContent).not.toContain('不是有效的 UTF-8');
+  wrapper.unmount();
+});

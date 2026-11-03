@@ -39,7 +39,7 @@ async function readFile(event: globalThis.Event) {
   if (!(input instanceof globalThis.HTMLInputElement)) return;
   const file = input.files?.[0];
   const session = editor.session.value;
-  if (!file || session.kind === 'closed') return;
+  if (!file || session.kind === 'closed' || editor.saving.value) return;
   const currentFile = ++fileGeneration;
   error.value = '';
   try {
@@ -53,7 +53,7 @@ async function readFile(event: globalThis.Event) {
     if (currentFile === fileGeneration && editor.session.value === session)
       session.draft.text = text;
   } catch {
-    if (currentFile === fileGeneration)
+    if (currentFile === fileGeneration && editor.session.value === session)
       error.value = '文件不是有效的 UTF-8 文本。请另存为 UTF-8 TXT 后重试。';
   } finally {
     input.value = '';
@@ -61,6 +61,7 @@ async function readFile(event: globalThis.Event) {
 }
 async function submit() {
   await editor.save(async (session) => {
+    fileGeneration += 1;
     importing.value = true;
     report.value = undefined;
     unknownProgress.value = false;
@@ -115,6 +116,7 @@ defineExpose({ open });
           ><ElInput
             id="card-import-text"
             v-model="editor.session.value.draft.text"
+            @update:model-value="fileGeneration += 1"
             type="textarea"
             :rows="9"
             placeholder="粘贴固定格式的多行卡文本"

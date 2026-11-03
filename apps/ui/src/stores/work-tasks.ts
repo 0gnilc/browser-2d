@@ -12,10 +12,12 @@ export const browserStatusLabels: Record<Browser['status'], string> = {
   recovery_required: '待恢复',
 };
 
+type PendingControl = { action: 'start' | 'stop'; phase: 'requesting' | 'unconfirmed' };
+
 export const useWorkTasksStore = defineStore('work-tasks', () => {
   const browsers = shallowRef<Browser[]>([]);
   const tasks = shallowRef<WorkTask[]>([]);
-  const pending = ref(new Map<BrowserId, 'start' | 'stop'>());
+  const pending = ref(new Map<BrowserId, PendingControl>());
   const loading = ref(false);
   const error = ref('');
   const controlError = ref('');
@@ -41,6 +43,9 @@ export const useWorkTasksStore = defineStore('work-tasks', () => {
         if (browserResult.ok && taskResult.ok) {
           browsers.value = browserResult.value;
           tasks.value = taskResult.value;
+          for (const [browserId, control] of pending.value) {
+            if (control.phase === 'unconfirmed') pending.value.delete(browserId);
+          }
           connection.value = 'connected';
           error.value = '';
         } else {
@@ -102,32 +107,43 @@ export const useWorkTasksStore = defineStore('work-tasks', () => {
     );
   }
   function label(browser: Browser) {
-    const action = pending.value.get(browser.id);
-    return action === 'stop'
+    const control = pending.value.get(browser.id);
+    if (control?.phase === 'unconfirmed') return '工作状态待确认';
+    return control?.action === 'stop'
       ? '停止中'
-      : action === 'start'
+      : control?.action === 'start'
         ? '正在请求启动'
         : browserStatusLabels[browser.status];
   }
+  function requesting(browserId: BrowserId) {
+    return pending.value.get(browserId)?.phase === 'requesting';
+  }
   async function control(browserId: BrowserId, action: 'start' | 'stop') {
     const api = source;
-    if (!api || pending.value.has(browserId)) return;
+    const previous = pending.value.get(browserId);
+    if (!api || previous?.phase === 'requesting' || (previous && action === 'start')) return;
     const sourceEpoch = epoch;
-    pending.value.set(browserId, action);
+    generation += 1;
+    pending.value.set(browserId, { action, phase: 'requesting' });
     controlError.value = '';
     try {
       const result = await api.workTasks[action]({ browserId });
       if (sourceEpoch !== epoch) return;
+      if (result.ok || result.error.code === 'UNAVAILABLE' || result.error.code === 'INTERNAL') {
+        pending.value.set(browserId, { action, phase: 'unconfirmed' });
+      } else if (previous) {
+        pending.value.set(browserId, previous);
+      } else {
+        pending.value.delete(browserId);
+      }
       if (!result.ok) controlError.value = result.error.message;
-      await refresh();
     } catch {
       if (sourceEpoch === epoch) {
         controlError.value = '连接中断，工作状态尚未确认。请刷新核对。';
-        await refresh();
+        pending.value.set(browserId, { action, phase: 'unconfirmed' });
       }
-    } finally {
-      if (sourceEpoch === epoch) pending.value.delete(browserId);
     }
+    if (sourceEpoch === epoch) await refresh();
   }
   return {
     browsers,
@@ -141,6 +157,7 @@ export const useWorkTasksStore = defineStore('work-tasks', () => {
     refresh,
     busy,
     label,
+    requesting,
     control,
   };
 });

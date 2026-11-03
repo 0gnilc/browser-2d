@@ -177,6 +177,61 @@ describe('truthful work state', () => {
     },
   );
 
+  it('retains uncertain work after a definitive Stop refusal until both projections succeed', async () => {
+    const test = createTestApi();
+    const work = useWorkTasksStore();
+    const stop = work.connect(test.api);
+    await flushPromises();
+    test.api.workTasks.start = async () => ({ ok: true, value: task });
+    test.api.browsers.list = async () => failure('UNAVAILABLE', '数据服务不可用');
+    await work.control(browser.id, 'start');
+    test.api.workTasks.stop = async () => failure('CONFLICT', '暂时无法停止');
+    await work.control(browser.id, 'stop');
+    expect(work.controlError).toBe('暂时无法停止');
+    expect(work.busy(browser)).toBe(true);
+    expect(work.label(browser)).toBe('工作状态待确认');
+    test.api.browsers.list = async () => ({ ok: true, value: [browser] });
+    test.api.workTasks.list = async () => failure('UNAVAILABLE', '任务读取失败');
+    await work.refresh();
+    expect(work.busy(browser)).toBe(true);
+    expect(work.label(browser)).toBe('工作状态待确认');
+    test.api.workTasks.list = async () => ({ ok: true, value: [] });
+    await work.refresh();
+    expect(work.busy(browser)).toBe(false);
+    expect(work.label(browser)).toBe('空闲');
+    stop();
+  });
+
+  it('fences an old control reply after disconnect and a fresh action', async () => {
+    const old = createTestApi();
+    const next = createTestApi();
+    const oldReply = deferred<Awaited<ReturnType<Browser2dApi['workTasks']['start']>>>();
+    const nextReply = deferred<Awaited<ReturnType<Browser2dApi['workTasks']['start']>>>();
+    old.api.workTasks.start = () => oldReply.promise;
+    next.api.workTasks.start = () => nextReply.promise;
+    const work = useWorkTasksStore();
+    const disconnect = work.connect(old.api);
+    await flushPromises();
+    const oldRequest = work.control(browser.id, 'start');
+    disconnect();
+    const stop = work.connect(next.api);
+    await flushPromises();
+    const nextRequest = work.control(browser.id, 'start');
+    oldReply.resolve(failure('CONFLICT', '旧请求错误'));
+    await oldRequest;
+    expect(work.label(browser)).toBe('正在请求启动');
+    expect(work.busy(browser)).toBe(true);
+    expect(work.controlError).toBe('');
+    next.api.browsers.list = async () => ({ ok: true, value: [{ ...browser, status: 'working' }] });
+    next.api.workTasks.list = async () => ({ ok: true, value: [task] });
+    nextReply.resolve({ ok: true, value: task });
+    await nextRequest;
+    const row = work.browsers[0];
+    expect(row && work.label(row)).toBe('工作中');
+    expect(row && work.busy(row)).toBe(true);
+    stop();
+  });
+
   it('does not let a pre-action projection clear an uncertain start', async () => {
     const test = createTestApi();
     const work = useWorkTasksStore();
