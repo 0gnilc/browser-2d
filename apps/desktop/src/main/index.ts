@@ -29,6 +29,7 @@ import { createUpdateDriver } from './update-driver';
 import { launchWorker } from './worker-client';
 import { createCredentialVault } from '../platform/credentials';
 import { createBusinessCoordinator } from '../bridge/business';
+import { verifyTaskProcesses } from '../verification/task-process';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -224,7 +225,7 @@ async function verifyPackagedWindow() {
       `(async () => {
     const assert = (value, message) => { if (!value) throw new Error(message); };
     assert(typeof require === 'undefined' && typeof process === 'undefined', 'Renderer has Node access');
-    assert(document.querySelector('[data-testid="start-run"]'), 'Vue application missing');
+    assert(document.querySelector('[data-testid="task-new"]') && document.querySelector('[data-testid="run-table"]'), 'Vue application missing');
     const api = window.browser2d;
     const initial = await api.work.getSnapshot(); assert(initial.ok, 'Snapshot failed');
     const initialDevices = await api.devices.list(); assert(initialDevices.ok, 'Business device read failed');
@@ -317,6 +318,19 @@ async function verifyPackagedWindow() {
 }
 
 async function startApplication() {
+  const processReport = process.argv
+    .find((value) => value.startsWith('--verify-task-processes='))
+    ?.slice('--verify-task-processes='.length);
+  if (processReport) {
+    try {
+      await verifyTaskProcesses(processReport);
+      app.exit(0);
+    } catch (error) {
+      log.error('Task process verification failed', error);
+      app.exit(1);
+    }
+    return;
+  }
   await mkdir(dataDir, { recursive: true });
   if (!app.requestSingleInstanceLock()) {
     app.exit(0);

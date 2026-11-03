@@ -78,6 +78,16 @@ desktop 通过操作系统 safeStorage 保存加密凭据。当前 Chrome 设置
 
 重启把旧非终态任务标记为 interrupted，核对并清理资源，不自动重放任务。退出先停止接纳，再取消、清理、关库并等待 worker 退出。协作关闭预算为十秒，强制终止和退出确认另有五秒。强制或不确定退出不会报告为干净关闭，也不会允许开发协调器启动替代写入者。
 
+## 独立任务进程停止验证
+
+S1 增加 `TaskSupervisor` 和 `browser-worker.cjs`。每个 BrowserWorker 是独立的 Electron utility process，内部固定的控制线程只处理启动、心跳和停止。自动化与 Puppeteer 在 Node Worker 线程执行。控制线程调用 `Worker.terminate()` 后退出，Main 必须观察 utility process 的 `exit` 事件才接受退出证据。生产停止不调用 `utilityProcess.kill()`，不把磁盘 PID 当作终止权限。
+
+故障模型覆盖自动化 JavaScript 死循环、忽略取消和 POSIX SIGTERM。它不保证终止冻结的控制线程、不可中断的原生扩展或恶意进程代码。未确认退出会进入 `blocked`，保留清理义务。Main 同步关闭绑定真实进程来源的请求入口，随后并行发起停止、平台关闭和数据库 fence。最终释放还要求全部已发启动结束、退出后的平台关闭确认，以及 fence 完成。重复停止共享清理请求，失败后可重试。
+
+`pnpm test:process` 运行真实 Electron、两个独立任务进程及专用 SQLite DataService 测试进程，输出 `artifacts/process/<platform>-<arch>.json`。测试 SQL 长查询期间仍须观察选中任务退出，另一个任务继续通信，数据库继续提交。延迟启动、关闭失败、未确认退出、线程崩溃、父进程租约失效与伪造任务身份均有实际进程检查。POSIX SIGTERM 测试由测试进程向自身发信号，Windows 报告该信号用例不适用。成品验收在源码仓库外重跑同一验证，同时保留四原生目标 CI。测试 fixture 只存在于独立验证入口，renderer 无法选择执行文件或测试行为。
+
+当前界面和旧数据服务仍使用原有设备、物料和调度 API。S1 不切换旧任务，不创建新业务表，不重建数据库，也不实施真实卡处理。新数据模型与正式任务接入属于后续阶段。
+
 ## 安装身份
 
 安装标识由 [release.mjs](../internal/build-config/release.mjs) 的 `identity` 定义，运行时名称由 [main 入口](../apps/desktop/src/main/index.ts)设置。更改身份会影响安装与数据路径，需要单独验收。旧 Squirrel 分发及升级兼容性进展见 [Issue #6](https://github.com/0gnilc/browser-2d/issues/6)。

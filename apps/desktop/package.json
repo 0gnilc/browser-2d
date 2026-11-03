@@ -30,7 +30,8 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
   },
   "homepage": "https://github.com/0gnilc/browser-2d",
   "repository": {

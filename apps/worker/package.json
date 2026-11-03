@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./entry": "./dist/entry.cjs"
+    "./entry": "./dist/entry.cjs",
+    "./browser-worker": "./dist/browser-worker.cjs"
   },
   "files": [
     "dist"

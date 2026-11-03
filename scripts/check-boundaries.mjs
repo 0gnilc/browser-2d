@@ -312,7 +312,10 @@ export async function checkBoundaries(workspaceRoot = root) {
               const allowed =
                 unit === desktop &&
                 dependency === '@browser-2d/worker-runtime' &&
-                name === '@browser-2d/worker-runtime/entry' &&
+                [
+                  '@browser-2d/worker-runtime/entry',
+                  '@browser-2d/worker-runtime/browser-worker',
+                ].includes(name) &&
                 edge.kind === 'resolve' &&
                 exported.length > 0 &&
                 exported.every((entry) =>

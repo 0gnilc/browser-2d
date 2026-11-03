@@ -19,6 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { root } from './process.mjs';
 import { desktopRequire } from './native.mjs';
 import { observeChrome } from './chrome-observer.mjs';
+import { verifyTaskProcessExecutable } from './task-process-proof.mjs';
 
 const { getCurrentFuseWire, FuseState, FuseV1Options } = await import(
   pathToFileURL(desktopRequire.resolve('@electron/fuses')).href
@@ -144,6 +145,11 @@ assert(
 const reportPath = join(dataDir, 'report.json');
 const evidenceDir = resolve(process.env.BROWSER2D_EVIDENCE_DIR || join(root, 'artifacts', target));
 await mkdir(evidenceDir, { recursive: true });
+await verifyTaskProcessExecutable(launchExecutable, {
+  packaged: true,
+  env: process.env,
+  evidence: join(evidenceDir, 'task-processes.json'),
+});
 const reports = [];
 for (let pass = 1; pass <= 2; pass++) {
   const readyPath = join(dataDir, 'chrome-pages-ready');
