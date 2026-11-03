@@ -25,8 +25,11 @@ port.once('message', ({ data }: { data: unknown }) => {
         .then(() => process.exit(0));
     });
     port.postMessage({ kind: 'ready', endpoint: browser.wsEndpoint() });
-  })().catch(() => {
-    port.postMessage({ kind: 'failed' });
+  })().catch((error: unknown) => {
+    port.postMessage({
+      kind: 'failed',
+      message: error instanceof Error ? error.message : 'Unknown test Chrome launch error',
+    });
     process.exit(1);
   });
 });

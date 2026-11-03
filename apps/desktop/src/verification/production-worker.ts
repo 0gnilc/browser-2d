@@ -30,12 +30,15 @@ export async function verifyProductionWorker(options: {
   let verified = false;
   let pulses = 0;
   let released = false;
+  let stage = 'worker-starting';
+  let platformFailure: string | undefined;
   const worker = launchTask({
     taskId: taskIdSchema.parse(randomUUID()),
     executionNonce: executionNonceSchema.parse(randomUUID()),
     browser: options.browser,
     environment: {
       open() {
+        stage = 'platform-starting';
         platform = utilityProcess.fork(
           join(options.runtime, 'verification/browser-platform.cjs'),
           [],
@@ -51,12 +54,21 @@ export async function verifyProductionWorker(options: {
         return new Promise((resolve, reject) => {
           child.once('message', (raw: unknown) => {
             const message = z
-              .object({ kind: z.literal('ready'), endpoint: z.url() })
+              .discriminatedUnion('kind', [
+                z.strictObject({ kind: z.literal('ready'), endpoint: z.url() }),
+                z.strictObject({ kind: z.literal('failed'), message: z.string() }),
+              ])
               .safeParse(raw);
             if (!message.success) {
               reject(new Error('Test Chrome platform failed'));
               return;
             }
+            if (message.data.kind === 'failed') {
+              platformFailure = message.data.message;
+              reject(new Error(platformFailure));
+              return;
+            }
+            stage = 'platform-ready';
             resolve({ processor: 'baidu-check', endpoint: message.data.endpoint, url: pageUrl });
           });
           child.once('error', () => reject(new Error('Test Chrome platform error')));
@@ -87,6 +99,7 @@ export async function verifyProductionWorker(options: {
       throw new Error('Production probe cannot request card operations');
     },
     observe(event) {
+      stage = event.kind;
       if (event.kind === 'verified') verified = true;
       if (event.kind === 'pulse') pulses++;
     },
@@ -100,7 +113,9 @@ export async function verifyProductionWorker(options: {
         worker.state.kind === 'exited' ||
         worker.state.kind === 'blocked'
       )
-        throw new Error('Production browser worker navigation failed');
+        throw new Error(
+          `Production browser worker navigation failed at ${stage} (${worker.state.kind})${platformFailure ? `: ${platformFailure}` : ''}`,
+        );
       await delay(20);
     }
     assert.equal((await worker.stop()).kind, 'exited');
