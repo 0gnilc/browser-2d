@@ -4,6 +4,7 @@ import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { chromium, expect, test, type Browser } from '@playwright/test';
 import { absent } from './development-helper';
 
@@ -30,8 +31,10 @@ test('standalone UI uses the unavailable desktop boundary and preserves a reject
         (await require('puppeteer-core').executablePath('chrome')),
       headless: true,
     });
-    await expect.poll(() => output).toMatch(/http:\/\/127\.0\.0\.1:\d+\//);
-    const url = output.match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];
+    await expect
+      .poll(() => stripVTControlCharacters(output))
+      .toMatch(/http:\/\/127\.0\.0\.1:\d+\//);
+    const url = stripVTControlCharacters(output).match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];
     if (!url) throw new Error('Standalone UI URL missing');
     const page = await browser.newPage();
     await page.goto(url);
